@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="description" content="כושר ותזונה אישית, בנוי בשבילך" />
+
+    <!-- Open Graph / Twitter Card - rich link previews on LinkedIn, WhatsApp, etc.
+         og:image/twitter:image use a root-relative path; once deployed, replace it with the
+         full absolute URL (e.g. https://your-domain.app/icons/icon-512.png) - some crawlers
+         (WhatsApp in particular) only render a preview image when given an absolute URL. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="MacroLift | מערכת חכמה למעקב כושר, תזונה וחיטוב" />
+    <meta
+      property="og:description"
+      content="אפליקציית PWA מתקדמת (Local-First) עם מנוע חישוב דטרמיניסטי, ניתוח התקדמות ויזואלי ומעקב אימונים."
+    />
+    <meta property="og:image" content="/icons/icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:locale" content="he_IL" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MacroLift | מערכת חכמה למעקב כושר, תזונה וחיטוב" />
+    <meta
+      name="twitter:description"
+      content="אפליקציית PWA מתקדמת (Local-First) עם מנוע חישוב דטרמיניסטי, ניתוח התקדמות ויזואלי ומעקב אימונים."
+    />
+    <meta name="twitter:image" content="/icons/icon-512.png" />
+
+    <!-- iOS "Add to Home Screen" support (Apple ignores the web app manifest for most of this) -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MacroLift" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>MacroLift | כושר ותזונה אישית</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {
+          // matchMedia/localStorage unavailable - default to light, matching Tailwind's unprefixed base.
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

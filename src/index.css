@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    direction: rtl;
+  }
+
+  body {
+    @apply min-h-screen bg-zinc-50 text-zinc-900 antialiased transition-colors dark:bg-zinc-950 dark:text-zinc-100;
+    font-family: 'Assistant', 'Rubik', system-ui, sans-serif;
+  }
+
+  * {
+    @apply border-zinc-200 dark:border-zinc-800;
+  }
+
+  ::selection {
+    @apply bg-lime-400/30 text-lime-900 dark:text-lime-200;
+  }
+
+  /* Slim scrollbars that fit the current theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-zinc-50 dark:bg-zinc-950;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-zinc-300 dark:bg-zinc-700;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400 dark:bg-zinc-600;
+  }
+}
+
+@layer components {
+  /* Glass / neon card used across the app - softly translucent white glass in
+     light mode, translucent dark glass in dark mode. Both blend into their
+     near-identical page background, so the transparency stays safe for text
+     contrast while giving every surface a premium glassmorphism feel. */
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-zinc-900/60 dark:shadow-none;
+  }
+
+  .neon-border {
+    @apply border border-lime-500/30 shadow-glow;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-bold text-zinc-950 transition active:scale-95 hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-lime-400;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-5 py-3 font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 active:scale-95 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800;
+  }
+}
