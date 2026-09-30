@@ -33,6 +33,7 @@ export default {
         'bounce-dot': 'bounce-dot 1.2s ease-in-out infinite',
         'toast-in': 'toast-in 0.3s ease-out',
         'toast-out': 'toast-out 0.3s ease-in forwards',
+        'glow-pulse': 'glow-pulse 0.9s ease-in-out 3',
       },
       keyframes: {
         'fade-in': {
@@ -58,6 +59,10 @@ export default {
         'toast-out': {
           '0%': { opacity: '1', transform: 'translateY(0)' },
           '100%': { opacity: '0', transform: 'translateY(-16px)' },
+        },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(163, 230, 53, 0.5)' },
+          '50%': { boxShadow: '0 0 32px 8px rgba(163, 230, 53, 0.55)' },
         },
       },
     },

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
 
 interface RestTimerProps {
   seconds: number;
@@ -21,12 +22,23 @@ function formatTime(totalSeconds: number): string {
 export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(true);
+  const hasFinishedRef = useRef(false);
 
   useEffect(() => {
     if (!running || remaining <= 0) return;
     const id = setTimeout(() => setRemaining((r) => Math.max(r - 1, 0)), 1000);
     return () => clearTimeout(id);
   }, [running, remaining]);
+
+  useEffect(() => {
+    if (remaining > 0) {
+      hasFinishedRef.current = false;
+      return;
+    }
+    if (hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
+    fireRestTimerFinishedAlert();
+  }, [remaining]);
 
   const progress = seconds > 0 ? remaining / seconds : 0;
   const radius = 26;
@@ -36,7 +48,9 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
 
   return createPortal(
     <div className="fixed inset-x-4 bottom-24 z-40 flex justify-center sm:inset-x-auto sm:bottom-6 sm:end-6 sm:justify-end animate-slide-up">
-      <div className="glass-card neon-border flex w-full max-w-sm items-center gap-4 p-3 shadow-glow sm:w-80">
+      <div
+        className={`glass-card neon-border flex w-full max-w-sm items-center gap-4 p-3 shadow-glow sm:w-80 ${isDone ? 'animate-glow-pulse' : ''}`}
+      >
         <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
           <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
             <circle cx="32" cy="32" r={radius} fill="none" stroke="currentColor" strokeWidth="5" className="text-zinc-200 dark:text-zinc-800" />
@@ -66,7 +80,10 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setRunning((r) => !r)}
+            onClick={() => {
+              unlockRestTimerAudio();
+              setRunning((r) => !r);
+            }}
             aria-label={running ? 'השהיה' : 'המשך'}
             disabled={isDone}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400 active:scale-90 disabled:opacity-40"

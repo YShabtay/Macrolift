@@ -57,6 +57,7 @@ import { getWeeklyCoachInsight } from '../utils/coachInsights';
 import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, type CalendarDay } from '../utils/scheduleHelpers';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
+import { unlockRestTimerAudio } from '../utils/restTimerAlert';
 import type {
   AppState,
   DayWorkout,
@@ -1036,6 +1037,9 @@ function WorkoutCard({
                         const isCompletingNewSet = i >= completedSets;
                         onToggleSet(selectedDay.id, exercise.id, i);
                         if (isCompletingNewSet) {
+                          // Must run synchronously inside this click handler, not after the
+                          // timer mounts - iOS Safari only unlocks Web Audio within a user gesture.
+                          unlockRestTimerAudio();
                           setRestSession({ id: Date.now(), seconds: exercise.restSeconds, label: exercise.name });
                         }
                       }}

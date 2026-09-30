@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw, Timer as TimerIcon } from 'lucide-react';
+import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
 
 const QUICK_DURATIONS = [60, 90, 120, 180];
 
@@ -7,26 +8,6 @@ function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-/** Short beep via the Web Audio API - no audio asset needed. */
-function playBeep() {
-  try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  } catch {
-    // Web Audio unavailable - silently skip the beep.
-  }
 }
 
 type Mode = 'countdown' | 'stopwatch';
@@ -49,7 +30,7 @@ export default function RestTimerWidget() {
           if (r <= 1) {
             if (!hasFinishedRef.current) {
               hasFinishedRef.current = true;
-              playBeep();
+              fireRestTimerFinishedAlert();
               setJustFinished(true);
               setRunning(false);
             }
@@ -74,6 +55,9 @@ export default function RestTimerWidget() {
 
   function toggleRunning() {
     if (mode === 'countdown' && remaining <= 0) return;
+    // Must run synchronously inside this click handler - iOS Safari only unlocks Web Audio
+    // within a user gesture, not later when the countdown actually finishes.
+    unlockRestTimerAudio();
     setJustFinished(false);
     setRunning((r) => !r);
   }
@@ -104,7 +88,7 @@ export default function RestTimerWidget() {
 
   return (
     <div
-      className={`glass-card p-5 transition sm:p-6 ${justFinished ? 'border-lime-400/60 shadow-glow' : ''}`}
+      className={`glass-card p-5 transition sm:p-6 ${justFinished ? 'border-lime-400/60 shadow-glow animate-glow-pulse' : ''}`}
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
