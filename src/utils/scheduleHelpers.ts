@@ -179,4 +179,11 @@ export function distributeProgramSchedule(
   return [...existing, ...added];
 }
 
+const WORKOUT_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+/** Workout name letter: AB (upper/lower) alternates A, B, A, B across the week; other programs number their workouts A, B, C... */
+export function workoutLetter(splitType: WorkoutSplitType, index: number): string {
+  return splitType === 'upper_lower' ? WORKOUT_LETTERS[index % 2] : (WORKOUT_LETTERS[index] ?? String(index + 1));
+}
+
 export const SPLIT_SHORT_LABELS: Record<WorkoutSplitType, string> = { fbw: 'FBW', upper_lower: 'AB', ppl: 'PPL' };

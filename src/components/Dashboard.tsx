@@ -68,8 +68,19 @@ import { buildWeeklySummaries, daysSince, formatDateDisplay, getWeekStart, today
 import { countCompletedWorkoutsThisWeek, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
-import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, SPLIT_SHORT_LABELS, type CalendarDay } from '../utils/scheduleHelpers';
+import {
+  buildWeekGrid,
+  CUSTOM_DAY_ID,
+  getScheduleForDate,
+  getTodaysPlanDay,
+  isDayCompleted,
+  REST_DAY_ID,
+  SPLIT_SHORT_LABELS,
+  workoutLetter,
+  type CalendarDay,
+} from '../utils/scheduleHelpers';
 import ProgramSwitcherModal from './ProgramSwitcherModal';
+import WorkoutDayBanner from './WorkoutDayBanner';
 import RebalanceModal, { type RebalanceChoice } from './RebalanceModal';
 import {
   buildRebalanceOptions,
@@ -156,6 +167,16 @@ const NAV_ITEMS: { id: Tab; label: string; shortLabel: string; icon: typeof Layo
   { id: 'progress', label: 'התקדמות', shortLabel: 'התקדמות', icon: TrendingUp },
   { id: 'profile', label: 'פרופיל', shortLabel: 'פרופיל', icon: UserIcon },
 ];
+
+const BANNER_DISMISSED_KEY = 'macrolift-workout-banner-dismissed';
+
+function readDismissedBannerDate(): string | null {
+  try {
+    return localStorage.getItem(BANNER_DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
 
 /** Stable empty list so memo dependencies don't change on every render when no dates are stored. */
 const NO_DATES: string[] = [];
@@ -468,9 +489,12 @@ function DashboardTab({
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
+  const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
+  const baseStepGoal = appState.stepGoal ?? DEFAULT_STEP_GOAL;
+  const effectiveStepGoal = getEffectiveStepGoal(baseStepGoal, weeklyBalance, todayIso());
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // The badge only shows for a real overshoot that hasn't been dealt with yet today.
@@ -489,6 +513,15 @@ function DashboardTab({
     () => completedDates.includes(todayIso()) || isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
     [workoutPlan, progress, todaysDay, completedDates],
   );
+
+  // A workout the user planned for today (not rest/custom) and hasn't finished: remind them in-app.
+  const plannedToday = useMemo(() => {
+    const entry = getScheduleForDate(schedule, todayIso());
+    if (!entry || entry.dayId === REST_DAY_ID || entry.dayId === CUSTOM_DAY_ID) return undefined;
+    const index = workoutPlan.days.findIndex((d) => d.id === entry.dayId);
+    return index >= 0 ? { day: workoutPlan.days[index], letter: workoutLetter(workoutPlan.splitType, index) } : undefined;
+  }, [schedule, workoutPlan]);
+  const showWorkoutBanner = !!plannedToday && !todaysDayCompleted && bannerDismissedDate !== todayIso();
 
   const latestPhotoDaysAgo = useMemo(() => {
     if (progressPhotos.length === 0) return null;
@@ -562,6 +595,22 @@ function DashboardTab({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">הנה סיכום היעדים והאימון שלך להיום</p>
       </div>
 
+      {showWorkoutBanner && plannedToday && (
+        <WorkoutDayBanner
+          letter={plannedToday.letter}
+          focus={plannedToday.day.focus}
+          onStart={() => onNavigate('workout')}
+          onDismiss={() => {
+            setBannerDismissedDate(todayIso());
+            try {
+              localStorage.setItem(BANNER_DISMISSED_KEY, todayIso());
+            } catch {
+              // Not remembered across reloads; fine.
+            }
+          }}
+        />
+      )}
+
       <HeroCarousel slides={heroSlides} />
 
       <QuickCompleteButton
@@ -624,7 +673,9 @@ function DashboardTab({
 
       <StepsTracker
         stepLogs={stepLogs}
-        goalSteps={getEffectiveStepGoal(appState.stepGoal ?? DEFAULT_STEP_GOAL, weeklyBalance, todayIso())}
+        goalSteps={effectiveStepGoal}
+        baseGoalSteps={baseStepGoal}
+        stepBoost={effectiveStepGoal - baseStepGoal}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}

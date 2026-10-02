@@ -8,7 +8,12 @@ import Toast from './Toast';
 
 interface StepsTrackerProps {
   stepLogs: StepLog[];
+  /** Today's goal including any temporary weekly-rebalance boost. */
   goalSteps: number;
+  /** The user's own goal without the boost - what the goal editor changes. */
+  baseGoalSteps: number;
+  /** Extra steps per day added by the weekly rebalance (0 when none is active). */
+  stepBoost: number;
   weightKg: number;
   onSaveSteps: (date: string, steps: number) => void;
   onSaveGoal: (goal: number) => void;
@@ -16,7 +21,7 @@ interface StepsTrackerProps {
 
 const WEEKDAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 
-export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, goalSteps, baseGoalSteps, stepBoost, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
   const today = todayIso();
   const todaySteps = useMemo(() => getStepsForDate(stepLogs, today), [stepLogs, today]);
   const [isLogging, setIsLogging] = useState(false);
@@ -89,6 +94,11 @@ export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveStep
               <Pencil className="h-3 w-3" />
             </button>
           </div>
+          {stepBoost > 0 && (
+            <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+              מותאם שבועית (+{stepBoost.toLocaleString()} לאיזון) ⚖️
+            </p>
+          )}
 
           <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -136,7 +146,7 @@ export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveStep
 
       {isEditingGoal && (
         <StepGoalModal
-          goal={goalSteps}
+          goal={baseGoalSteps}
           onSave={(goal) => {
             onSaveGoal(goal);
             setIsEditingGoal(false);

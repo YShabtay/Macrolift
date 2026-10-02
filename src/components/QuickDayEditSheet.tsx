@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Check, Dumbbell, Moon, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Check, Dumbbell, Moon, RotateCcw, X } from 'lucide-react';
 import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry } from '../types/fitness';
-import { CUSTOM_DAY_ID, getScheduleForDate, isDayCompleted, REST_DAY_ID } from '../utils/scheduleHelpers';
+import { CUSTOM_DAY_ID, getScheduleForDate, isDayCompleted, REST_DAY_ID, workoutLetter } from '../utils/scheduleHelpers';
+import { shareWorkoutReminder } from '../utils/calendarExport';
 import { formatDateLong, parseIsoDate, todayIso } from '../utils/weightCalculations';
-
-const WORKOUT_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-/** AB (upper/lower) alternates A, B, A, B across the week; other programs just number their workouts. */
-function workoutLetter(splitType: WorkoutPlan['splitType'], index: number): string {
-  return splitType === 'upper_lower' ? WORKOUT_LETTERS[index % 2] : (WORKOUT_LETTERS[index] ?? String(index + 1));
-}
 
 const WORKOUT_EMOJIS = ['💪', '🏋️'];
 
@@ -47,6 +42,7 @@ export default function QuickDayEditSheet({
   onClose,
 }: QuickDayEditSheetProps) {
   const [isChangingType, setIsChangingType] = useState(false);
+  const [reminderSent, setReminderSent] = useState(false);
 
   const entry = getScheduleForDate(schedule, date);
   const scheduledDay =
@@ -57,6 +53,17 @@ export default function QuickDayEditSheet({
   const completedDayIds = workoutPlan.days.filter((d) => isDayCompleted(workoutPlan, progress, date, d.id)).map((d) => d.id);
   const isCompleted = completedDayIds.length > 0 || completedDates.includes(date);
   const isToday = date === todayIso();
+
+  const workoutTitle = scheduledDay
+    ? `אימון ${workoutLetter(workoutPlan.splitType, workoutPlan.days.indexOf(scheduledDay))} - MacroLift`
+    : '';
+  const canRemind = !!scheduledDay && !isCompleted && date >= todayIso();
+
+  async function handleSyncReminder() {
+    if (!scheduledDay) return;
+    const done = await shareWorkoutReminder({ date, title: workoutTitle, description: scheduledDay.focus, alarmHour: 9 });
+    if (done) setReminderSent(true);
+  }
 
   function undoAllCompletions() {
     if (completedDayIds.length > 0) completedDayIds.forEach((dayId) => onUndoCompleteDay(dayId, date));
@@ -149,6 +156,22 @@ export default function QuickDayEditSheet({
             צפה בתרגילים והפעל טיימר
             <ArrowLeft className="h-3.5 w-3.5" />
           </button>
+        )}
+
+        {canRemind && (
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void handleSyncReminder()}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              סנכרן תזכורת ליומן הטלפון 📅
+            </button>
+            <p className="text-[11px] leading-snug text-zinc-500">
+              {reminderSent ? 'הקובץ מוכן - אשרו את ההוספה ליומן. התראה תופיע ב-09:00 ביום האימון.' : 'התראה ביומן ב-09:00 ביום האימון, ללא שרת.'}
+            </p>
+          </div>
         )}
 
         {/* Nothing planned yet (or switching): pick the day's workout straight from the active program, or make it a rest day. */}
