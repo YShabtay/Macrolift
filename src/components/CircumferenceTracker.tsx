@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, ChevronDown, Plus, Ruler, Target, Trash2 } from 'lucide-react';
-import type { BodyMeasurements, CircumferenceEntry, CircumferenceGoals, Goal, TrainingExperience } from '../types/fitness';
+import type { BodyMeasurements, BulkingPlan, CircumferenceEntry, CircumferenceGoals, Goal, TrainingExperience } from '../types/fitness';
 import {
   EXPERIENCE_LABELS,
   estimateMonthsToGoal,
@@ -13,6 +13,7 @@ import {
   type GrowthMetric,
 } from '../utils/bodyMeasurements';
 import { formatDateDisplay, todayIso } from '../utils/weightCalculations';
+import { describeBulkingPlan, formatCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
 
 const GROWTH_METRICS: GrowthMetric[] = ['armCm', 'chestCm', 'hipCm'];
 const GOAL_LABELS_SHORT: Record<Goal, string> = {
@@ -27,6 +28,7 @@ interface CircumferenceTrackerProps {
   goals: CircumferenceGoals;
   goal: Goal;
   experienceYears: TrainingExperience | undefined;
+  bulkingPlan?: BulkingPlan;
   onSaveEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteEntry: (id: string) => void;
   onSaveGoals: (goals: CircumferenceGoals) => void;
@@ -37,6 +39,7 @@ export default function CircumferenceTracker({
   goals,
   goal,
   experienceYears,
+  bulkingPlan,
   onSaveEntry,
   onDeleteEntry,
   onSaveGoals,
@@ -65,6 +68,10 @@ export default function CircumferenceTracker({
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {waistWarning}
         </div>
+      )}
+
+      {goal === 'gain_muscle' && (
+        <BulkingPlanCard plan={bulkingPlan} logs={logs} experience={experience} />
       )}
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -416,6 +423,78 @@ function MeasurementInput({ label, value, onChange }: { label: string; value: st
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bulking period plan
+// ---------------------------------------------------------------------------
+
+const VERDICT_LABELS = { realistic: 'ריאלי', ambitious: 'שאפתני', unrealistic: 'לא סביר' } as const;
+
+function BulkingPlanCard({
+  plan,
+  logs,
+  experience,
+}: {
+  plan: BulkingPlan | undefined;
+  logs: CircumferenceEntry[];
+  experience: TrainingExperience;
+}) {
+  const today = todayIso();
+  const rows = useMemo(() => (plan ? describeBulkingPlan(plan, experience) : []), [plan, experience]);
+  const progress = useMemo(() => (plan ? getBulkingProgress(plan, logs, today) : []), [plan, logs, today]);
+
+  if (!plan) {
+    return (
+      <p className="mb-4 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-3.5 py-2.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
+        אפשר לתכנן תקופת מסה (משך ויעד עלייה בהיקפים) דרך "עריכת פרטים" בלשונית הפרופיל.
+      </p>
+    );
+  }
+
+  const elapsed = getElapsedMonths(plan, today);
+  const elapsedPct = Math.round((elapsed / plan.durationMonths) * 100);
+  const remaining = Math.max(plan.durationMonths - elapsed, 0);
+
+  return (
+    <div className="mb-4 rounded-xl border border-orange-400/20 bg-orange-400/5 p-3.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">תקופת מסה: {plan.durationMonths} חודשים</p>
+        <span className="text-[11px] text-zinc-600 dark:text-zinc-500">
+          התחלה {formatDateDisplay(plan.startDate)} · נותרו כ-{Math.round(remaining * 10) / 10} חודשים
+        </span>
+      </div>
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${elapsedPct}%` }} />
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-xs text-zinc-600 dark:text-zinc-500">לא הוגדרו יעדי עלייה בהיקפים - אפשר להוסיף דרך "עריכת פרטים".</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map((row) => {
+            const p = progress.find((x) => x.region === row.region);
+            return (
+              <div key={row.region} className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                  {row.label}: יעד {formatCm(row.totalGainCm)} ס״מ
+                  <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">
+                    (≈ {formatCm(row.perMonthCm)} ס״מ/חודש · {VERDICT_LABELS[row.verdict]})
+                  </span>
+                </span>
+                <span className="shrink-0 font-bold text-zinc-900 dark:text-zinc-100">
+                  {p?.gainedCm == null ? 'אין מספיק מדידות' : `${p.gainedCm > 0 ? '+' : ''}${formatCm(p.gainedCm)} ס״מ`}
+                  {p?.gainedCm != null && (
+                    <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">מתוך {formatCm(p.expectedCm)} צפוי</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -92,6 +92,12 @@ function buildDemoMetrics(): UserMetrics {
     bodyState: 'athletic',
     goal: 'gain_muscle',
     goalIntensity: 'moderate',
+    bulkingPlan: {
+      durationMonths: 6,
+      startDate: daysAgoIso(56),
+      gainMode: 'per_region',
+      regionGainCm: { armCm: 2, chestCm: 3, hipCm: 3 },
+    },
   };
 }
 

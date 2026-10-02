@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Save, X } from 'lucide-react';
 import type { Goal, GoalIntensity, TrainingDaysPerWeek, UserMetrics } from '../types/fitness';
+import BulkingPlanEditor from './BulkingPlanEditor';
+import { draftFromPlan, parseBulkingDraft } from '../utils/bulkingPlan';
 
 const AGE_MIN = 14;
 const AGE_MAX = 99;
@@ -41,6 +43,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
   const [trainingDaysPerWeek, setTrainingDaysPerWeek] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
   const [goal, setGoal] = useState<Goal>(metrics.goal);
   const [goalIntensity, setGoalIntensity] = useState<GoalIntensity>(metrics.goalIntensity ?? 'moderate');
+  const [bulkingDraft, setBulkingDraft] = useState(() => draftFromPlan(metrics.bulkingPlan));
 
   const ageValue = Number(age);
   const heightValue = Number(heightCm);
@@ -58,7 +61,10 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
     stepsValue >= STEPS_MIN &&
     stepsValue <= STEPS_MAX;
 
-  const isValid = isAgeValid && isHeightValid && isWeightValid && isStepsValid;
+  const bulkingResult = parseBulkingDraft(bulkingDraft, metrics.bulkingPlan);
+  const isBulkingValid = goal !== 'gain_muscle' || bulkingResult.status !== 'invalid';
+
+  const isValid = isAgeValid && isHeightValid && isWeightValid && isStepsValid && isBulkingValid;
 
   function handleSave() {
     if (!isValid) return;
@@ -71,6 +77,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
       trainingDaysPerWeek,
       goal,
       goalIntensity: goal === 'gain_muscle' ? goalIntensity : undefined,
+      bulkingPlan: goal === 'gain_muscle' && bulkingResult.status === 'ok' ? bulkingResult.plan : undefined,
     });
   }
 
@@ -211,6 +218,14 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
                 ))}
               </div>
             </div>
+          )}
+
+          {goal === 'gain_muscle' && (
+            <BulkingPlanEditor
+              draft={bulkingDraft}
+              onChange={setBulkingDraft}
+              experienceYears={metrics.experience?.experienceYears}
+            />
           )}
 
           <div className="flex gap-2">

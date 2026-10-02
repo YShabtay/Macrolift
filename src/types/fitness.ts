@@ -89,6 +89,21 @@ export interface ExperienceProfile {
   injuryNotes?: string;
 }
 
+/** Regions a bulking-period circumference gain target can be set for (thigh is stored under hipCm, matching BodyMeasurements). */
+export type BulkingGainRegion = 'armCm' | 'chestCm' | 'hipCm';
+
+/** A planned bulking period: how long it lasts and how many cm of circumference growth the user is aiming for. */
+export interface BulkingPlan {
+  /** Planned length of the bulk, in months. */
+  durationMonths: number;
+  /** When the plan was set (YYYY-MM-DD); measured progress and elapsed time are counted from here. */
+  startDate: string;
+  /** 'overall': one cm target applied to every region. 'per_region': separate target per region. */
+  gainMode: 'overall' | 'per_region';
+  overallGainCm?: number;
+  regionGainCm?: Partial<Record<BulkingGainRegion, number>>;
+}
+
 /** Raw physical data collected during onboarding. */
 export interface UserMetrics {
   gender: Gender;
@@ -105,6 +120,8 @@ export interface UserMetrics {
   measurements?: BodyMeasurements;
   /** Optional deep-dive questionnaire for experienced trainees. */
   experience?: ExperienceProfile;
+  /** Optional planned bulking period (duration + circumference gain targets); only meaningful when goal === 'gain_muscle'. */
+  bulkingPlan?: BulkingPlan;
 }
 
 export interface UserProfile {

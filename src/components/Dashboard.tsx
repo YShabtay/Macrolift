@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   List,
   LogOut,
+  Moon,
   Pencil,
   Play,
   Ruler,
@@ -56,7 +57,8 @@ import { buildWeeklySummaries, daysSince, getWeekStart, todayIso } from '../util
 import { countCompletedWorkoutsThisWeek } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
-import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, type CalendarDay } from '../utils/scheduleHelpers';
+import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, type CalendarDay } from '../utils/scheduleHelpers';
+import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
 import { unlockRestTimerAudio } from '../utils/restTimerAlert';
@@ -230,6 +232,7 @@ export default function Dashboard({
               appState={appState}
               onQuickCompleteDay={onQuickCompleteDay}
               onUndoCompleteDay={onUndoCompleteDay}
+              onSetSchedule={onSetSchedule}
               onSaveWeightLog={onSaveWeightLog}
               onSaveSteps={onSaveSteps}
               onDeleteFood={onDeleteFood}
@@ -328,6 +331,7 @@ function DashboardTab({
   appState,
   onQuickCompleteDay,
   onUndoCompleteDay,
+  onSetSchedule,
   onSaveWeightLog,
   onSaveSteps,
   onDeleteFood,
@@ -337,6 +341,7 @@ function DashboardTab({
   appState: AppState;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
+  onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onSaveWeightLog: (date: string, weightKg: number, notes?: string) => void;
   onSaveSteps: (date: string, steps: number) => void;
   onDeleteFood: (id: string) => void;
@@ -344,6 +349,7 @@ function DashboardTab({
   onNavigate: (tab: Tab) => void;
 }) {
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
+  const [editingDay, setEditingDay] = useState<string | null>(null);
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
@@ -454,6 +460,7 @@ function DashboardTab({
         workoutPlan={workoutPlan}
         progress={progress}
         schedule={schedule}
+        onSelectDay={setEditingDay}
         onNavigate={() => onNavigate('workout')}
       />
 
@@ -486,6 +493,20 @@ function DashboardTab({
           onUpdate={onUpdateFood}
           onDelete={onDeleteFood}
           onClose={() => setIsDailyMealsOpen(false)}
+        />
+      )}
+
+      {editingDay && (
+        <QuickDayEditSheet
+          date={editingDay}
+          workoutPlan={workoutPlan}
+          progress={progress}
+          schedule={schedule}
+          onQuickCompleteDay={onQuickCompleteDay}
+          onUndoCompleteDay={onUndoCompleteDay}
+          onSetSchedule={onSetSchedule}
+          onOpenFull={() => onNavigate('workout')}
+          onClose={() => setEditingDay(null)}
         />
       )}
     </div>
@@ -558,34 +579,44 @@ function WeeklyCalendarWidget({
   workoutPlan,
   progress,
   schedule,
+  onSelectDay,
   onNavigate,
 }: {
   workoutPlan: WorkoutPlan;
   progress: SetProgressEntry[];
   schedule: WorkoutScheduleEntry[];
+  onSelectDay: (date: string) => void;
   onNavigate: () => void;
 }) {
+  const today = useToday();
   const days = useMemo(
-    () => buildWeekGrid(todayIso(), workoutPlan, progress, schedule),
-    [workoutPlan, progress, schedule],
+    () => buildWeekGrid(today, workoutPlan, progress, schedule),
+    [today, workoutPlan, progress, schedule],
   );
   const weekdayLetters = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 
   return (
-    <button type="button" onClick={onNavigate} className="glass-card p-4 text-right transition hover:border-zinc-300 dark:hover:border-zinc-700 sm:p-5">
+    <div className="glass-card p-4 sm:p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-4 w-4 text-lime-700 dark:text-lime-400" />
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">לוח השבוע</h2>
         </div>
-        <span className="text-xs text-zinc-600 dark:text-zinc-500">לצפייה בלוח המלא ←</span>
+        <button type="button" onClick={onNavigate} className="text-xs text-zinc-600 transition hover:text-lime-700 dark:text-zinc-500 dark:hover:text-lime-400">
+          לצפייה בלוח המלא ←
+        </button>
       </div>
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
         {days.map((day: CalendarDay, i) => (
-          <div
+          <button
             key={day.date}
-            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 sm:p-2 ${
-              day.isToday ? 'border-lime-400/50 bg-lime-400/5' : 'border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40'
+            type="button"
+            onClick={() => onSelectDay(day.date)}
+            aria-label={`עריכת היום ${day.dayOfMonth}`}
+            className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 transition active:scale-95 sm:p-2 ${
+              day.isToday
+                ? 'border-lime-400/50 bg-lime-400/5 hover:bg-lime-400/10'
+                : 'border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 hover:border-lime-400/40'
             }`}
           >
             <span className="text-[10px] text-zinc-600 dark:text-zinc-500">{weekdayLetters[i]}</span>
@@ -594,13 +625,19 @@ function WeeklyCalendarWidget({
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-lime-400 text-zinc-950">
                 <Dumbbell className="h-2.5 w-2.5" />
               </span>
+            ) : day.scheduled?.dayId === REST_DAY_ID ? (
+              <span className="flex h-4 w-4 items-center justify-center text-zinc-500">
+                <Moon className="h-3 w-3" />
+              </span>
+            ) : day.scheduled ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-400/70" />
             ) : (
               <span className="h-4 w-4" />
             )}
-          </div>
+          </button>
         ))}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1369,6 +1406,11 @@ function ProfileTab({
                 {GOAL_INTENSITY_LABELS[metrics.goalIntensity ?? 'moderate']}
               </span>
             )}
+            {metrics.goal === 'gain_muscle' && metrics.bulkingPlan && (
+              <span className="rounded-lg border border-orange-400/30 bg-orange-400/10 px-3 py-1.5 text-xs font-semibold text-orange-700 dark:text-orange-400">
+                תקופת מסה: {metrics.bulkingPlan.durationMonths} חודשים
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -1434,6 +1476,7 @@ function ProfileTab({
         goals={appState.circumferenceGoals}
         goal={metrics.goal}
         experienceYears={metrics.experience?.experienceYears}
+        bulkingPlan={metrics.bulkingPlan}
         onSaveEntry={onSaveCircumferenceEntry}
         onDeleteEntry={onDeleteCircumferenceEntry}
         onSaveGoals={onSaveCircumferenceGoals}
