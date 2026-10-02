@@ -377,6 +377,50 @@ const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
 // Exercise factory
 // ---------------------------------------------------------------------------
 
+/** English name for every template exercise, keyed by its Hebrew name (swap-only alternatives carry their own `nameEn`). */
+const EXERCISE_NAMES_EN: Record<string, string> = {
+  'סקוואט מוט': 'Barbell Back Squat',
+  'דדליפט רומני': 'Romanian Deadlift',
+  'לחיצת חזה במוט שטוח': 'Barbell Bench Press',
+  'לחיצת חזה בשיפוע עם משקולות': 'Incline Dumbbell Press',
+  'לחיצת כתפיים בעמידה': 'Standing Barbell Overhead Press',
+  'לחיצת כתפיים בשיפוע (מכונה)': 'Machine Shoulder Press',
+  'לחיצת רגליים במכונה': 'Leg Press',
+  'חתירה בכבל ישיבה': 'Seated Cable Row',
+  'חתירת T או חתירת מוט': 'T-Bar Row',
+  'חתירת מוט חבוק': 'Bent Over Barbell Row',
+  'מתח באחיזה רחבה (או מכונת עזר)': 'Wide Grip Pull-up',
+  'מתח באחיזה צרה': 'Close Grip Pull-up',
+  'פולי עליון לגב רחב': 'Lat Pulldown',
+  'כפיפת מרפק במוט': 'Barbell Curl',
+  'כפיפת מרפק בפולי': 'Cable Bicep Curl',
+  'כפיפת מרפק פטיש': 'Dumbbell Hammer Curl',
+  'פשיטת מרפק בפולי': 'Cable Triceps Pushdown',
+  'פשיטת מרפק מעל הראש': 'Overhead Triceps Extension',
+  'הרחקת כתפיים לצד': 'Dumbbell Lateral Raise',
+  'כפיפת ברך שכיבה': 'Lying Leg Curl',
+  'פשיטת ברך במכונה': 'Leg Extension',
+  'הרמת אגן (Hip Thrust)': 'Barbell Hip Thrust',
+  'מכרעים בולגריים': 'Bulgarian Split Squat',
+  'מכרעים הליכה': 'Walking Lunges',
+  'הרמת שוקיים בעמידה': 'Standing Calf Raise',
+  'הרמת שוקיים בישיבה': 'Seated Calf Raise',
+  פלאנק: 'Plank',
+  'פלאנק צידי': 'Side Plank',
+  'כפיפות בטן עם משקל': 'Weighted Crunch',
+  'הרמת ברכיים תלויה': 'Hanging Knee Raise',
+};
+
+/** English name for an exercise by its Hebrew name - from the template library or the swap alternatives. Undefined if unknown. */
+export function getExerciseNameEn(name: string): string | undefined {
+  if (EXERCISE_NAMES_EN[name]) return EXERCISE_NAMES_EN[name];
+  for (const list of Object.values(EXERCISE_ALTERNATIVES)) {
+    const found = list.find((alt) => alt.name === name);
+    if (found) return found.nameEn;
+  }
+  return undefined;
+}
+
 let exerciseCounter = 0;
 
 function ex(
@@ -393,6 +437,7 @@ function ex(
   return {
     id: `ex-${exerciseCounter}-${name.replace(/\s+/g, '-')}`,
     name,
+    nameEn: EXERCISE_NAMES_EN[name],
     muscleGroup,
     equipment,
     sets,
@@ -641,16 +686,18 @@ export function suggestSplitType(daysPerWeek: TrainingDaysPerWeek): WorkoutSplit
  */
 export function findExerciseTemplate(
   name: string,
-): Pick<Exercise, 'name' | 'muscleGroup' | 'equipment' | 'youtubeId' | 'cues'> | undefined {
+): Pick<Exercise, 'name' | 'nameEn' | 'muscleGroup' | 'equipment' | 'youtubeId' | 'demoUrl' | 'cues'> | undefined {
   for (const plan of WORKOUT_TEMPLATES) {
     for (const day of plan.days) {
       const found = day.exercises.find((e) => e.name === name);
       if (found) {
         return {
           name: found.name,
+          nameEn: found.nameEn,
           muscleGroup: found.muscleGroup,
           equipment: found.equipment,
           youtubeId: found.youtubeId,
+          demoUrl: found.demoUrl,
           cues: found.cues,
         };
       }

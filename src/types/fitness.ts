@@ -172,6 +172,8 @@ export interface ExerciseAlternative {
 export interface Exercise {
   id: string;
   name: string;
+  /** English name, used for the YouTube search fallback (e.g. "Dumbbell Bench Press"). */
+  nameEn?: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   sets: number;
@@ -180,6 +182,8 @@ export interface Exercise {
   notes?: string;
   /** YouTube video id (the part after v=) for a short technique demo. */
   youtubeId?: string;
+  /** Optional short looping demo (GIF, WebM or MP4) shown above the video; WebM/MP4 play muted so they never interrupt background music. */
+  demoUrl?: string;
   /** 2-3 short, actionable execution cues shown alongside the demo video. */
   cues?: string[];
   /** Physiologically-equivalent exercises the user can swap this one for. */

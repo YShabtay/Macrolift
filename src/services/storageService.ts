@@ -36,12 +36,17 @@ export interface StorageService {
   /** Foods looked up through AI, cached on the device so repeat searches never hit the network. */
   getCustomFoods(): Promise<FoodPer100g[]>;
   saveCustomFoods(foods: FoodPer100g[]): Promise<void>;
+
+  /** Video links the user chose for specific exercises, keyed by the exercise's Hebrew name: { name: youtubeId }. */
+  getCustomExerciseVideos(): Promise<Record<string, string>>;
+  saveCustomExerciseVideos(videos: Record<string, string>): Promise<void>;
 }
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
 const USERS_KEY = 'macrolift-users';
 const SESSION_KEY = 'macrolift-session';
 const CUSTOM_FOODS_KEY = 'macrolift-custom-foods';
+const CUSTOM_EXERCISE_VIDEOS_KEY = 'macrolift-custom-exercise-videos';
 
 function appStateKey(userId: string): string {
   return `${APP_STATE_KEY_PREFIX}${userId}`;
@@ -91,6 +96,20 @@ class LocalStorageService implements StorageService {
 
   async clearSession(): Promise<void> {
     localStorage.removeItem(SESSION_KEY);
+  }
+
+  async getCustomExerciseVideos(): Promise<Record<string, string>> {
+    try {
+      const raw = localStorage.getItem(CUSTOM_EXERCISE_VIDEOS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  async saveCustomExerciseVideos(videos: Record<string, string>): Promise<void> {
+    localStorage.setItem(CUSTOM_EXERCISE_VIDEOS_KEY, JSON.stringify(videos));
   }
 
   async getCustomFoods(): Promise<FoodPer100g[]> {

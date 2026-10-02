@@ -25,7 +25,7 @@ import type {
 } from './types/fitness';
 import type { NutritionPlan, WorkoutPlan } from './types/fitness';
 import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
-import { getExerciseAlternatives, getWorkoutTemplate, suggestSplitType } from './data/workoutTemplates';
+import { getExerciseAlternatives, getExerciseNameEn, getWorkoutTemplate, suggestSplitType } from './data/workoutTemplates';
 import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
@@ -50,6 +50,7 @@ function normalizeState(state: AppState): AppState {
         ...day,
         exercises: day.exercises.map((exercise) => ({
           ...exercise,
+          nameEn: exercise.nameEn ?? getExerciseNameEn(exercise.name),
           alternatives: exercise.alternatives ?? getExerciseAlternatives(exercise.name),
         })),
       })),
