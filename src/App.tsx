@@ -465,7 +465,7 @@ export default function App() {
       if (!prev) return prev;
       const today = todayIso();
       const current = getActiveAdjustment(prev.weeklyBalance, today) ?? { weekStart: getWeekStart(today) };
-      const next = { ...current, handledDate: today };
+      const next = { ...current };
       if (choice.kind === 'taper') next.calorie = { reductionKcal: choice.reductionKcal, fromDate: choice.fromDate };
       if (choice.kind === 'steps') next.steps = { boost: choice.boost, fromDate: choice.fromDate };
       return { ...prev, weeklyBalance: next };

@@ -84,11 +84,9 @@ import WorkoutDayBanner from './WorkoutDayBanner';
 import RebalanceModal, { type RebalanceChoice } from './RebalanceModal';
 import {
   buildRebalanceOptions,
-  getActiveAdjustment,
   getDailyTargets,
   getEffectiveStepGoal,
   getWeeklyEnergyBalance,
-  REBALANCE_MIN_EXCESS_KCAL,
 } from '../utils/weeklyBalance';
 import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
@@ -489,6 +487,7 @@ function DashboardTab({
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
@@ -497,9 +496,8 @@ function DashboardTab({
   const effectiveStepGoal = getEffectiveStepGoal(baseStepGoal, weeklyBalance, todayIso());
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
-  // The badge only shows for a real overshoot that hasn't been dealt with yet today.
-  const showRebalanceBadge =
-    overshootKcal >= REBALANCE_MIN_EXCESS_KCAL && getActiveAdjustment(weeklyBalance, todayIso())?.handledDate !== todayIso();
+  // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
+  const showRebalanceButton = overshootKcal > 0;
   const rebalanceOptions = useMemo(
     () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, todayIso()) : null),
     [isRebalanceOpen, overshootKcal, nutritionPlan],
@@ -657,7 +655,7 @@ function DashboardTab({
           metrics={profile.metrics}
           nutritionPlan={nutritionPlan}
           targets={todayTargets}
-          overshootKcal={showRebalanceBadge ? overshootKcal : 0}
+          overshootKcal={showRebalanceButton ? overshootKcal : 0}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
@@ -709,10 +707,16 @@ function DashboardTab({
         <RebalanceModal
           options={rebalanceOptions}
           balance={weeklyEnergyBalance}
-          onChoose={onApplyRebalance}
+          baseStepGoal={baseStepGoal}
+          onChoose={(choice) => {
+            onApplyRebalance(choice);
+            if (choice.kind !== 'keep') setSyncToast('היעדים עודכנו וסונכרנו בהצלחה!');
+          }}
           onClose={() => setIsRebalanceOpen(false)}
         />
       )}
+
+      {syncToast && <Toast message={syncToast} onDismiss={() => setSyncToast(null)} />}
 
       {isProgramModalOpen && (
         <ProgramSwitcherModal
@@ -1035,9 +1039,9 @@ function NutritionCard({
           <button
             type="button"
             onClick={onOpenRebalance}
-            className="mt-1.5 rounded-lg border border-orange-400/30 bg-orange-400/5 px-2.5 py-1.5 text-right text-[11px] font-semibold leading-snug text-orange-700 transition hover:bg-orange-400/10 dark:text-orange-300"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
           >
-            {overshootKcal > 500 ? 'חריגה' : 'חריגה קלה'} של {overshootKcal} קק״ל • אפשרויות איזון שבועי ⚖️
+            ⚖️ חרגת ב-{overshootKcal} קק״ל • צפה באפשרויות לאיזון שבועי
           </button>
         )}
       </div>

@@ -2,9 +2,6 @@ import type { FoodEntry, MacroGrams, NutritionPlan, WeeklyBalanceAdjustment } fr
 import { daysBetween, formatIsoDate, getWeekEnd, getWeekStart, parseIsoDate } from './weightCalculations';
 import { sumTotals } from './nutritionLog';
 
-/** An overshoot smaller than this isn't worth interrupting the user about. */
-export const REBALANCE_MIN_EXCESS_KCAL = 150;
-
 /** Rough walking energy cost used to convert calories to steps (~40 kcal per 1,000 steps). */
 const KCAL_PER_1000_STEPS = 40;
 /** Moderate walking cadence, used to turn steps into minutes. */
@@ -133,8 +130,8 @@ export function buildRebalanceOptions(excessKcal: number, plan: NutritionPlan, t
     capped = wanted > maxPerDay;
   }
 
-  // Option 2: the same energy as extra walking (today only when the week is over).
-  const stepDays = Math.max(daysRemaining, 1);
+  // Option 2: the same energy as extra walking, starting today (walking today offsets today's surplus too).
+  const stepDays = daysRemaining + 1;
   const totalSteps = (excessKcal / KCAL_PER_1000_STEPS) * 1000;
   const wantedSteps = roundTo(totalSteps / stepDays, 100);
   const perDaySteps = Math.min(Math.max(wantedSteps, MIN_STEP_BOOST), MAX_STEP_BOOST);
@@ -148,7 +145,7 @@ export function buildRebalanceOptions(excessKcal: number, plan: NutritionPlan, t
       perDay: perDaySteps,
       minutes: Math.round(perDaySteps / STEPS_PER_MINUTE),
       days: stepDays,
-      fromDate: daysRemaining > 0 ? tomorrow : today,
+      fromDate: today,
       capped: wantedSteps > MAX_STEP_BOOST,
     },
   };

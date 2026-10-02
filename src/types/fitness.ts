@@ -329,6 +329,4 @@ export interface WeeklyBalanceAdjustment {
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */
   steps?: { boost: number; fromDate: string };
-  /** The day whose overshoot was already dealt with (any option, including "keep as is") - hides the badge for that day. */
-  handledDate?: string;
 }

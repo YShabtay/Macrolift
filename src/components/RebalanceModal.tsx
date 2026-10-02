@@ -10,12 +10,14 @@ export type RebalanceChoice =
 interface RebalanceModalProps {
   options: RebalanceOptions;
   balance: WeeklyEnergyBalance;
+  /** The user's own daily step goal (without any rebalance boost). */
+  baseStepGoal: number;
   onChoose: (choice: RebalanceChoice) => void;
   onClose: () => void;
 }
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
-export default function RebalanceModal({ options, balance, onChoose, onClose }: RebalanceModalProps) {
+export default function RebalanceModal({ options, balance, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
   const { taper, steps, daysRemaining, excessKcal, fatEquivalentG } = options;
 
   function choose(choice: RebalanceChoice) {
@@ -76,7 +78,7 @@ export default function RebalanceModal({ options, balance, onChoose, onClose }: 
                 onClick={() => choose({ kind: 'taper', reductionKcal: taper.perDayKcal, fromDate: taper.fromDate })}
                 className="btn-primary text-sm"
               >
-                עדכן יעדים לשאר השבוע ✓
+                קזז {taper.perDayKcal} קק״ל ליום עד סוף השבוע ✓
               </button>
             </>
           ) : (
@@ -92,12 +94,12 @@ export default function RebalanceModal({ options, balance, onChoose, onClose }: 
           </p>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
             הוסיפו כ-<b>{steps.perDay.toLocaleString()} צעדים</b>{' '}
-            {steps.days > 1 ? 'ביום עד סוף השבוע' : daysRemaining === 1 ? 'מחר' : 'היום'} (כ-{steps.minutes} דקות הליכה מתונה), לפי הערכה של כ-40 קק״ל
+            {steps.days > 1 ? 'ביום, מהיום ועד סוף השבוע' : 'היום'} (כ-{steps.minutes} דקות הליכה מתונה), לפי הערכה של כ-40 קק״ל
             ל-1,000 צעדים.
             {steps.capped && ' הוגבל לתוספת סבירה ליום - האיזון יהיה חלקי.'}
           </p>
           <button type="button" onClick={() => choose({ kind: 'steps', boost: steps.perDay, fromDate: steps.fromDate })} className="btn-secondary text-sm">
-            העלה את יעד הצעדים השבועי 👟
+            העלה את יעד הצעדים היומי ל-{(baseStepGoal + steps.perDay).toLocaleString()} 👟
           </button>
         </div>
 
@@ -108,7 +110,7 @@ export default function RebalanceModal({ options, balance, onChoose, onClose }: 
             החריגה שווה ערך אנרגטי לכ-{fatEquivalentG} גרם שומן בלבד. אין צורך בשינוי, פשוט חזרו ליעד הרגיל מחר.
           </p>
           <button type="button" onClick={() => choose({ kind: 'keep' })} className="btn-secondary text-sm">
-            השאר הכל כפי שהוא 👍
+            השאר הכל כרגיל 👍
           </button>
         </div>
       </div>
