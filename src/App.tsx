@@ -32,6 +32,7 @@ import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { pruneStaleSchedule } from './utils/scheduleHelpers';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
+import PullToRefresh from './components/PullToRefresh';
 
 /** Backfills fields added after a user's data was first saved, so components can assume they exist. */
 function normalizeState(state: AppState): AppState {
@@ -91,6 +92,23 @@ export default function App() {
   async function handleAuthenticated(newUserId: string) {
     setUserId(newUserId);
     setAppState(await loadState(newUserId));
+  }
+
+  /**
+   * Pull-to-refresh: asks the service worker to check for a newer app version (the update prompt appears if one exists)
+   * and re-reads the saved data from storage, so edits made in another tab or window show up.
+   */
+  async function handleRefresh() {
+    try {
+      const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
+      await registration?.update();
+    } catch {
+      // Offline or no service worker (dev): refreshing the data below still works.
+    }
+    if (userId) {
+      const fresh = await loadState(userId);
+      if (fresh) setAppState(fresh);
+    }
   }
 
   function handleOnboardingComplete(
@@ -444,7 +462,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <PullToRefresh onRefresh={handleRefresh}>
       <UpdatePrompt />
       <Dashboard
         appState={appState}
@@ -477,7 +495,7 @@ export default function App() {
         onLogout={handleLogout}
       />
       <AICoachDrawer appState={appState} userId={userId} onAddFood={handleAddFood} />
-    </>
+    </PullToRefresh>
   );
 }
 
