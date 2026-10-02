@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Beef,
@@ -21,6 +21,7 @@ import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
 import { FoodSearch, ServingPanel } from './FoodSearch';
+import PhotoSourceSheet from './PhotoSourceSheet';
 import { calculateRemaining, getEntriesForDate, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
 
@@ -54,22 +55,8 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
-  const pendingScanMealRef = useRef<Meal | null>(null);
-  const scanFileInputRef = useRef<HTMLInputElement>(null);
+  const [scanSourceMeal, setScanSourceMeal] = useState<Meal | null>(null);
   const today = todayIso();
-
-  function handleScanClick(meal: Meal) {
-    pendingScanMealRef.current = meal;
-    scanFileInputRef.current?.click();
-  }
-
-  function handleScanFileSelected(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-selecting the same file later
-    const meal = pendingScanMealRef.current;
-    pendingScanMealRef.current = null;
-    if (file && meal) setScanRequest({ meal, file });
-  }
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const eaten = useMemo(() => sumTotals(entriesForDate), [entriesForDate]);
@@ -134,21 +121,18 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
             meal={meal}
             entries={entriesForDate.filter((e) => e.meal === meal)}
             onAdd={() => setAddingMeal(meal)}
-            onScan={() => handleScanClick(meal)}
+            onScan={() => setScanSourceMeal(meal)}
             onDelete={onDeleteFood}
           />
         ))}
       </div>
 
-      {/* Hidden input drives both the file picker and, on mobile, the device camera. */}
-      <input
-        ref={scanFileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleScanFileSelected}
-      />
+      {scanSourceMeal && (
+        <PhotoSourceSheet
+          onFile={(file) => setScanRequest({ meal: scanSourceMeal, file })}
+          onClose={() => setScanSourceMeal(null)}
+        />
+      )}
 
       {addingMeal &&
         createPortal(
@@ -330,8 +314,8 @@ function MealSection({
           <button
             type="button"
             onClick={onScan}
-            aria-label="סרוק ארוחה במצלמה"
-            title="סרוק ארוחה במצלמה"
+            aria-label="סרוק ארוחה מתמונה"
+            title="סרוק ארוחה מתמונה (מצלמה או גלריה)"
             className="flex items-center gap-1 rounded-lg border border-lime-400/40 bg-lime-400/10 px-2.5 py-1.5 text-xs font-semibold text-lime-700 dark:text-lime-400 transition hover:border-lime-400/70 hover:bg-lime-400/20"
           >
             <Camera className="h-3.5 w-3.5" />

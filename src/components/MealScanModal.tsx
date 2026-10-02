@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, Loader2, RotateCw, Sparkles, X } from 'lucide-react';
 import type { FoodEntry, Meal } from '../types/fitness';
 import { MEAL_LABELS, MEAL_ORDER } from '../utils/nutritionLog';
-import { fileToBase64, MissingApiKeyError, scanMealImage, type FoodScanResult } from '../services/aiFoodScanner';
+import { prepareImageForAI, MissingApiKeyError, scanMealImage, type FoodScanResult } from '../services/aiFoodScanner';
 
 type ScanStatus = 'analyzing' | 'review' | 'error';
 
@@ -40,7 +40,7 @@ export default function MealScanModal({ meal: initialMeal, file, date, onClose, 
       setStatus('analyzing');
       setIsMissingKey(false);
       try {
-        const { base64, mimeType } = await fileToBase64(file);
+        const { base64, mimeType } = await prepareImageForAI(file);
         const scanResult = await scanMealImage(base64, mimeType);
         if (cancelled) return;
         setResult(scanResult);

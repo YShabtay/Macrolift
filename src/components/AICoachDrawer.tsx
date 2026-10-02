@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Bot, Camera, Check, RotateCw, Send, X } from 'lucide-react';
 import type { AppState, FoodEntry } from '../types/fitness';
 import { hasGeminiApiKey, sendCoachMessage, type ChatMessage } from '../services/geminiChat';
-import { fileToBase64, scanMealImage, type FoodScanResult } from '../services/aiFoodScanner';
+import PhotoSourceSheet from './PhotoSourceSheet';
+import { prepareImageForAI, scanMealImage, type FoodScanResult } from '../services/aiFoodScanner';
 import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, sumTotals } from '../utils/nutritionLog';
 import { compressImageToDataUrl } from '../utils/imageEncoding';
 import { todayIso } from '../utils/weightCalculations';
@@ -70,7 +71,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
   const [lastFailedAction, setLastFailedAction] = useState<(() => void) | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -127,10 +128,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
     }
   }
 
-  async function handlePickImage(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function handlePickImage(file: File) {
 
     if (file.size > MAX_UPLOAD_BYTES) {
       setError('הקובץ גדול מדי (מקסימום 15MB). נסו תמונה קטנה יותר.');
@@ -167,7 +165,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
     setIsLoading(true);
 
     try {
-      const { base64, mimeType } = await fileToBase64(file);
+      const { base64, mimeType } = await prepareImageForAI(file);
       const result = await scanMealImage(base64, mimeType);
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), kind: 'meal-scan', result, added: false }]);
     } catch (err) {
@@ -332,18 +330,10 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={handlePickImage}
-                      />
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        aria-label="צילום או העלאת תמונת ארוחה"
+                        onClick={() => setIsPhotoSheetOpen(true)}
+                        aria-label="צילום או בחירת תמונת ארוחה מהגלריה"
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400"
                       >
                         <Camera className="h-4 w-4" />
@@ -378,6 +368,10 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
           </div>,
           document.body,
         )}
+
+      {isPhotoSheetOpen && (
+        <PhotoSourceSheet onFile={(file) => void handlePickImage(file)} onClose={() => setIsPhotoSheetOpen(false)} />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </>

@@ -1080,7 +1080,7 @@ function Footer({
         </button>
       )}
       <button type="button" onClick={onNext} disabled={!canProceed} className="btn-primary flex-1">
-        {step === TOTAL_STEPS - 1 ? 'כניסה לדשבורד' : 'המשך'}
+        {step === TOTAL_STEPS - 1 ? 'סיום והתחלה' : 'המשך'}
         <ArrowLeft className="h-4 w-4" />
       </button>
     </div>

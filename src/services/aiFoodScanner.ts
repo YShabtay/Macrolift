@@ -1,3 +1,6 @@
+import { compressImage } from '../utils/imageCompressor';
+import { dataUrlToBase64 } from '../utils/imageEncoding';
+
 // gemini-2.5-flash returns 404 on generateContent for accounts without prior usage of the
 // 2.x series (Google is restricting access to it) - gemini-3.5-flash-lite is multimodal
 // (supports image input) and is the current default Google recommends for new projects.
@@ -43,23 +46,16 @@ const SYSTEM_PROMPT = `אתה מומחה תזונה שמנתח תמונות של
 
 כל הערכים המספריים חייבים להיות מספרים (לא מחרוזות עם יחידות). אם קשה לזהות בבירור את תוכן התמונה, החזר confidence: "low" יחד עם ההערכה הכי טובה שאתה יכול לתת - לעולם אל תסרב לענות ואל תחזיר שדות ריקים.`;
 
-/** Reads a File as a data URL and splits it into raw base64 + MIME type, ready for Gemini's inlineData. */
-export function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const [header, base64] = result.split(',');
-      const mimeMatch = header.match(/data:(.*);base64/);
-      if (!base64) {
-        reject(new Error('קריאת התמונה נכשלה'));
-        return;
-      }
-      resolve({ base64, mimeType: mimeMatch?.[1] || file.type || 'image/jpeg' });
-    };
-    reader.onerror = () => reject(reader.error ?? new Error('קריאת התמונה נכשלה'));
-    reader.readAsDataURL(file);
-  });
+/**
+ * Prepares a user-selected photo for Gemini: downscales/re-encodes it client-side (1200px, JPEG 0.82 -
+ * see compressImage) and returns the raw base64 + MIME type for inlineData. Gallery photos are often
+ * 5-12MB originals; sending those raw is slow, can exceed request limits, and adds no accuracy.
+ */
+export async function prepareImageForAI(file: File): Promise<{ base64: string; mimeType: string }> {
+  const dataUrl = await compressImage(file);
+  const { base64, mimeType } = dataUrlToBase64(dataUrl);
+  if (!base64) throw new Error('קריאת התמונה נכשלה');
+  return { base64, mimeType };
 }
 
 function toNumber(value: unknown): number {
