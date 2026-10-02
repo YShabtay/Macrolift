@@ -97,6 +97,7 @@ interface DashboardProps {
   onDeleteWeightLog: (id: string) => void;
   onAddPhoto: (photo: Omit<ProgressPhoto, 'id'>) => Promise<void>;
   onDeletePhoto: (id: string) => void;
+  onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
@@ -143,6 +144,7 @@ export default function Dashboard({
   onDeleteWeightLog,
   onAddPhoto,
   onDeletePhoto,
+  onUpdatePhoto,
   onApplyCalorieAdjustment,
   onQuickCompleteDay,
   onUndoCompleteDay,
@@ -277,6 +279,8 @@ export default function Dashboard({
               onDeleteWeightLog={onDeleteWeightLog}
               onAddPhoto={onAddPhoto}
               onDeletePhoto={onDeletePhoto}
+              onUpdatePhoto={onUpdatePhoto}
+              appState={appState}
               onApplyCalorieAdjustment={onApplyCalorieAdjustment}
             />
           )}
@@ -1177,7 +1181,9 @@ function ProgressTab({
   onDeleteWeightLog,
   onAddPhoto,
   onDeletePhoto,
+  onUpdatePhoto,
   onApplyCalorieAdjustment,
+  appState,
 }: {
   weightLogs: WeightLog[];
   progressPhotos: ProgressPhoto[];
@@ -1188,7 +1194,9 @@ function ProgressTab({
   onDeleteWeightLog: (id: string) => void;
   onAddPhoto: (photo: Omit<ProgressPhoto, 'id'>) => Promise<void>;
   onDeletePhoto: (id: string) => void;
+  onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
+  appState: AppState;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -1227,6 +1235,9 @@ function ProgressTab({
         goalIntensity={goalIntensity}
         onAdd={onAddPhoto}
         onDelete={onDeletePhoto}
+        onUpdate={onUpdatePhoto}
+        onSaveWeightLog={onSaveWeightLog}
+        appState={appState}
         onApplyCalorieAdjustment={onApplyCalorieAdjustment}
       />
     </div>

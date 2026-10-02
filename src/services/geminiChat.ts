@@ -203,3 +203,44 @@ export async function reviewProgressPhotos(
     calorieAdjustment: toNullableNumber(obj.calorieAdjustment),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Follow-up discussion on a progress review
+// ---------------------------------------------------------------------------
+
+const MUSCLE_TREND_TEXT: Record<MuscleMassTrend, string> = {
+  increase: 'עלייה במסת השריר הנראית לעין',
+  stable: 'מסת שריר יציבה',
+  decrease: 'ירידה במסת השריר הנראית לעין',
+};
+
+/** Everything the user is currently looking at in the review modal, injected as context ahead of their question. */
+export interface ProgressFollowUpContext extends ProgressReviewContext {
+  review: ProgressReviewResult;
+}
+
+function buildFollowUpContextBlock(ctx: ProgressFollowUpContext): string {
+  const { review } = ctx;
+  const weightLine =
+    ctx.beforeWeightKg !== undefined && ctx.afterWeightKg !== undefined
+      ? `המשקל השתנה מ-${ctx.beforeWeightKg} ל-${ctx.afterWeightKg} ק"ג.`
+      : '';
+  return `## הקשר: ניתוח ההתקדמות שהמשתמש רואה כעת
+המשתמש נמצא בהשוואת תמונות בין ${ctx.beforeDate} ל-${ctx.afterDate} (${ctx.daysBetween} ימים). ${weightLine}
+ניתוח ויזואלי העריך: אחוזי שומן ${review.bodyFatEstimateRange}; ${MUSCLE_TREND_TEXT[review.muscleMassTrend]}${review.muscleMassNote ? ` (${review.muscleMassNote})` : ''}; ${review.isPlateaued ? 'זוהתה עצירה בהתקדמות' : 'לא זוהתה עצירה בהתקדמות'}.
+סיכום הניתוח: ${review.visualAssessment}
+ההמלצה שניתנה: ${review.recommendationTitle} - ${review.recommendationText}
+
+המשתמש ממשיך את הדיון על הניתוח הזה. ענה על שאלתו בצורה ספציפית, מעשית ומותאמת למצבו הפיזי והתזונתי כפי שמופיע למעלה (כולל יעד הקלוריות והמאקרו שלו). התבסס על הניתוח, אל תחזור עליו במלואו, והימנע מהמצאת מספרים מדויקים. תשובה קצרה וברורה (עד כ-120 מילים), עם צעדים קונקרטיים. אל תיתן ייעוץ רפואי.`;
+}
+
+/** Continues the conversation about a progress review: the full coach profile prompt plus the latest analysis findings as context. */
+export async function sendProgressFollowUp(
+  history: ChatMessage[],
+  appState: AppState,
+  context: ProgressFollowUpContext,
+): Promise<string> {
+  const systemInstruction = `${buildCoachSystemPrompt(appState)}\n\n${buildFollowUpContextBlock(context)}`;
+  const contents: GeminiContent[] = history.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
+  return callGemini(systemInstruction, contents, false);
+}

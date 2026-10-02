@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, Loader2, Minus, Percent, RotateCw, Sparkles, TrendingDown, TrendingUp, X } from 'lucide-react';
-import type { Goal, GoalIntensity, ProgressPhoto, WeightLog } from '../types/fitness';
+import { AlertTriangle, Bot, Check, Loader2, MessageCircle, Minus, Percent, RotateCw, Send, Sparkles, TrendingDown, TrendingUp, X } from 'lucide-react';
+import type { AppState, Goal, GoalIntensity, ProgressPhoto, WeightLog } from '../types/fitness';
 import {
   hasGeminiApiKey,
   MissingApiKeyError,
   reviewProgressPhotos,
+  sendProgressFollowUp,
+  type ChatMessage,
   type MuscleMassTrend,
   type ProgressReviewResult,
 } from '../services/geminiChat';
@@ -20,6 +22,8 @@ interface ProgressAIReviewModalProps {
   weightLogs: WeightLog[];
   goal: Goal;
   goalIntensity?: GoalIntensity;
+  /** Full app state, so follow-up answers can use the user's real calorie target, macros and profile. */
+  appState: AppState;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
   onClose: () => void;
 }
@@ -30,6 +34,7 @@ export default function ProgressAIReviewModal({
   weightLogs,
   goal,
   goalIntensity,
+  appState,
   onApplyCalorieAdjustment,
   onClose,
 }: ProgressAIReviewModalProps) {
@@ -38,6 +43,55 @@ export default function ProgressAIReviewModal({
   const [result, setResult] = useState<ProgressReviewResult | null>(null);
   const [isApplied, setIsApplied] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+
+  const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [question, setQuestion] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatRequestRef = useRef(0);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [chat, isReplying, chatError]);
+
+  // Closing (or re-running the analysis) must not let a late reply land in a stale thread.
+  useEffect(() => () => void chatRequestRef.current++, []);
+
+  async function requestReply(history: ChatMessage[]) {
+    if (!result) return;
+    const requestId = ++chatRequestRef.current;
+    setIsReplying(true);
+    setChatError('');
+    try {
+      const reply = await sendProgressFollowUp(history, appState, {
+        goal,
+        goalIntensity,
+        beforeDate: beforePhoto.date,
+        afterDate: afterPhoto.date,
+        daysBetween: Math.abs(daysBetween(beforePhoto.date, afterPhoto.date)),
+        beforeWeightKg: beforePhoto.weightKg ?? estimateWeightForDate(weightLogs, beforePhoto.date),
+        afterWeightKg: afterPhoto.weightKg ?? estimateWeightForDate(weightLogs, afterPhoto.date),
+        review: result,
+      });
+      if (requestId !== chatRequestRef.current) return;
+      setChat([...history, { role: 'model', text: reply }]);
+    } catch (err) {
+      if (requestId !== chatRequestRef.current) return;
+      setChatError(err instanceof Error ? err.message : 'לא התקבלה תשובה, נסו שוב.');
+    } finally {
+      if (requestId === chatRequestRef.current) setIsReplying(false);
+    }
+  }
+
+  function askQuestion(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || isReplying) return;
+    const history: ChatMessage[] = [...chat, { role: 'user', text: trimmed }];
+    setChat(history);
+    setQuestion('');
+    void requestReply(history);
+  }
 
   useEffect(() => {
     if (!hasGeminiApiKey) return;
@@ -214,12 +268,130 @@ export default function ProgressAIReviewModal({
                 </button>
               )}
             </div>
+
+            <div className="flex flex-col gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-lime-700 dark:text-lime-400" />
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">המשך הדיון עם המאמן</p>
+              </div>
+
+              {chat.length === 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {getFollowUpQuestions(goal, result.isPlateaued).map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => askQuestion(q)}
+                      disabled={isReplying}
+                      className="rounded-full border border-lime-400/40 bg-lime-400/5 px-3.5 py-2 text-right text-xs font-semibold leading-snug text-lime-700 dark:text-lime-400 transition hover:border-lime-400/70 hover:bg-lime-400/15 disabled:opacity-50"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {chat.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  {chat.map((m, i) =>
+                    m.role === 'user' ? (
+                      <div key={i} className="max-w-[88%] self-start whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-lime-400 px-3.5 py-2.5 text-sm font-medium leading-relaxed text-zinc-950">
+                        {m.text}
+                      </div>
+                    ) : (
+                      <div key={i} className="flex max-w-[94%] items-start gap-2 self-end">
+                        <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-lime-400/10 text-lime-700 dark:text-lime-400">
+                          <Bot className="h-3.5 w-3.5" />
+                        </span>
+                        <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 px-3.5 py-2.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+                          {m.text}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                  {isReplying && (
+                    <div className="flex items-center gap-2 self-end text-xs text-zinc-600 dark:text-zinc-500">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      המאמן כותב תשובה...
+                    </div>
+                  )}
+                  {chatError && (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-orange-400/30 bg-orange-400/5 px-3 py-2 text-xs text-orange-700 dark:text-orange-300">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        {chatError}
+                      </span>
+                      <button type="button" onClick={() => void requestReply(chat)} className="shrink-0 font-bold underline">
+                        נסה שוב
+                      </button>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              )}
+
+              {chat.length === 0 && isReplying && (
+                <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  המאמן כותב תשובה...
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  askQuestion(question);
+                }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="שאלו את המאמן על הניתוח..."
+                  aria-label="שאלת המשך למאמן"
+                  maxLength={500}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+                />
+                <button
+                  type="submit"
+                  disabled={isReplying || question.trim() === ''}
+                  aria-label="שליחה"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400 text-zinc-950 transition active:scale-95 disabled:opacity-40"
+                >
+                  <Send className="h-4 w-4 -scale-x-100" />
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>
     </div>,
     document.body,
   );
+}
+
+/** Suggested follow-ups, tuned to the user's goal (and to a detected plateau) so the chips are actually relevant. */
+function getFollowUpQuestions(goal: Goal, isPlateaued: boolean): string[] {
+  if (goal === 'gain_muscle') {
+    return [
+      'איך למקסם עלייה בשריר מנקודה זו?',
+      'האם כדאי להעלות קלוריות בתפריט עכשיו?',
+      'איך לשמור על אחוזי שומן נמוכים במסה?',
+    ];
+  }
+  if (goal === 'lose_weight') {
+    return [
+      'איך לשמור על מסת שריר בזמן הירידה?',
+      isPlateaued ? 'איך אני שובר את העצירה הזו?' : 'האם כדאי להוריד קלוריות עכשיו?',
+      'איך להאיץ את הירידה בשומן בלי לפגוע באנרגיה?',
+    ];
+  }
+  return [
+    'איך לשפר את הרכב הגוף מנקודה זו?',
+    isPlateaued ? 'איך אני שובר את העצירה הזו?' : 'האם כדאי לשנות את הקלוריות בתפריט?',
+    'על מה כדאי להתמקד באימונים בתקופה הקרובה?',
+  ];
 }
 
 const MUSCLE_MASS_LABELS: Record<MuscleMassTrend, string> = {

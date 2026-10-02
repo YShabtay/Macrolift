@@ -190,6 +190,13 @@ export default function App() {
     setAppState(nextState);
   }
 
+  /** Edits a progress photo's date and/or weight snapshot in place (the image itself is untouched, so this never risks the storage quota). */
+  function handleUpdatePhoto(id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) {
+    setAppState((prev) =>
+      prev ? { ...prev, progressPhotos: prev.progressPhotos.map((p) => (p.id === id ? { ...p, ...patch } : p)) } : prev,
+    );
+  }
+
   function handleDeletePhoto(id: string) {
     setAppState((prev) =>
       prev ? { ...prev, progressPhotos: prev.progressPhotos.filter((p) => p.id !== id) } : prev,
@@ -444,6 +451,7 @@ export default function App() {
         onDeleteWeightLog={handleDeleteWeightLog}
         onAddPhoto={handleAddPhoto}
         onDeletePhoto={handleDeletePhoto}
+        onUpdatePhoto={handleUpdatePhoto}
         onApplyCalorieAdjustment={handleApplyCalorieAdjustment}
         onQuickCompleteDay={handleQuickCompleteDay}
         onUndoCompleteDay={handleUndoCompleteDay}
