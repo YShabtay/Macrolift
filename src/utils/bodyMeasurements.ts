@@ -18,12 +18,39 @@ export const EXPERIENCE_LABELS: Record<TrainingExperience, string> = {
   over_3y: 'מתקדם (3+ שנים)',
 };
 
-/** Estimated monthly circumference growth (cm), by training experience. */
-const GROWTH_RATE_CM_PER_MONTH: Record<GrowthMetric, Record<TrainingExperience, number>> = {
-  armCm: { under_1y: 0.35, '1_3y': 0.18, over_3y: 0.08 },
-  chestCm: { under_1y: 0.8, '1_3y': 0.4, over_3y: 0.2 },
-  hipCm: { under_1y: 0.5, '1_3y': 0.25, over_3y: 0.15 },
+export interface GrowthRange {
+  minCmPerMonth: number;
+  maxCmPerMonth: number;
+}
+
+/**
+ * Realistic monthly circumference growth (cm) for a natural lifter in a clean bulk: arm 0.25-0.35,
+ * chest/back 0.5-0.6, thigh 0.5-0.7. These ranges apply to beginners and intermediates; advanced
+ * lifters (3+ years) are closer to their genetic ceiling and grow at roughly half that pace.
+ */
+const BASE_GROWTH_RANGE_CM_PER_MONTH: Record<GrowthMetric, GrowthRange> = {
+  armCm: { minCmPerMonth: 0.25, maxCmPerMonth: 0.35 },
+  chestCm: { minCmPerMonth: 0.5, maxCmPerMonth: 0.6 },
+  hipCm: { minCmPerMonth: 0.5, maxCmPerMonth: 0.7 },
 };
+
+const EXPERIENCE_GROWTH_FACTOR: Record<TrainingExperience, number> = { under_1y: 1, '1_3y': 1, over_3y: 0.5 };
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function getGrowthRangeCm(metric: GrowthMetric, experience: TrainingExperience): GrowthRange {
+  const base = BASE_GROWTH_RANGE_CM_PER_MONTH[metric];
+  const factor = EXPERIENCE_GROWTH_FACTOR[experience];
+  return { minCmPerMonth: round2(base.minCmPerMonth * factor), maxCmPerMonth: round2(base.maxCmPerMonth * factor) };
+}
+
+/** Expected total growth (cm) over a number of months of bulking, as a realistic min-max range. */
+export function forecastGrowthCm(metric: GrowthMetric, experience: TrainingExperience, months: number): { minCm: number; maxCm: number } {
+  const range = getGrowthRangeCm(metric, experience);
+  return { minCm: round2(range.minCmPerMonth * months), maxCm: round2(range.maxCmPerMonth * months) };
+}
 
 /** Roughly the outer edge of natural lifetime circumference gain from any starting point, regardless of timeframe. */
 const NATURAL_MAX_GAIN_CM: Record<GrowthMetric, number> = {
@@ -37,8 +64,10 @@ export function getEffectiveExperience(experienceYears: TrainingExperience | und
   return experienceYears ?? 'under_1y';
 }
 
+/** Midpoint of the realistic monthly range - the single "typical" pace used for time-to-goal estimates. */
 export function getMonthlyGrowthRateCm(metric: GrowthMetric, experience: TrainingExperience): number {
-  return GROWTH_RATE_CM_PER_MONTH[metric][experience];
+  const { minCmPerMonth, maxCmPerMonth } = getGrowthRangeCm(metric, experience);
+  return round2((minCmPerMonth + maxCmPerMonth) / 2);
 }
 
 /** Months to reach the goal at the given pace; null when the goal is already met (or below current) or the rate is zero. */

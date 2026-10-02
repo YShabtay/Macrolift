@@ -4,8 +4,9 @@ import type { TrainingExperience } from '../types/fitness';
 import {
   BULKING_DURATION_OPTIONS,
   BULKING_REGIONS,
-  describeBulkingPlan,
+  forecastBulkingPlan,
   formatCm,
+  formatRangeCm,
   parseBulkingDraft,
   REGION_LABELS,
   type BulkingDraft,
@@ -29,7 +30,7 @@ interface BulkingPlanEditorProps {
 export default function BulkingPlanEditor({ draft, onChange, experienceYears }: BulkingPlanEditorProps) {
   const result = useMemo(() => parseBulkingDraft(draft), [draft]);
   const rows = useMemo(
-    () => (result.status === 'ok' ? describeBulkingPlan(result.plan, getEffectiveExperience(experienceYears)) : []),
+    () => (result.status === 'ok' ? forecastBulkingPlan(result.plan, getEffectiveExperience(experienceYears)) : []),
     [result, experienceYears],
   );
 
@@ -120,26 +121,27 @@ export default function BulkingPlanEditor({ draft, onChange, experienceYears }: 
       )}
 
       {rows.length > 0 && result.status === 'ok' && (
-        <div className="flex flex-col gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 p-3">
+        <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 p-3">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-500">
             <TrendingUp className="h-3.5 w-3.5" />
-            קצב גדילה חודשי צפוי
+            תחזית גדילה ריאלית ל-{result.plan.durationMonths} חודשי מסה
           </p>
           {rows.map((row) => (
             <div key={row.region} className="flex items-center justify-between gap-2 text-xs">
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                {row.label}: {formatCm(row.totalGainCm)} ס״מ ב-{result.plan.durationMonths} חודשים
-              </span>
-              <span className="flex shrink-0 items-center gap-1.5">
-                <span className="font-extrabold text-zinc-900 dark:text-zinc-100">≈ {formatCm(row.perMonthCm)} ס״מ/חודש</span>
-                <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${VERDICT_STYLES[row.verdict].className}`}>
-                  {VERDICT_STYLES[row.verdict].label}
-                </span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{row.label}</span>
+              <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                <span className="font-extrabold text-zinc-900 dark:text-zinc-100">כ-{formatRangeCm(row.minCm, row.maxCm)} ס״מ</span>
+                {row.targetCm !== undefined && row.verdict && (
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${VERDICT_STYLES[row.verdict].className}`}>
+                    יעד {formatCm(row.targetCm)} ס״מ · {VERDICT_STYLES[row.verdict].label}
+                  </span>
+                )}
               </span>
             </div>
           ))}
           <p className="text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-500">
-            ההערכה מושווית לקצב הגדילה הטבעי לפי ותק האימונים שלך.
+            התחזית מבוססת על קצב גדילה טבעי בעלייה נקייה (זרוע ~0.25-0.35, חזה/גב ~0.5-0.6, ירך ~0.5-0.7 ס״מ בחודש)
+            ומותאמת לוותק האימונים שלך.
           </p>
         </div>
       )}

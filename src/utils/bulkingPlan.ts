@@ -1,5 +1,5 @@
 import type { BulkingGainRegion, BulkingPlan, CircumferenceEntry, TrainingExperience } from '../types/fitness';
-import { getEarliestValue, getLatestValue, getMonthlyGrowthRateCm, METRIC_LABELS } from './bodyMeasurements';
+import { forecastGrowthCm, getEarliestValue, getLatestValue, getMonthlyGrowthRateCm, METRIC_LABELS } from './bodyMeasurements';
 import { daysBetween, todayIso } from './weightCalculations';
 
 export const BULKING_REGIONS: BulkingGainRegion[] = ['armCm', 'chestCm', 'hipCm'];
@@ -31,42 +31,54 @@ export function getBulkingTargets(plan: BulkingPlan): Partial<Record<BulkingGain
   return targets;
 }
 
-/** Expected growth per month for a total gain over a duration, e.g. 3 cm over 6 months = 0.5 cm/month. */
-export function monthlyRateCm(totalGainCm: number, durationMonths: number): number {
-  return durationMonths > 0 ? round2(totalGainCm / durationMonths) : 0;
-}
-
 export type PaceVerdict = 'realistic' | 'ambitious' | 'unrealistic';
 
 /**
- * Compares the planned monthly pace with the natural growth rate for the user's training experience
- * (the same benchmark the circumference tracker uses): up to 1.5x it is realistic, up to 3x
- * ambitious, beyond that unlikely to be reached naturally.
+ * Compares a gain target with what a natural lifter can realistically add over the planned months:
+ * anything up to the top of the forecast range is realistic, up to 1.5x of it ambitious, beyond that
+ * unlikely to be reached naturally.
  */
-export function getPaceVerdict(region: BulkingGainRegion, perMonthCm: number, experience: TrainingExperience): PaceVerdict {
-  const benchmark = getMonthlyGrowthRateCm(region, experience);
-  const ratio = benchmark > 0 ? perMonthCm / benchmark : Infinity;
-  if (ratio <= 1.5) return 'realistic';
-  if (ratio <= 3) return 'ambitious';
+export function getGainVerdict(region: BulkingGainRegion, targetCm: number, durationMonths: number, experience: TrainingExperience): PaceVerdict {
+  const { maxCm } = forecastGrowthCm(region, experience, durationMonths);
+  const ratio = maxCm > 0 ? targetCm / maxCm : Infinity;
+  if (ratio <= 1.1) return 'realistic';
+  if (ratio <= 1.6) return 'ambitious';
   return 'unrealistic';
 }
 
-export interface BulkingRegionPlan {
+export interface BulkingRegionForecast {
   region: BulkingGainRegion;
   label: string;
-  totalGainCm: number;
-  perMonthCm: number;
-  verdict: PaceVerdict;
+  /** Realistic total growth over the planned months (a range, not the user's target divided by months). */
+  minCm: number;
+  maxCm: number;
+  /** The user's own target for this region, if they set one, and how it compares with the forecast. */
+  targetCm?: number;
+  verdict?: PaceVerdict;
 }
 
-/** Per-region view of a plan: total target, expected monthly pace and how realistic that pace is. */
-export function describeBulkingPlan(plan: BulkingPlan, experience: TrainingExperience): BulkingRegionPlan[] {
+/** Science-based growth forecast for every region over the planned months, with the user's target (if any) judged against it. */
+export function forecastBulkingPlan(plan: BulkingPlan, experience: TrainingExperience): BulkingRegionForecast[] {
   const targets = getBulkingTargets(plan);
-  return BULKING_REGIONS.filter((r) => targets[r] !== undefined).map((region) => {
-    const totalGainCm = targets[region] as number;
-    const perMonthCm = monthlyRateCm(totalGainCm, plan.durationMonths);
-    return { region, label: REGION_LABELS[region], totalGainCm, perMonthCm, verdict: getPaceVerdict(region, perMonthCm, experience) };
+  return BULKING_REGIONS.map((region) => {
+    const { minCm, maxCm } = forecastGrowthCm(region, experience, plan.durationMonths);
+    const targetCm = targets[region];
+    return {
+      region,
+      label: REGION_LABELS[region],
+      minCm,
+      maxCm,
+      targetCm,
+      verdict: targetCm !== undefined ? getGainVerdict(region, targetCm, plan.durationMonths, experience) : undefined,
+    };
   });
+}
+
+/** Formats a forecast range: "1.5-2.1" (or a single number when both ends round the same). */
+export function formatRangeCm(minCm: number, maxCm: number): string {
+  const min = formatCm(minCm);
+  const max = formatCm(maxCm);
+  return min === max ? min : `${min}-${max}`;
 }
 
 export interface BulkingProgress {
@@ -74,7 +86,7 @@ export interface BulkingProgress {
   label: string;
   gainedCm: number | null; // null until at least two measurements exist
   targetCm: number;
-  /** Where the user "should" be by now if growing linearly across the planned months. */
+  /** Typical realistic gain by now: the midpoint monthly pace for the user's experience times the months elapsed. */
   expectedCm: number;
 }
 
@@ -88,7 +100,12 @@ export function getElapsedMonths(plan: BulkingPlan, today: string = todayIso()):
  * Measured gain so far per region: latest value minus the earliest logged value. Needs two distinct
  * measurements to say anything, so a single log (or none) reports `gainedCm: null`.
  */
-export function getBulkingProgress(plan: BulkingPlan, logs: CircumferenceEntry[], today: string = todayIso()): BulkingProgress[] {
+export function getBulkingProgress(
+  plan: BulkingPlan,
+  logs: CircumferenceEntry[],
+  experience: TrainingExperience,
+  today: string = todayIso(),
+): BulkingProgress[] {
   const targets = getBulkingTargets(plan);
   const elapsed = getElapsedMonths(plan, today);
   return BULKING_REGIONS.filter((r) => targets[r] !== undefined).map((region) => {
@@ -101,7 +118,7 @@ export function getBulkingProgress(plan: BulkingPlan, logs: CircumferenceEntry[]
       label: REGION_LABELS[region],
       gainedCm: hasTwoPoints ? round2((latest as number) - (first as number)) : null,
       targetCm,
-      expectedCm: round2(monthlyRateCm(targetCm, plan.durationMonths) * elapsed),
+      expectedCm: round2(getMonthlyGrowthRateCm(region, experience) * elapsed),
     };
   });
 }

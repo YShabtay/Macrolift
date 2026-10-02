@@ -34,6 +34,50 @@ function buildTicks(yMin: number, yMax: number, targetCount = 4): number[] {
   return ticks.length > 0 ? ticks : [Math.round(((yMin + yMax) / 2) * 100) / 100];
 }
 
+/**
+ * Smooth SVG path through the points using monotone cubic interpolation (Fritsch-Carlson): the curve
+ * flows between weigh-ins but never overshoots a local min/max, so it can't invent a dip or peak.
+ */
+function buildSmoothPath(pts: ChartPoint[]): string {
+  const n = pts.length;
+  if (n === 0) return '';
+  if (n === 1) return `M ${pts[0].xPct},${pts[0].yPct}`;
+  if (n === 2) return `M ${pts[0].xPct},${pts[0].yPct} L ${pts[1].xPct},${pts[1].yPct}`;
+
+  const dx: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1].xPct - pts[i].xPct);
+    slope.push(dx[i] === 0 ? 0 : (pts[i + 1].yPct - pts[i].yPct) / dx[i]);
+  }
+  const tangent: number[] = [slope[0]];
+  for (let i = 1; i < n - 1; i++) {
+    tangent.push(slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2);
+  }
+  tangent.push(slope[n - 2]);
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      tangent[i] = 0;
+      tangent[i + 1] = 0;
+      continue;
+    }
+    const a = tangent[i] / slope[i];
+    const b = tangent[i + 1] / slope[i];
+    const h = Math.hypot(a, b);
+    if (h > 3) {
+      tangent[i] = (3 * a * slope[i]) / h;
+      tangent[i + 1] = (3 * b * slope[i]) / h;
+    }
+  }
+
+  let d = `M ${pts[0].xPct},${pts[0].yPct}`;
+  for (let i = 0; i < n - 1; i++) {
+    const third = dx[i] / 3;
+    d += ` C ${pts[i].xPct + third},${pts[i].yPct + tangent[i] * third} ${pts[i + 1].xPct - third},${pts[i + 1].yPct - tangent[i + 1] * third} ${pts[i + 1].xPct},${pts[i + 1].yPct}`;
+  }
+  return d;
+}
+
 export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -74,11 +118,8 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
 
   const tickYPct = (value: number) => 100 - ((value - yMin) / (yMax - yMin || 1)) * 100;
 
-  const linePath = points.map((p) => `${p.xPct},${p.yPct}`).join(' ');
-  const areaPath =
-    points.length > 1
-      ? `M ${points[0].xPct},100 L ${points.map((p) => `${p.xPct},${p.yPct}`).join(' L ')} L ${points[points.length - 1].xPct},100 Z`
-      : '';
+  const linePath = buildSmoothPath(points);
+  const areaPath = points.length > 1 ? `${linePath} L ${points[points.length - 1].xPct},100 L ${points[0].xPct},100 Z` : '';
 
   const active = activeIndex !== null ? points[activeIndex] : null;
   const clampedTooltipLeft = active ? Math.min(Math.max(active.xPct, 14), 86) : 0;
@@ -124,7 +165,7 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
             <defs>
               <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a3e635" stopOpacity="0.2" />
+                <stop offset="0%" stopColor="#a3e635" stopOpacity="0.28" />
                 <stop offset="100%" stopColor="#a3e635" stopOpacity="0" />
               </linearGradient>
             </defs>
@@ -145,11 +186,11 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
             {areaPath && <path d={areaPath} fill="url(#weightAreaGradient)" stroke="none" />}
 
             {points.length > 1 && (
-              <polyline
-                points={linePath}
+              <path
+                d={linePath}
                 fill="none"
                 stroke="#a3e635"
-                strokeWidth="2.5"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
@@ -171,15 +212,17 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
             )}
           </svg>
 
-          {points.map((p, i) => (
+          {/* No dot per weigh-in (dozens overlap into a blob) - only the hovered/touched point, or the lone point of a one-entry history. */}
+          {(active ?? (points.length === 1 ? points[0] : null)) && (
             <div
-              key={p.date}
-              className={`absolute rounded-full border-2 border-zinc-950 bg-lime-400 transition-all ${
-                i === activeIndex ? 'h-3 w-3 shadow-glow' : 'h-2 w-2'
-              }`}
-              style={{ left: `${p.xPct}%`, top: `${p.yPct}%`, transform: 'translate(-50%, -50%)' }}
+              className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-zinc-950 bg-lime-400 shadow-glow"
+              style={{
+                left: `${(active ?? points[0]).xPct}%`,
+                top: `${(active ?? points[0]).yPct}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
             />
-          ))}
+          )}
 
           {active && (
             <div

@@ -207,7 +207,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="פתיחת המאמן הדיגיטלי"
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-lime-400 text-zinc-950 shadow-xl transition hover:scale-105 hover:bg-lime-500 active:scale-95 md:bottom-6 md:left-6"
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-lime-400 text-zinc-950 shadow-xl transition hover:scale-105 hover:bg-lime-500 active:scale-95 md:bottom-6 md:left-6"
       >
         <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-lime-400/40" />
         <Bot className="h-6 w-6" strokeWidth={2.5} />

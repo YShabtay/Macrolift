@@ -4,6 +4,7 @@ import type { BodyMeasurements, BulkingPlan, CircumferenceEntry, CircumferenceGo
 import {
   EXPERIENCE_LABELS,
   estimateMonthsToGoal,
+  forecastGrowthCm,
   getEffectiveExperience,
   getLatestValue,
   getMonthlyGrowthRateCm,
@@ -13,7 +14,7 @@ import {
   type GrowthMetric,
 } from '../utils/bodyMeasurements';
 import { formatDateDisplay, todayIso } from '../utils/weightCalculations';
-import { describeBulkingPlan, formatCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
+import { forecastBulkingPlan, formatCm, formatRangeCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
 
 const GROWTH_METRICS: GrowthMetric[] = ['armCm', 'chestCm', 'hipCm'];
 const GOAL_LABELS_SHORT: Record<Goal, string> = {
@@ -83,6 +84,7 @@ export default function CircumferenceTracker({
             goalValue={goals[metric]}
             experience={experience}
             goalLabel={GOAL_LABELS_SHORT[goal]}
+            bulkMonths={goal === 'gain_muscle' ? bulkingPlan?.durationMonths : undefined}
           />
         ))}
         <WaistMetricCard current={getLatestValue(logs, 'waistCm')} goalValue={goals.waistCm} />
@@ -191,12 +193,15 @@ function GrowthMetricCard({
   goalValue,
   experience,
   goalLabel,
+  bulkMonths,
 }: {
   metric: GrowthMetric;
   current: number | undefined;
   goalValue: number | undefined;
   experience: TrainingExperience;
   goalLabel: string;
+  /** Planned bulk length; when set, the forecast is anchored to it instead of an open-ended time-to-goal. */
+  bulkMonths?: number;
 }) {
   const label = METRIC_LABELS[metric];
 
@@ -212,6 +217,7 @@ function GrowthMetricCard({
   const rate = getMonthlyGrowthRateCm(metric, experience);
   const months = estimateMonthsToGoal(current, goalValue, rate);
   const realistic = isRealisticGoal(metric, current, goalValue);
+  const bulkForecast = bulkMonths !== undefined ? forecastGrowthCm(metric, experience, bulkMonths) : null;
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
@@ -234,11 +240,20 @@ function GrowthMetricCard({
               זהו יעד שאינו ריאלי באופן טבעי - שקלו יעד מתון יותר
             </p>
           ) : (
-            months !== null && (
+            (bulkForecast && bulkMonths !== undefined ? (
               <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
-                זמן הגעה משוער: כ-{months} חודשים ב{goalLabel} בקצב נוכחי
+                ב-{bulkMonths} חודשי המסה צפויה עלייה של כ-{formatRangeCm(bulkForecast.minCm, bulkForecast.maxCm)} ס״מ
+                {delta <= bulkForecast.maxCm
+                  ? ' - היעד בהישג יד בתוך התקופה.'
+                  : ` - היעד דורש כ-${months} חודשים, יותר מתקופת המסה שהוגדרה.`}
               </p>
-            )
+            ) : (
+              months !== null && (
+                <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
+                  זמן הגעה משוער: כ-{months} חודשים ב{goalLabel} בקצב נוכחי
+                </p>
+              )
+            ))
           )}
         </>
       )}
@@ -443,8 +458,8 @@ function BulkingPlanCard({
   experience: TrainingExperience;
 }) {
   const today = todayIso();
-  const rows = useMemo(() => (plan ? describeBulkingPlan(plan, experience) : []), [plan, experience]);
-  const progress = useMemo(() => (plan ? getBulkingProgress(plan, logs, today) : []), [plan, logs, today]);
+  const rows = useMemo(() => (plan ? forecastBulkingPlan(plan, experience) : []), [plan, experience]);
+  const progress = useMemo(() => (plan ? getBulkingProgress(plan, logs, experience, today) : []), [plan, logs, experience, today]);
 
   if (!plan) {
     return (
@@ -470,31 +485,29 @@ function BulkingPlanCard({
         <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${elapsedPct}%` }} />
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-xs text-zinc-600 dark:text-zinc-500">לא הוגדרו יעדי עלייה בהיקפים - אפשר להוסיף דרך "עריכת פרטים".</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {rows.map((row) => {
-            const p = progress.find((x) => x.region === row.region);
-            return (
-              <div key={row.region} className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  {row.label}: יעד {formatCm(row.totalGainCm)} ס״מ
+      <div className="flex flex-col gap-2">
+        {rows.map((row) => {
+          const p = progress.find((x) => x.region === row.region);
+          return (
+            <div key={row.region} className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                {row.label}: תחזית כ-{formatRangeCm(row.minCm, row.maxCm)} ס״מ
+                {row.targetCm !== undefined && row.verdict && (
                   <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">
-                    (≈ {formatCm(row.perMonthCm)} ס״מ/חודש · {VERDICT_LABELS[row.verdict]})
+                    (יעד {formatCm(row.targetCm)} · {VERDICT_LABELS[row.verdict]})
                   </span>
-                </span>
-                <span className="shrink-0 font-bold text-zinc-900 dark:text-zinc-100">
-                  {p?.gainedCm == null ? 'אין מספיק מדידות' : `${p.gainedCm > 0 ? '+' : ''}${formatCm(p.gainedCm)} ס״מ`}
-                  {p?.gainedCm != null && (
-                    <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">מתוך {formatCm(p.expectedCm)} צפוי</span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                )}
+              </span>
+              <span className="shrink-0 font-bold text-zinc-900 dark:text-zinc-100">
+                {p?.gainedCm == null ? 'אין מספיק מדידות' : `${p.gainedCm > 0 ? '+' : ''}${formatCm(p.gainedCm)} ס״מ`}
+                {p?.gainedCm != null && (
+                  <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">מתוך כ-{formatCm(p.expectedCm)} צפוי עד כה</span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

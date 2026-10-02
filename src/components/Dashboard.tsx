@@ -170,6 +170,9 @@ export default function Dashboard({
       <div className="pointer-events-none fixed -top-24 -right-24 -z-10 h-[420px] w-[420px] rounded-full bg-lime-500/5 blur-[120px] dark:bg-lime-500/10" />
       <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
 
+      {/* Opaque strip behind the iPhone status bar / camera cutout so scrolled content never shows through it */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:hidden" />
+
       {/* Theme toggle - mobile top bar (no persistent header exists on mobile otherwise) */}
       <div className="fixed left-4 top-[max(env(safe-area-inset-top),1rem)] z-30 md:hidden">
         <ThemeToggleButton />
@@ -226,7 +229,7 @@ export default function Dashboard({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(env(safe-area-inset-top),2.5rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
+      <main className="flex-1 overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(env(safe-area-inset-top),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           {tab === 'dashboard' && (
             <DashboardTab
