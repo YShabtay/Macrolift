@@ -64,8 +64,8 @@ import EditProfileModal from './EditProfileModal';
 import Toast from './Toast';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import { MUSCLE_GROUP_LABELS } from '../data/muscleLabels';
-import { buildWeeklySummaries, daysSince, getWeekStart, todayIso } from '../utils/weightCalculations';
-import { countCompletedWorkoutsThisWeek } from '../utils/workoutStats';
+import { buildWeeklySummaries, daysSince, formatDateDisplay, getWeekStart, todayIso } from '../utils/weightCalculations';
+import { countCompletedWorkoutsThisWeek, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
 import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, SPLIT_SHORT_LABELS, type CalendarDay } from '../utils/scheduleHelpers';
@@ -1125,6 +1125,7 @@ function WorkoutCard({
   const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
   const [swapExercise, setSwapExercise] = useState<Exercise | null>(null);
   const restTimer = useRestTimer();
+  const previousByExercise = useMemo(() => getPreviousPerformances(progress, date), [progress, date]);
 
   const totalSets = selectedDay.exercises.reduce((sum, e) => sum + e.sets, 0);
   const doneSets = selectedDay.exercises.reduce((sum, e) => {
@@ -1195,7 +1196,14 @@ function WorkoutCard({
                     {exercise.name}
                   </p>
                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-500">
-                    {exercise.repsRange} חזרות &middot; מנוחה {exercise.restSeconds} שנ׳
+                    {exercise.repsRange} חזרות &middot; מנוחה {getDefaultRestSeconds(exercise)} שנ׳
+                    {previousByExercise.get(exercise.id) && (
+                      <span className="text-zinc-400 dark:text-zinc-600">
+                        {' '}
+                        &middot; קודם: {previousByExercise.get(exercise.id)?.completedSets}/{exercise.sets} סטים (
+                        {formatDateDisplay(previousByExercise.get(exercise.id)?.date ?? date)})
+                      </span>
+                    )}
                   </p>
                   {exercise.replacedFrom && (
                     <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-orange-400/10 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-400">
@@ -1245,9 +1253,14 @@ function WorkoutCard({
                         if (isCompletingNewSet) {
                           // start() unlocks Web Audio and asks for notification permission, which both must
                           // happen synchronously inside this click - iOS only allows them within a user gesture.
-                          restTimer.start(exercise.restSeconds, exercise.name);
+                          restTimer.start(getDefaultRestSeconds(exercise), exercise.name);
+                        } else if (restTimer.status !== 'idle' && restTimer.label === exercise.name) {
+                          // Unchecking a set cancels the rest it started (a rest from a different exercise is left alone).
+                          restTimer.cancel();
                         }
                       }}
+                      aria-label={`סט ${i + 1} מתוך ${exercise.sets} - ${exercise.name}`}
+                      aria-pressed={setDone}
                       className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-bold transition active:scale-90 ${
                         setDone
                           ? 'border-lime-400 bg-lime-400 text-zinc-950'
