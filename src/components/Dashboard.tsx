@@ -286,6 +286,7 @@ export default function Dashboard({
               onDeleteCircumferenceEntry={onDeleteCircumferenceEntry}
               onSaveCircumferenceGoals={onSaveCircumferenceGoals}
               onImportAppState={onImportAppState}
+              onBulkImportWeightLogs={onBulkImportWeightLogs}
               onNavigate={setTab}
               onRequestReset={() => setIsResetConfirmOpen(true)}
               onLogout={onLogout}
@@ -1279,6 +1280,7 @@ function ProfileTab({
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
   onImportAppState,
+  onBulkImportWeightLogs,
   onNavigate,
   onRequestReset,
   onLogout,
@@ -1290,6 +1292,7 @@ function ProfileTab({
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
   onImportAppState: (data: AppState) => Promise<void>;
+  onBulkImportWeightLogs: (entries: BulkWeightEntry[]) => void;
   onNavigate: (tab: Tab) => void;
   onRequestReset: () => void;
   onLogout: () => void;
@@ -1299,7 +1302,9 @@ function ProfileTab({
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [pendingImport, setPendingImport] = useState<AppState | null>(null);
+  const [pendingImport, setPendingImport] = useState<
+    { kind: 'full'; state: AppState; skipped: number } | { kind: 'weights'; entries: BulkWeightEntry[]; skipped: number } | null
+  >(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   function handleSaveProfile(updates: Partial<UserMetrics>) {
@@ -1348,7 +1353,11 @@ function ProfileTab({
         setImportError(result.error);
         return;
       }
-      setPendingImport(result.state);
+      setPendingImport(
+        result.kind === 'full'
+          ? { kind: 'full', state: result.state, skipped: result.skippedEntries }
+          : { kind: 'weights', entries: result.entries, skipped: result.skippedEntries },
+      );
     } catch {
       setImportError('לא ניתן לקרוא את הקובץ');
     }
@@ -1356,11 +1365,17 @@ function ProfileTab({
 
   async function confirmImport() {
     if (!pendingImport) return;
-    const data = pendingImport;
+    const pending = pendingImport;
     setPendingImport(null);
+    const skippedNote = pending.skipped > 0 ? ` (${pending.skipped} רשומות לא תקינות דולגו)` : '';
     try {
-      await onImportAppState(data);
-      setToastMessage('הנתונים שוחזרו בהצלחה');
+      if (pending.kind === 'weights') {
+        onBulkImportWeightLogs(pending.entries);
+        setToastMessage(`${pending.entries.length} שקילות שוחזרו בהצלחה${skippedNote}`);
+      } else {
+        await onImportAppState(pending.state);
+        setToastMessage(`הנתונים שוחזרו בהצלחה${skippedNote}`);
+      }
     } catch {
       setImportError('השחזור נכשל - האחסון המקומי מלא, הנתונים הקיימים לא שונו');
     }
@@ -1613,7 +1628,13 @@ function ProfileTab({
         <EditProfileModal metrics={metrics} onSave={handleSaveProfile} onClose={() => setIsEditProfileOpen(false)} />
       )}
 
-      {pendingImport && <ImportConfirmModal onConfirm={confirmImport} onClose={() => setPendingImport(null)} />}
+      {pendingImport && (
+        <ImportConfirmModal
+          weightsOnlyCount={pendingImport.kind === 'weights' ? pendingImport.entries.length : undefined}
+          onConfirm={confirmImport}
+          onClose={() => setPendingImport(null)}
+        />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>

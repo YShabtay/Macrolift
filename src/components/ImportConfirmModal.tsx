@@ -2,11 +2,13 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Upload, X } from 'lucide-react';
 
 interface ImportConfirmModalProps {
+  /** Set when the file only holds weigh-ins: they are merged into the existing history instead of replacing everything. */
+  weightsOnlyCount?: number;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export default function ImportConfirmModal({ onConfirm, onClose }: ImportConfirmModalProps) {
+export default function ImportConfirmModal({ weightsOnlyCount, onConfirm, onClose }: ImportConfirmModalProps) {
   return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/85 p-4 backdrop-blur-sm animate-fade-in"
@@ -34,8 +36,17 @@ export default function ImportConfirmModal({ onConfirm, onClose }: ImportConfirm
         </div>
 
         <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-          כל הנתונים הנוכחיים במכשיר זה - פרופיל, תוכנית אימונים, יומן תזונה, שקילות ותמונות התקדמות -{' '}
-          <b>יוחלפו</b> בנתונים מקובץ הגיבוי. פעולה זו אינה הפיכה.
+          {weightsOnlyCount !== undefined ? (
+            <>
+              הקובץ מכיל <b>{weightsOnlyCount} שקילות</b>. הן ימוזגו להיסטוריית השקילות הקיימת: תאריך קיים יתעדכן, ותאריך חדש יתווסף.
+              שאר הנתונים לא ישתנו.
+            </>
+          ) : (
+            <>
+              כל הנתונים הנוכחיים במכשיר זה - פרופיל, תוכנית אימונים, יומן תזונה, שקילות ותמונות התקדמות - <b>יוחלפו</b> בנתונים מקובץ
+              הגיבוי. פעולה זו אינה הפיכה.
+            </>
+          )}
         </p>
 
         <div className="flex gap-2">
@@ -45,7 +56,7 @@ export default function ImportConfirmModal({ onConfirm, onClose }: ImportConfirm
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 active:scale-95"
           >
             <Upload className="h-4 w-4" />
-            כן, ייבא והחלף
+            {weightsOnlyCount !== undefined ? 'כן, מזג שקילות' : 'כן, ייבא והחלף'}
           </button>
           <button type="button" onClick={onClose} className="btn-secondary">
             ביטול
