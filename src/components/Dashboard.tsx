@@ -1348,7 +1348,7 @@ function ProfileTab({
 
     setImportError(null);
     try {
-      const result = parseBackupFile(await file.text());
+      const result = parseBackupFile(await file.text(), appState);
       if (!result.ok) {
         setImportError(result.error);
         return;
