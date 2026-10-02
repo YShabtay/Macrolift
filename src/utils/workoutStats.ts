@@ -1,15 +1,18 @@
 import type { SetProgressEntry, WorkoutPlan } from '../types/fitness';
+import { isDayCompleted } from './scheduleHelpers';
 import { getWeekEnd, getWeekStart, todayIso } from './weightCalculations';
 
 /**
- * Counts distinct dates, within the calendar week containing today, on which
- * every exercise of at least one workout-plan day was fully completed.
+ * Counts distinct dates, within the Sunday-Saturday calendar week containing `today`, on which a
+ * workout-plan day was completed. "Completed" is decided by the same `isDayCompleted` the
+ * calendar uses, so the dashboard and calendar can never disagree about what counts. All dates
+ * are local YYYY-MM-DD strings (no UTC conversion), compared lexicographically.
  */
 export function countCompletedWorkoutsThisWeek(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
+  today: string = todayIso(),
 ): number {
-  const today = todayIso();
   const weekStart = getWeekStart(today);
   const weekEnd = getWeekEnd(today);
 
@@ -19,16 +22,7 @@ export function countCompletedWorkoutsThisWeek(
 
   let completedCount = 0;
   for (const date of datesThisWeek) {
-    const dayFullyCompleted = workoutPlan.days.some((day) =>
-      day.exercises.every((exercise) => {
-        const entry = progress.find(
-          (p) => p.date === date && p.dayId === day.id && p.exerciseId === exercise.id,
-        );
-        return (entry?.completedSets ?? 0) >= exercise.sets;
-      }),
-    );
-    if (dayFullyCompleted) completedCount++;
+    if (isDayCompleted(workoutPlan, progress, date)) completedCount++;
   }
-
   return completedCount;
 }

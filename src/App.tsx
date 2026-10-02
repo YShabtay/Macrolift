@@ -29,6 +29,7 @@ import { getExerciseAlternatives, getWorkoutTemplate, suggestSplitType } from '.
 import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
+import { pruneStaleSchedule } from './utils/scheduleHelpers';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
 
@@ -365,6 +366,7 @@ export default function App() {
           ...prev,
           profile: { ...prev.profile, metrics: updatedMetrics },
           workoutPlan: newWorkoutPlan,
+          schedule: pruneStaleSchedule(prev.schedule, newWorkoutPlan),
           nutritionPlan: newNutritionPlan,
         };
       }
@@ -401,6 +403,7 @@ export default function App() {
         ...prev,
         profile: { ...prev.profile, metrics: updatedMetrics },
         workoutPlan: newWorkoutPlan,
+        schedule: pruneStaleSchedule(prev.schedule, newWorkoutPlan),
         nutritionPlan: newNutritionPlan,
       };
     });

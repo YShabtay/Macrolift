@@ -54,6 +54,7 @@ import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import { MUSCLE_GROUP_LABELS } from '../data/muscleLabels';
 import { buildWeeklySummaries, daysSince, getWeekStart, todayIso } from '../utils/weightCalculations';
 import { countCompletedWorkoutsThisWeek } from '../utils/workoutStats';
+import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
 import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, type CalendarDay } from '../utils/scheduleHelpers';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
@@ -652,17 +653,22 @@ function StreaksCard({
   progress: SetProgressEntry[];
   trainingDaysPerWeek: number;
 }) {
+  const today = useToday();
+
   const weighInsThisWeek = useMemo(() => {
-    const weekStart = getWeekStart(todayIso());
+    const weekStart = getWeekStart(today);
     return buildWeeklySummaries(weightLogs).find((s) => s.weekStart === weekStart)?.daysLogged ?? 0;
-  }, [weightLogs]);
+  }, [weightLogs, today]);
 
   const workoutsThisWeek = useMemo(
-    () => countCompletedWorkoutsThisWeek(workoutPlan, progress),
-    [workoutPlan, progress],
+    () => countCompletedWorkoutsThisWeek(workoutPlan, progress, today),
+    [workoutPlan, progress, today],
   );
 
-  const progressRatio = (weighInsThisWeek / 7 + workoutsThisWeek / Math.max(trainingDaysPerWeek, 1)) / 2;
+  const progressRatio = Math.min(
+    (weighInsThisWeek / 7 + workoutsThisWeek / Math.max(trainingDaysPerWeek, 1)) / 2,
+    1,
+  );
   const message =
     progressRatio >= 0.8 ? '🏆 שבוע מנצח, כל הכבוד!' : progressRatio >= 0.4 ? '🔥 ממשיכים חזק, קדימה!' : '💪 בואו נניע את השבוע!';
 

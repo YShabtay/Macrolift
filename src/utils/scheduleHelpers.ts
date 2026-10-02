@@ -17,6 +17,13 @@ export function isDayCompleted(workoutPlan: WorkoutPlan, progress: SetProgressEn
   );
 }
 
+/** Drops schedule entries that point at a plan day which no longer exists (e.g. after the plan was regenerated); rest/custom entries are kept. */
+export function pruneStaleSchedule(schedule: WorkoutScheduleEntry[], workoutPlan: WorkoutPlan): WorkoutScheduleEntry[] {
+  return schedule.filter(
+    (s) => s.dayId === REST_DAY_ID || s.dayId === CUSTOM_DAY_ID || workoutPlan.days.some((d) => d.id === s.dayId),
+  );
+}
+
 export function getScheduleForDate(
   schedule: WorkoutScheduleEntry[],
   date: string,
