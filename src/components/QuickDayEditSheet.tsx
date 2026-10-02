@@ -1,9 +1,17 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Check, Dumbbell, Moon, RotateCcw, Shuffle, X } from 'lucide-react';
+import { ArrowLeft, Check, Dumbbell, Moon, RotateCcw, X } from 'lucide-react';
 import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry } from '../types/fitness';
 import { CUSTOM_DAY_ID, getScheduleForDate, isDayCompleted, REST_DAY_ID } from '../utils/scheduleHelpers';
-import { formatDateLong, parseIsoDate } from '../utils/weightCalculations';
+import { formatDateLong, parseIsoDate, todayIso } from '../utils/weightCalculations';
+
+const WORKOUT_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+/** AB (upper/lower) alternates A, B, A, B across the week; other programs just number their workouts. */
+function workoutLetter(splitType: WorkoutPlan['splitType'], index: number): string {
+  return splitType === 'upper_lower' ? WORKOUT_LETTERS[index % 2] : (WORKOUT_LETTERS[index] ?? String(index + 1));
+}
+
+const WORKOUT_EMOJIS = ['💪', '🏋️'];
 
 const WEEKDAY_NAMES = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'יום שבת'];
 
@@ -12,6 +20,8 @@ interface QuickDayEditSheetProps {
   workoutPlan: WorkoutPlan;
   progress: SetProgressEntry[];
   schedule: WorkoutScheduleEntry[];
+  /** Dates marked as trained (survives program switches); counted alongside per-set progress. */
+  completedDates: readonly string[];
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
@@ -29,13 +39,14 @@ export default function QuickDayEditSheet({
   workoutPlan,
   progress,
   schedule,
+  completedDates,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
   onOpenFull,
   onClose,
 }: QuickDayEditSheetProps) {
-  const [isPickingType, setIsPickingType] = useState(false);
+  const [isChangingType, setIsChangingType] = useState(false);
 
   const entry = getScheduleForDate(schedule, date);
   const scheduledDay =
@@ -44,10 +55,13 @@ export default function QuickDayEditSheet({
       : undefined;
   const isRest = entry?.dayId === REST_DAY_ID;
   const completedDayIds = workoutPlan.days.filter((d) => isDayCompleted(workoutPlan, progress, date, d.id)).map((d) => d.id);
-  const isCompleted = completedDayIds.length > 0;
+  const isCompleted = completedDayIds.length > 0 || completedDates.includes(date);
+  const isToday = date === todayIso();
 
   function undoAllCompletions() {
-    completedDayIds.forEach((dayId) => onUndoCompleteDay(dayId, date));
+    if (completedDayIds.length > 0) completedDayIds.forEach((dayId) => onUndoCompleteDay(dayId, date));
+    // A date marked completed under a previous program has no per-set records to undo - drop the mark itself.
+    else onUndoCompleteDay('', date);
   }
 
   function handleToggleComplete() {
@@ -59,17 +73,17 @@ export default function QuickDayEditSheet({
     // A rest day can't also be a completed workout - clear the completion so every metric stays consistent.
     undoAllCompletions();
     onSetSchedule(date, REST_DAY_ID);
-    setIsPickingType(false);
+    setIsChangingType(false);
   }
 
   function handlePickType(dayId: string) {
     if (completedDayIds.some((id) => id !== dayId)) undoAllCompletions();
     onSetSchedule(date, dayId);
-    setIsPickingType(false);
+    setIsChangingType(false);
   }
 
   const currentLabel = scheduledDay
-    ? `${scheduledDay.dayLabel} - ${scheduledDay.focus}`
+    ? `אימון ${workoutLetter(workoutPlan.splitType, workoutPlan.days.indexOf(scheduledDay))} - ${scheduledDay.focus}`
     : isRest
       ? 'יום מנוחה'
       : entry?.dayId === CUSTOM_DAY_ID
@@ -119,64 +133,73 @@ export default function QuickDayEditSheet({
             }`}
           >
             {isCompleted ? <RotateCcw className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-            {isCompleted ? 'בטל סימון' : 'סמן אימון כהושלם'}
+            {isCompleted ? 'בטל סימון' : `סמן שהתאמנתי ${isToday ? 'היום' : 'ביום זה'} (השלם אימון) ✓`}
           </button>
         )}
 
-        {!scheduledDay && !isCompleted && (
-          <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">בחר/י סוג אימון ליום הזה כדי שאפשר יהיה לסמן אותו כהושלם.</p>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          {!isRest && (
-            <button type="button" onClick={handleSetRest} className="btn-secondary py-3 text-sm">
-              <Moon className="h-4 w-4" />
-              הגדר כיום מנוחה
-            </button>
-          )}
+        {scheduledDay && (
           <button
             type="button"
-            onClick={() => setIsPickingType((v) => !v)}
-            className={`btn-secondary py-3 text-sm ${isRest ? 'col-span-2' : ''}`}
+            onClick={() => {
+              onClose();
+              onOpenFull();
+            }}
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-lime-700 transition hover:text-lime-600 dark:text-lime-400"
           >
-            <Shuffle className="h-4 w-4" />
-            {scheduledDay ? 'שנה סוג אימון' : 'בחר סוג אימון'}
+            צפה בתרגילים והפעל טיימר
+            <ArrowLeft className="h-3.5 w-3.5" />
           </button>
-        </div>
+        )}
 
-        {isPickingType && (
+        {/* Nothing planned yet (or switching): pick the day's workout straight from the active program, or make it a rest day. */}
+        {(!scheduledDay && !isCompleted) || isChangingType || (isRest && !isCompleted) ? (
           <div className="flex flex-col gap-1.5 animate-fade-in">
-            {workoutPlan.days.map((day) => (
+            <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-500">
+              {scheduledDay ? 'החלפת האימון ליום זה' : 'מה מתכננים ליום הזה?'}
+            </p>
+            {workoutPlan.days.map((day, index) => (
               <button
                 key={day.id}
                 type="button"
                 onClick={() => handlePickType(day.id)}
-                className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-right text-sm transition ${
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-3 text-right text-sm transition active:scale-[0.99] ${
                   scheduledDay?.id === day.id
                     ? 'border-lime-400/50 bg-lime-400/10'
                     : 'border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:border-lime-400/40'
                 }`}
               >
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  {day.dayLabel} <span className="font-normal text-zinc-600 dark:text-zinc-400">- {day.focus}</span>
+                  {WORKOUT_EMOJIS[index % WORKOUT_EMOJIS.length]} אימון {workoutLetter(workoutPlan.splitType, index)}{' '}
+                  <span className="font-normal text-zinc-600 dark:text-zinc-400">- {day.focus}</span>
                 </span>
                 {scheduledDay?.id === day.id && <Check className="h-4 w-4 shrink-0 text-lime-700 dark:text-lime-400" />}
               </button>
             ))}
+            {!isRest && (
+              <button
+                type="button"
+                onClick={handleSetRest}
+                className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 px-3.5 py-3 text-right text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 dark:text-zinc-300"
+              >
+                🌙 קבע כיום מנוחה
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {!isRest && !isCompleted && (
+              <button type="button" onClick={handleSetRest} className="btn-secondary flex-1 py-3 text-sm">
+                <Moon className="h-4 w-4" />
+                קבע כיום מנוחה
+              </button>
+            )}
+            {!isCompleted && (
+              <button type="button" onClick={() => setIsChangingType(true)} className="btn-secondary flex-1 py-3 text-sm">
+                שנה סוג אימון
+              </button>
+            )}
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            onOpenFull();
-          }}
-          className="flex items-center justify-center gap-1.5 pt-1 text-xs font-semibold text-zinc-600 transition hover:text-lime-700 dark:text-zinc-400 dark:hover:text-lime-400"
-        >
-          מעבר לפרטי האימון המלאים
-          <ArrowLeft className="h-3.5 w-3.5" />
-        </button>
       </div>
     </div>,
     document.body,

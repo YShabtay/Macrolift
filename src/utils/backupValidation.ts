@@ -279,6 +279,9 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (rawSchedule) state.schedule = keepObjects(rawSchedule, (p) => typeof p.date === 'string' && typeof p.dayId === 'string');
   if (rawSteps) state.stepLogs = keepObjects(rawSteps, (p) => typeof p.date === 'string' && isFiniteNumber(p.steps));
   if (rawCircumference) state.circumferenceLogs = keepObjects(rawCircumference, (p) => typeof p.date === 'string');
+  if (Array.isArray(candidate.completedWorkoutDates)) {
+    state.completedWorkoutDates = candidate.completedWorkoutDates.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
+  }
   if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];
 

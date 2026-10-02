@@ -1,4 +1,4 @@
-import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry } from '../types/fitness';
+import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry, WorkoutSplitType } from '../types/fitness';
 import { formatIsoDate, parseIsoDate, todayIso } from './weightCalculations';
 
 export const REST_DAY_ID = 'rest';
@@ -15,6 +15,16 @@ export function isDayCompleted(workoutPlan: WorkoutPlan, progress: SetProgressEn
         return (entry?.completedSets ?? 0) >= ex.sets;
       }),
   );
+}
+
+/** A day counts as trained when its plan workout was fully logged set by set, or the user marked that date completed. */
+export function isWorkoutDateDone(
+  workoutPlan: WorkoutPlan,
+  progress: SetProgressEntry[],
+  date: string,
+  completedDates: readonly string[] = [],
+): boolean {
+  return completedDates.includes(date) || isDayCompleted(workoutPlan, progress, date);
 }
 
 /** Drops schedule entries that point at a plan day which no longer exists (e.g. after the plan was regenerated); rest/custom entries are kept. */
@@ -60,6 +70,7 @@ export function buildMonthGrid(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
   schedule: WorkoutScheduleEntry[],
+  completedDates: readonly string[] = [],
 ): CalendarDay[] {
   const firstOfMonth = new Date(year, month, 1);
   const gridStart = new Date(firstOfMonth);
@@ -77,7 +88,7 @@ export function buildMonthGrid(
       dayOfMonth: date.getDate(),
       isCurrentMonth: date.getMonth() === month,
       isToday: dateStr === today,
-      isCompleted: isDayCompleted(workoutPlan, progress, dateStr),
+      isCompleted: isWorkoutDateDone(workoutPlan, progress, dateStr, completedDates),
       scheduled: getScheduleForDate(schedule, dateStr),
     });
   }
@@ -91,6 +102,7 @@ export function buildWeekGrid(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
   schedule: WorkoutScheduleEntry[],
+  completedDates: readonly string[] = [],
 ): CalendarDay[] {
   const date = parseIsoDate(dateStr);
   const weekStart = new Date(date);
@@ -109,10 +121,62 @@ export function buildWeekGrid(
       dayOfMonth: d.getDate(),
       isCurrentMonth: d.getMonth() === currentMonth,
       isToday: dStr === today,
-      isCompleted: isDayCompleted(workoutPlan, progress, dStr),
+      isCompleted: isWorkoutDateDone(workoutPlan, progress, dStr, completedDates),
       scheduled: getScheduleForDate(schedule, dStr),
     });
   }
 
   return days;
 }
+
+// ---------------------------------------------------------------------------
+// Program scheduling
+// ---------------------------------------------------------------------------
+
+/**
+ * Which weekdays (0 = Sunday) each program trains on, keyed by how many workouts the plan has. Spaced so heavy sessions
+ * for the same muscles aren't back to back: 3 days = Sun/Tue/Thu, 4 days = Sun/Mon/Wed/Thu (A, B, A, B), 5 = Sun-Tue + Thu/Fri.
+ */
+const PROGRAM_WEEKDAYS: Record<number, number[]> = {
+  1: [0],
+  2: [0, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 4, 5],
+  6: [0, 1, 2, 3, 4, 5],
+  7: [0, 1, 2, 3, 4, 5, 6],
+};
+
+/**
+ * Spreads a program's workouts over the calendar: the plan's days are assigned in order to the program's weekdays, for the
+ * rest of this week and the next `extraWeeks` weeks. Dates that already have an entry (rest days, custom workouts), are in the past, or
+ * are in `skipDates` (already trained) are left alone, and `existing` is returned with the new entries added.
+ */
+export function distributeProgramSchedule(
+  workoutPlan: WorkoutPlan,
+  existing: WorkoutScheduleEntry[],
+  today: string = todayIso(),
+  extraWeeks = 3,
+  skipDates: readonly string[] = [],
+): WorkoutScheduleEntry[] {
+  const weekdays = PROGRAM_WEEKDAYS[Math.min(Math.max(workoutPlan.days.length, 1), 7)];
+  const taken = new Set(existing.map((e) => e.date));
+  const added: WorkoutScheduleEntry[] = [];
+
+  const weekStart = parseIsoDate(today);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+  for (let week = 0; week <= extraWeeks; week++) {
+    weekdays.forEach((weekday, index) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + week * 7 + weekday);
+      const date = formatIsoDate(d);
+      if (date < today || taken.has(date) || skipDates.includes(date)) return;
+      added.push({ date, dayId: workoutPlan.days[index].id });
+    });
+  }
+
+  return [...existing, ...added];
+}
+
+export const SPLIT_SHORT_LABELS: Record<WorkoutSplitType, string> = { fbw: 'FBW', upper_lower: 'AB', ppl: 'PPL' };

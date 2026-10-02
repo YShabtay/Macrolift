@@ -25,7 +25,7 @@ export function buildCoachSystemPrompt(appState: AppState): string {
   const stepsToday = getStepsForDate(stepLogs, today);
 
   const weeklyWeightSummary = getLatestWeekSummary(weightLogs);
-  const workoutsThisWeek = countCompletedWorkoutsThisWeek(workoutPlan, progress);
+  const workoutsThisWeek = countCompletedWorkoutsThisWeek(workoutPlan, progress, undefined, appState.completedWorkoutDates);
   const todaysDay = getTodaysPlanDay(workoutPlan, schedule);
   const todaysDayCompleted = isDayCompleted(workoutPlan, progress, today, todaysDay.id);
 

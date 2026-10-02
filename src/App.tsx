@@ -22,6 +22,7 @@ import type {
   UserProfile,
   WeightLog,
   WorkoutScheduleEntry,
+  WorkoutSplitType,
 } from './types/fitness';
 import type { NutritionPlan, WorkoutPlan } from './types/fitness';
 import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
@@ -29,7 +30,7 @@ import { getExerciseAlternatives, getExerciseNameEn, getWorkoutTemplate, suggest
 import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
-import { pruneStaleSchedule } from './utils/scheduleHelpers';
+import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
 import PullToRefresh from './components/PullToRefresh';
@@ -62,6 +63,39 @@ function normalizeState(state: AppState): AppState {
 async function loadState(userId: string): Promise<AppState | null> {
   const state = await storageService.getAppState(userId);
   return state ? normalizeState(state) : null;
+}
+
+/**
+ * Switches the active workout program: rebuilds the plan from the template (with the user's personalization), recalculates
+ * nutrition for the new training frequency, spreads the workouts over the coming weeks of the calendar, and keeps credit for
+ * workouts already completed under the old program.
+ */
+function applyProgramToState(
+  prev: AppState,
+  splitType: WorkoutSplitType,
+  daysPerWeek: TrainingDaysPerWeek,
+  metricsUpdates: Partial<UserMetrics> = {},
+): AppState {
+  const updatedMetrics: UserMetrics = { ...prev.profile.metrics, ...metricsUpdates, trainingDaysPerWeek: daysPerWeek };
+  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience);
+
+  // The old plan's day ids/exercises are about to disappear, so completed days are remembered by date.
+  const completed = new Set(prev.completedWorkoutDates ?? []);
+  for (const date of new Set(prev.progress.map((p) => p.date))) {
+    if (isDayCompleted(prev.workoutPlan, prev.progress, date)) completed.add(date);
+  }
+
+  // Rest / custom days survive; the new program's workouts are placed around them.
+  const schedule = distributeProgramSchedule(newWorkoutPlan, pruneStaleSchedule(prev.schedule, newWorkoutPlan), undefined, undefined, [...completed]);
+
+  return {
+    ...prev,
+    profile: { ...prev.profile, metrics: updatedMetrics },
+    workoutPlan: newWorkoutPlan,
+    schedule,
+    nutritionPlan: calculateNutritionPlan(updatedMetrics),
+    completedWorkoutDates: [...completed].sort(),
+  };
 }
 
 export default function App() {
@@ -254,7 +288,10 @@ export default function App() {
         date,
         completedSets: ex.sets,
       }));
-      return { ...prev, progress: [...withoutDay, ...completedEntries] };
+      const completedWorkoutDates = prev.completedWorkoutDates?.includes(date)
+        ? prev.completedWorkoutDates
+        : [...(prev.completedWorkoutDates ?? []), date];
+      return { ...prev, progress: [...withoutDay, ...completedEntries], completedWorkoutDates };
     });
   }
 
@@ -275,6 +312,7 @@ export default function App() {
             ...prev,
             schedule: prev.schedule.filter((s) => s.date !== date),
             progress: prev.progress.filter((p) => p.date !== date),
+            completedWorkoutDates: prev.completedWorkoutDates?.filter((d) => d !== date),
           }
         : prev,
     );
@@ -283,7 +321,14 @@ export default function App() {
   /** Reverses handleQuickCompleteDay - removes the completed-set records for one day/date, undoing "מסומן כהושלם". */
   function handleUndoCompleteDay(dayId: string, date: string = todayIso()) {
     setAppState((prev) =>
-      prev ? { ...prev, progress: prev.progress.filter((p) => !(p.dayId === dayId && p.date === date)) } : prev,
+      prev
+        ? {
+            ...prev,
+            progress: prev.progress.filter((p) => !(p.dayId === dayId && p.date === date)),
+            // Un-marking a date also drops it from the marked-dates list, otherwise it would keep counting as trained.
+            completedWorkoutDates: prev.completedWorkoutDates?.filter((d) => d !== date),
+          }
+        : prev,
     );
   }
 
@@ -389,16 +434,7 @@ export default function App() {
       const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
 
       if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
-        const split = suggestSplitType(updates.trainingDaysPerWeek);
-        const baseTemplate = getWorkoutTemplate(split, updates.trainingDaysPerWeek);
-        const { plan: newWorkoutPlan } = adaptWorkoutPlan(baseTemplate, updatedMetrics.experience);
-        return {
-          ...prev,
-          profile: { ...prev.profile, metrics: updatedMetrics },
-          workoutPlan: newWorkoutPlan,
-          schedule: pruneStaleSchedule(prev.schedule, newWorkoutPlan),
-          nutritionPlan: newNutritionPlan,
-        };
+        return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
       }
 
       return {
@@ -421,22 +457,8 @@ export default function App() {
 
   /** Regenerates the workout plan and nutrition targets to match a new weekly training frequency. */
 
-  function handleChangeTrainingDays(newDays: TrainingDaysPerWeek) {
-    setAppState((prev) => {
-      if (!prev) return prev;
-      const updatedMetrics = { ...prev.profile.metrics, trainingDaysPerWeek: newDays };
-      const split = suggestSplitType(newDays);
-      const baseTemplate = getWorkoutTemplate(split, newDays);
-      const { plan: newWorkoutPlan } = adaptWorkoutPlan(baseTemplate, updatedMetrics.experience);
-      const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
-      return {
-        ...prev,
-        profile: { ...prev.profile, metrics: updatedMetrics },
-        workoutPlan: newWorkoutPlan,
-        schedule: pruneStaleSchedule(prev.schedule, newWorkoutPlan),
-        nutritionPlan: newNutritionPlan,
-      };
-    });
+  function handleApplyProgram(splitType: WorkoutSplitType, daysPerWeek: TrainingDaysPerWeek) {
+    setAppState((prev) => (prev ? applyProgramToState(prev, splitType, daysPerWeek) : prev));
   }
 
   if (isBooting) {
@@ -488,7 +510,7 @@ export default function App() {
         onSaveCircumferenceEntry={handleSaveCircumferenceEntry}
         onDeleteCircumferenceEntry={handleDeleteCircumferenceEntry}
         onSaveCircumferenceGoals={handleSaveCircumferenceGoals}
-        onChangeTrainingDays={handleChangeTrainingDays}
+        onApplyProgram={handleApplyProgram}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
         onReset={handleReset}

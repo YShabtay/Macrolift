@@ -6,7 +6,7 @@ import {
   buildMonthGrid,
   buildWeekGrid,
   CUSTOM_DAY_ID,
-  isDayCompleted,
+  isWorkoutDateDone,
   REST_DAY_ID,
   type CalendarDay,
 } from '../utils/scheduleHelpers';
@@ -16,6 +16,7 @@ interface WorkoutCalendarProps {
   workoutPlan: WorkoutPlan;
   progress: SetProgressEntry[];
   schedule: WorkoutScheduleEntry[];
+  completedDates: readonly string[];
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onClearSchedule: (date: string) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
@@ -40,6 +41,7 @@ export default function WorkoutCalendar({
   workoutPlan,
   progress,
   schedule,
+  completedDates,
   onSetSchedule,
   onClearSchedule,
   onQuickCompleteDay,
@@ -50,12 +52,12 @@ export default function WorkoutCalendar({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const monthDays = useMemo(
-    () => buildMonthGrid(anchorDate.getFullYear(), anchorDate.getMonth(), workoutPlan, progress, schedule),
-    [anchorDate, workoutPlan, progress, schedule],
+    () => buildMonthGrid(anchorDate.getFullYear(), anchorDate.getMonth(), workoutPlan, progress, schedule, completedDates),
+    [anchorDate, workoutPlan, progress, schedule, completedDates],
   );
   const weekDays = useMemo(
-    () => buildWeekGrid(formatDateForKey(anchorDate), workoutPlan, progress, schedule),
-    [anchorDate, workoutPlan, progress, schedule],
+    () => buildWeekGrid(formatDateForKey(anchorDate), workoutPlan, progress, schedule, completedDates),
+    [anchorDate, workoutPlan, progress, schedule, completedDates],
   );
 
   const days = viewMode === 'month' ? monthDays : weekDays;
@@ -70,7 +72,7 @@ export default function WorkoutCalendar({
   }
 
   const selectedEntry = selectedDate ? schedule.find((s) => s.date === selectedDate) : undefined;
-  const selectedIsCompleted = selectedDate ? isDayCompleted(workoutPlan, progress, selectedDate) : false;
+  const selectedIsCompleted = selectedDate ? isWorkoutDateDone(workoutPlan, progress, selectedDate, completedDates) : false;
 
   return (
     <div className="flex flex-col gap-5">

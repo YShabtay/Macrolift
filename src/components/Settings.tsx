@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import type { TrainingDaysPerWeek, UserMetrics, WorkoutSplitType } from '../types/fitness';
-import { suggestSplitType } from '../data/workoutTemplates';
 import { ThemeToggleSetting } from './ThemeToggle';
+import ProgramSwitcherModal from './ProgramSwitcherModal';
+import { recommendProgram, type ProgramRecommendation } from '../utils/programRecommendation';
 
 const TRAINING_DAYS_OPTIONS: TrainingDaysPerWeek[] = [2, 3, 4, 5, 6];
 
@@ -14,12 +15,14 @@ const SPLIT_LABELS: Record<WorkoutSplitType, string> = {
 
 interface SettingsProps {
   metrics: UserMetrics;
-  onChangeTrainingDays: (days: TrainingDaysPerWeek) => void;
+  currentSplit: WorkoutSplitType;
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
 }
 
-export default function Settings({ metrics, onChangeTrainingDays }: SettingsProps) {
+export default function Settings({ metrics, currentSplit, onApplyProgram }: SettingsProps) {
   const [selectedDays, setSelectedDays] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
   const [justSaved, setJustSaved] = useState(false);
+  const [recommendation, setRecommendation] = useState<ProgramRecommendation | null>(null);
 
   // metrics.trainingDaysPerWeek can change from outside this component (profile edit, data import) - stay in
   // sync without an effect, per React's "adjusting state when a prop changes" pattern.
@@ -30,12 +33,23 @@ export default function Settings({ metrics, onChangeTrainingDays }: SettingsProp
   }
 
   const hasChanged = selectedDays !== metrics.trainingDaysPerWeek;
-  const newSplit = suggestSplitType(selectedDays);
+  const suggested = recommendProgram(selectedDays);
+  const newSplit = suggested.split;
 
-  function handleSave() {
-    onChangeTrainingDays(selectedDays);
+  function flashSaved() {
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2500);
+  }
+
+  function handleSave() {
+    // A different frequency usually calls for a different program: show the evidence-based suggestion and let the user confirm
+    // it or pick another. Same program, new frequency (e.g. 5 -> 6 PPL days) just applies.
+    if (suggested.split !== currentSplit) {
+      setRecommendation(suggested);
+      return;
+    }
+    onApplyProgram(currentSplit, selectedDays);
+    flashSaved();
   }
 
   return (
@@ -71,8 +85,8 @@ export default function Settings({ metrics, onChangeTrainingDays }: SettingsProp
 
         {hasChanged && (
           <div className="mb-4 rounded-xl border border-lime-400/20 bg-lime-400/5 p-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 animate-fade-in">
-            התוכנית תתעדכן ל-<span className="font-bold text-lime-700 dark:text-lime-400">{SPLIT_LABELS[newSplit]}</span> (
-            {selectedDays} ימים בשבוע), ויעד הקלוריות יחושב מחדש בהתאם.
+            עם {selectedDays} ימים בשבוע נמליץ על <span className="font-bold text-lime-700 dark:text-lime-400">{SPLIT_LABELS[newSplit]}</span>
+            . תוכלו לאשר או לבחור תוכנית אחרת, ויעד הקלוריות יחושב מחדש בהתאם.
           </div>
         )}
 
@@ -92,6 +106,19 @@ export default function Settings({ metrics, onChangeTrainingDays }: SettingsProp
           )}
         </button>
       </div>
+
+      {recommendation && (
+        <ProgramSwitcherModal
+          currentSplit={currentSplit}
+          currentDays={metrics.trainingDaysPerWeek}
+          recommendation={recommendation}
+          onApply={(split, days) => {
+            onApplyProgram(split, days);
+            flashSaved();
+          }}
+          onClose={() => setRecommendation(null)}
+        />
+      )}
     </div>
   );
 }

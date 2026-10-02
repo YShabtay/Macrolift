@@ -68,7 +68,8 @@ import { buildWeeklySummaries, daysSince, getWeekStart, todayIso } from '../util
 import { countCompletedWorkoutsThisWeek } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
-import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, type CalendarDay } from '../utils/scheduleHelpers';
+import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, SPLIT_SHORT_LABELS, type CalendarDay } from '../utils/scheduleHelpers';
+import ProgramSwitcherModal from './ProgramSwitcherModal';
 import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
@@ -84,6 +85,7 @@ import type {
   ProgressPhoto,
   SetProgressEntry,
   TrainingDaysPerWeek,
+  WorkoutSplitType,
   WeightLog,
   WorkoutScheduleEntry,
 } from '../types/fitness';
@@ -121,7 +123,7 @@ interface DashboardProps {
   onSaveCircumferenceEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
-  onChangeTrainingDays: (days: TrainingDaysPerWeek) => void;
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onReset: () => void;
@@ -144,6 +146,9 @@ const NAV_ITEMS: { id: Tab; label: string; shortLabel: string; icon: typeof Layo
   { id: 'progress', label: 'התקדמות', shortLabel: 'התקדמות', icon: TrendingUp },
   { id: 'profile', label: 'פרופיל', shortLabel: 'פרופיל', icon: UserIcon },
 ];
+
+/** Stable empty list so memo dependencies don't change on every render when no dates are stored. */
+const NO_DATES: string[] = [];
 
 const TOUR_STEPS: TourStep[] = [
   {
@@ -213,7 +218,7 @@ export default function Dashboard({
   onSaveCircumferenceEntry,
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
-  onChangeTrainingDays,
+  onApplyProgram,
   onUpdateProfileFull,
   onImportAppState,
   onReset,
@@ -313,6 +318,7 @@ export default function Dashboard({
           {tab === 'dashboard' && (
             <DashboardTab
               appState={appState}
+              onApplyProgram={onApplyProgram}
               onQuickCompleteDay={onQuickCompleteDay}
               onUndoCompleteDay={onUndoCompleteDay}
               onSetSchedule={onSetSchedule}
@@ -329,6 +335,7 @@ export default function Dashboard({
               workoutPlan={appState.workoutPlan}
               schedule={appState.schedule}
               progress={appState.progress}
+              completedDates={appState.completedWorkoutDates ?? NO_DATES}
               onToggleSet={onToggleSet}
               onSwapExercise={onSwapExercise}
               onRevertExercise={onRevertExercise}
@@ -366,7 +373,7 @@ export default function Dashboard({
           {tab === 'profile' && (
             <ProfileTab
               appState={appState}
-              onChangeTrainingDays={onChangeTrainingDays}
+              onApplyProgram={onApplyProgram}
               onUpdateProfileFull={onUpdateProfileFull}
               onSaveCircumferenceEntry={onSaveCircumferenceEntry}
               onDeleteCircumferenceEntry={onDeleteCircumferenceEntry}
@@ -417,6 +424,7 @@ export default function Dashboard({
 
 function DashboardTab({
   appState,
+  onApplyProgram,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
@@ -428,6 +436,7 @@ function DashboardTab({
   onNavigate,
 }: {
   appState: AppState;
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
@@ -440,13 +449,15 @@ function DashboardTab({
 }) {
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
+  const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
   const todaysDayCompleted = useMemo(
-    () => isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
-    [workoutPlan, progress, todaysDay],
+    () => completedDates.includes(todayIso()) || isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
+    [workoutPlan, progress, todaysDay, completedDates],
   );
 
   const latestPhotoDaysAgo = useMemo(() => {
@@ -546,10 +557,17 @@ function DashboardTab({
         </div>
       )}
 
+      <ProgramCard
+        splitType={workoutPlan.splitType}
+        daysPerWeek={profile.metrics.trainingDaysPerWeek}
+        onChangeProgram={() => setIsProgramModalOpen(true)}
+      />
+
       <WeeklyCalendarWidget
         workoutPlan={workoutPlan}
         progress={progress}
         schedule={schedule}
+        completedDates={completedDates}
         onSelectDay={setEditingDay}
         onNavigate={() => onNavigate('workout')}
       />
@@ -566,6 +584,7 @@ function DashboardTab({
           weightLogs={weightLogs}
           workoutPlan={workoutPlan}
           progress={progress}
+          completedDates={completedDates}
           trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
         />
       </div>
@@ -593,6 +612,7 @@ function DashboardTab({
           workoutPlan={workoutPlan}
           progress={progress}
           schedule={schedule}
+          completedDates={completedDates}
           onQuickCompleteDay={onQuickCompleteDay}
           onUndoCompleteDay={onUndoCompleteDay}
           onSetSchedule={onSetSchedule}
@@ -600,6 +620,46 @@ function DashboardTab({
           onClose={() => setEditingDay(null)}
         />
       )}
+
+      {isProgramModalOpen && (
+        <ProgramSwitcherModal
+          currentSplit={workoutPlan.splitType}
+          currentDays={profile.metrics.trainingDaysPerWeek}
+          onApply={onApplyProgram}
+          onClose={() => setIsProgramModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Compact "current program" line on the home screen with a shortcut to switch it. */
+function ProgramCard({
+  splitType,
+  daysPerWeek,
+  onChangeProgram,
+}: {
+  splitType: WorkoutSplitType;
+  daysPerWeek: number;
+  onChangeProgram: () => void;
+}) {
+  return (
+    <div className="glass-card flex items-center justify-between gap-3 p-3.5 sm:p-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-700 dark:text-lime-400">
+          <Dumbbell className="h-5 w-5" />
+        </span>
+        <p className="truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">
+          תוכנית: <span className="text-lime-700 dark:text-lime-400">{SPLIT_SHORT_LABELS[splitType]}</span> • {daysPerWeek} ימים בשבוע
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onChangeProgram}
+        className="shrink-0 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400"
+      >
+        שנה תוכנית ⚙️
+      </button>
     </div>
   );
 }
@@ -670,19 +730,21 @@ function WeeklyCalendarWidget({
   workoutPlan,
   progress,
   schedule,
+  completedDates,
   onSelectDay,
   onNavigate,
 }: {
   workoutPlan: WorkoutPlan;
   progress: SetProgressEntry[];
   schedule: WorkoutScheduleEntry[];
+  completedDates: readonly string[];
   onSelectDay: (date: string) => void;
   onNavigate: () => void;
 }) {
   const today = useToday();
   const days = useMemo(
-    () => buildWeekGrid(today, workoutPlan, progress, schedule),
-    [today, workoutPlan, progress, schedule],
+    () => buildWeekGrid(today, workoutPlan, progress, schedule, completedDates),
+    [today, workoutPlan, progress, schedule, completedDates],
   );
   const weekdayLetters = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 
@@ -774,11 +836,13 @@ function StreaksCard({
   weightLogs,
   workoutPlan,
   progress,
+  completedDates,
   trainingDaysPerWeek,
 }: {
   weightLogs: WeightLog[];
   workoutPlan: WorkoutPlan;
   progress: SetProgressEntry[];
+  completedDates: readonly string[];
   trainingDaysPerWeek: number;
 }) {
   const today = useToday();
@@ -789,8 +853,8 @@ function StreaksCard({
   }, [weightLogs, today]);
 
   const workoutsThisWeek = useMemo(
-    () => countCompletedWorkoutsThisWeek(workoutPlan, progress, today),
-    [workoutPlan, progress, today],
+    () => countCompletedWorkoutsThisWeek(workoutPlan, progress, today, completedDates),
+    [workoutPlan, progress, today, completedDates],
   );
 
   const progressRatio = Math.min(
@@ -937,6 +1001,7 @@ function WorkoutPlanTab({
   workoutPlan,
   schedule,
   progress,
+  completedDates,
   onToggleSet,
   onSwapExercise,
   onRevertExercise,
@@ -948,6 +1013,7 @@ function WorkoutPlanTab({
   workoutPlan: WorkoutPlan;
   schedule: WorkoutScheduleEntry[];
   progress: SetProgressEntry[];
+  completedDates: readonly string[];
   onToggleSet: (dayId: string, exerciseId: string, setIndex: number) => void;
   onSwapExercise: (dayId: string, exerciseId: string, alternative: ExerciseAlternative) => void;
   onRevertExercise: (dayId: string, exerciseId: string) => void;
@@ -961,8 +1027,8 @@ function WorkoutPlanTab({
   const [selectedDayId, setSelectedDayId] = useState<string>(todaysDay.id);
   const selectedDay = workoutPlan.days.find((d) => d.id === selectedDayId) ?? workoutPlan.days[0];
   const todaysDayCompleted = useMemo(
-    () => isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
-    [workoutPlan, progress, todaysDay],
+    () => completedDates.includes(todayIso()) || isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
+    [workoutPlan, progress, todaysDay, completedDates],
   );
 
   return (
@@ -1027,6 +1093,7 @@ function WorkoutPlanTab({
           workoutPlan={workoutPlan}
           progress={progress}
           schedule={schedule}
+          completedDates={completedDates}
           onSetSchedule={onSetSchedule}
           onClearSchedule={onClearSchedule}
           onQuickCompleteDay={onQuickCompleteDay}
@@ -1364,7 +1431,7 @@ const INJURY_DISPLAY_LABELS: Record<string, string> = {
 
 function ProfileTab({
   appState,
-  onChangeTrainingDays,
+  onApplyProgram,
   onUpdateProfileFull,
   onSaveCircumferenceEntry,
   onDeleteCircumferenceEntry,
@@ -1377,7 +1444,7 @@ function ProfileTab({
   onStartTour,
 }: {
   appState: AppState;
-  onChangeTrainingDays: (days: TrainingDaysPerWeek) => void;
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onSaveCircumferenceEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteCircumferenceEntry: (id: string) => void;
@@ -1554,7 +1621,7 @@ function ProfileTab({
         <ChevronLeft className="h-5 w-5 shrink-0 text-zinc-400" />
       </button>
 
-      <Settings metrics={metrics} onChangeTrainingDays={onChangeTrainingDays} />
+      <Settings metrics={metrics} currentSplit={appState.workoutPlan.splitType} onApplyProgram={onApplyProgram} />
 
       <div className="glass-card p-5 sm:p-6">
         <h2 className="mb-3 font-bold text-zinc-900 dark:text-zinc-100">חישוב קלורי</h2>

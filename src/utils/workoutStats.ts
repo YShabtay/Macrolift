@@ -1,5 +1,5 @@
 import type { SetProgressEntry, WorkoutPlan } from '../types/fitness';
-import { isDayCompleted } from './scheduleHelpers';
+import { isWorkoutDateDone } from './scheduleHelpers';
 import { getWeekEnd, getWeekStart, todayIso } from './weightCalculations';
 
 /**
@@ -12,17 +12,18 @@ export function countCompletedWorkoutsThisWeek(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
   today: string = todayIso(),
+  completedDates: readonly string[] = [],
 ): number {
   const weekStart = getWeekStart(today);
   const weekEnd = getWeekEnd(today);
 
   const datesThisWeek = new Set(
-    progress.filter((p) => p.date >= weekStart && p.date <= weekEnd).map((p) => p.date),
+    [...progress.map((p) => p.date), ...completedDates].filter((d) => d >= weekStart && d <= weekEnd),
   );
 
   let completedCount = 0;
   for (const date of datesThisWeek) {
-    if (isDayCompleted(workoutPlan, progress, date)) completedCount++;
+    if (isWorkoutDateDone(workoutPlan, progress, date, completedDates)) completedCount++;
   }
   return completedCount;
 }
