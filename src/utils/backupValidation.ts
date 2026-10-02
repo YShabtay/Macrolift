@@ -279,6 +279,7 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (rawSchedule) state.schedule = keepObjects(rawSchedule, (p) => typeof p.date === 'string' && typeof p.dayId === 'string');
   if (rawSteps) state.stepLogs = keepObjects(rawSteps, (p) => typeof p.date === 'string' && isFiniteNumber(p.steps));
   if (rawCircumference) state.circumferenceLogs = keepObjects(rawCircumference, (p) => typeof p.date === 'string');
+  if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];
 
   const summary: RestoreSummary = {
@@ -310,9 +311,9 @@ export function describeRestore(summary: RestoreSummary): string[] {
   const lines: string[] = [];
   if (summary.weights !== undefined) lines.push(`נטענו בהצלחה ${summary.weights} שקילות`);
   if (summary.profileUpdated) lines.push('פרטי הפרופיל עודכנו');
-  if (summary.meals !== undefined) lines.push(`שוחזרו ${summary.meals} רשומות ביומן התזונה`);
-  if (summary.workoutDays !== undefined) lines.push(`שוחזרה היסטוריית אימונים (${summary.workoutDays} ימים)`);
-  if (summary.photos !== undefined) lines.push(`שוחזרו ${summary.photos} תמונות התקדמות`);
-  if (summary.measurements !== undefined) lines.push(`שוחזרו ${summary.measurements} מדידות היקפים`);
+  if (summary.meals) lines.push(`שוחזרו ${summary.meals} רשומות ביומן התזונה`);
+  if (summary.workoutDays) lines.push(`שוחזרה היסטוריית אימונים (${summary.workoutDays} ימים)`);
+  if (summary.photos) lines.push(`שוחזרו ${summary.photos} תמונות התקדמות`);
+  if (summary.measurements) lines.push(`שוחזרו ${summary.measurements} מדידות היקפים`);
   return lines;
 }

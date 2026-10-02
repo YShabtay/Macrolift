@@ -43,6 +43,7 @@ import FoodTracker from './FoodTracker';
 import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
+import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
 import RestTimerMiniBar from './RestTimerMiniBar';
@@ -109,6 +110,7 @@ interface DashboardProps {
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onSaveSteps: (date: string, steps: number) => void;
+  onSaveStepGoal: (goal: number) => void;
   onSaveCircumferenceEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
@@ -156,6 +158,7 @@ export default function Dashboard({
   onDeleteFood,
   onUpdateFood,
   onSaveSteps,
+  onSaveStepGoal,
   onSaveCircumferenceEntry,
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
@@ -250,6 +253,7 @@ export default function Dashboard({
               onSetSchedule={onSetSchedule}
               onSaveWeightLog={onSaveWeightLog}
               onSaveSteps={onSaveSteps}
+              onSaveStepGoal={onSaveStepGoal}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
               onNavigate={setTab}
@@ -352,6 +356,7 @@ function DashboardTab({
   onSetSchedule,
   onSaveWeightLog,
   onSaveSteps,
+  onSaveStepGoal,
   onDeleteFood,
   onUpdateFood,
   onNavigate,
@@ -362,6 +367,7 @@ function DashboardTab({
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onSaveWeightLog: (date: string, weightKg: number, notes?: string) => void;
   onSaveSteps: (date: string, steps: number) => void;
+  onSaveStepGoal: (goal: number) => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onNavigate: (tab: Tab) => void;
@@ -500,9 +506,10 @@ function DashboardTab({
 
       <StepsTracker
         stepLogs={stepLogs}
-        goalSteps={profile.metrics.averageDailySteps}
+        goalSteps={appState.stepGoal ?? DEFAULT_STEP_GOAL}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
+        onSaveGoal={onSaveStepGoal}
       />
 
       {isDailyMealsOpen && (

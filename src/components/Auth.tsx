@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Check, Dumbbell, Eye, EyeOff, Loader2, Lock, LogIn, Mail, Sparkles, User, UserPlus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronLeft, Dumbbell, Eye, EyeOff, FileUp, Loader2, Lock, LogIn, Mail, Smartphone, Sparkles, User, UserPlus, X, Zap } from 'lucide-react';
 import { hashPassword, loadUsers, saveUsers, setSessionUserId } from '../utils/authStorage';
 import type { AuthUser } from '../utils/authStorage';
 import { ThemeToggleButton } from './ThemeToggle';
 import Toast from './Toast';
 import { startDemoSession } from '../utils/demoData';
+import { isLocalProfile, openLocalProfile, restoreProfileFromBackup, startGuestSession } from '../utils/localProfiles';
+import RestoreResultModal, { type RestoreResult } from './RestoreResultModal';
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -71,6 +73,31 @@ export default function Auth({ onAuthenticated }: AuthProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreOutcome, setRestoreOutcome] = useState<{ result: RestoreResult; userId: string | null } | null>(null);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [accountCount, setAccountCount] = useState(0);
+  const [localProfiles, setLocalProfiles] = useState<AuthUser[]>([]);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  // A browser or device with nothing stored (e.g. regular Safari, which doesn't share storage with the installed
+  // PWA) has no account to log into - so open on sign-up instead of a dead-end login form.
+  useEffect(() => {
+    let cancelled = false;
+    loadUsers().then((users) => {
+      if (cancelled) return;
+      setAccountCount(users.length);
+      setLocalProfiles(users.filter(isLocalProfile));
+      if (users.length === 0) setMode('register');
+      setUsersLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isFreshDevice = usersLoaded && accountCount === 0;
 
   const passwordRules = getPasswordRules(password);
   const isPasswordValid = passwordRules.every((r) => r.isValid);
@@ -108,6 +135,40 @@ export default function Auth({ onAuthenticated }: AuthProps) {
     }
   }
 
+  async function handleGuestStart() {
+    setIsGuestLoading(true);
+    try {
+      onAuthenticated(await startGuestSession());
+    } catch {
+      setToastMessage('יצירת הפרופיל נכשלה, ייתכן שהאחסון חסום או מלא');
+    } finally {
+      setIsGuestLoading(false);
+    }
+  }
+
+  async function handleOpenLocalProfile(userId: string) {
+    onAuthenticated(await openLocalProfile(userId));
+  }
+
+  async function handleRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsRestoring(true);
+    try {
+      const outcome = await restoreProfileFromBackup(await file.text());
+      setRestoreOutcome(
+        outcome.ok
+          ? { result: { kind: 'success', summary: outcome.summary, skipped: outcome.skipped }, userId: outcome.userId }
+          : { result: { kind: 'error', message: outcome.error }, userId: null },
+      );
+    } catch {
+      setRestoreOutcome({ result: { kind: 'error', message: 'לא ניתן היה לקרוא את הקובץ שנבחר' }, userId: null });
+    } finally {
+      setIsRestoring(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -128,6 +189,10 @@ export default function Auth({ onAuthenticated }: AuthProps) {
         const users = await loadUsers();
         const passwordHash = await hashPassword(password);
         const existing = users.find((u) => u.username === normalizedUsername);
+        if (users.length === 0) {
+          setError('אין עדיין חשבונות במכשיר או בדפדפן הזה. צרו חשבון חדש, שחזרו מקובץ גיבוי או התנסו כאורח.');
+          return;
+        }
         if (!existing || existing.passwordHash !== passwordHash) {
           setError('שם משתמש או סיסמה שגויים');
           return;
@@ -207,6 +272,41 @@ export default function Auth({ onAuthenticated }: AuthProps) {
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">כושר ותזונה אישית, בנוי בשבילך</p>
           </div>
         </div>
+
+        {isFreshDevice && (
+          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-lime-400/30 bg-lime-400/5 p-4">
+            <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-lime-700 dark:text-lime-400" />
+            <div>
+              <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">ברוכים הבאים! 👋</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                אין עדיין נתונים שמורים במכשיר או בדפדפן הזה. הנתונים נשמרים אצלכם בלבד, ולכן צרו פרופיל חדש, שחזרו מקובץ גיבוי, או התנסו מיד
+                כאורח.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {localProfiles.length > 0 && (
+          <div className="mb-4 flex flex-col gap-2">
+            <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-500">פרופילים שמורים במכשיר</p>
+            {localProfiles.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => void handleOpenLocalProfile(p.id)}
+                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 text-right transition hover:border-lime-400/50"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400/15 text-sm font-bold text-lime-700 dark:text-lime-400">
+                    {p.fullName.slice(0, 1) || '?'}
+                  </span>
+                  <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{p.fullName}</span>
+                </span>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-zinc-500" />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="glass-card p-6 sm:p-7">
               <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1">
@@ -369,24 +469,50 @@ export default function Auth({ onAuthenticated }: AuthProps) {
               </form>
         </div>
 
-        <button
-          type="button"
-          onClick={handleDemoLogin}
-          disabled={isDemoLoading}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-lime-400/50 bg-lime-400/5 py-3.5 text-sm font-bold text-lime-700 transition hover:bg-lime-400/10 disabled:cursor-not-allowed disabled:opacity-60 dark:text-lime-400"
-        >
-          {isDemoLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              טוען נתוני דמו...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              כניסה מיידית כמשתמש דמו (התרשמות מהירה)
-            </>
-          )}
-        </button>
+        <div className="mt-4 flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={() => restoreInputRef.current?.click()}
+            disabled={isRestoring}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-lime-400/60 bg-lime-400/10 py-3.5 text-sm font-bold text-lime-700 transition hover:bg-lime-400/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-lime-400"
+          >
+            {isRestoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+            {isRestoring ? 'טוען את הגיבוי...' : 'כניסה באמצעות קובץ גיבוי (Restore JSON) 📥'}
+          </button>
+          <input ref={restoreInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleRestoreFile} />
+
+          <button
+            type="button"
+            onClick={() => void handleGuestStart()}
+            disabled={isGuestLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-3.5 text-sm font-bold text-zinc-800 transition hover:border-lime-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-200"
+          >
+            {isGuestLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-lime-700 dark:text-lime-400" />}
+            {isGuestLoading ? 'יוצר פרופיל...' : 'המשך כאורח (התחלה מהירה)'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={isDemoLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-lime-400/50 bg-lime-400/5 py-3.5 text-sm font-bold text-lime-700 transition hover:bg-lime-400/10 disabled:cursor-not-allowed disabled:opacity-60 dark:text-lime-400"
+          >
+            {isDemoLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                טוען נתוני דמו...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                כניסה מיידית כמשתמש דמו (התרשמות מהירה)
+              </>
+            )}
+          </button>
+          <p className="text-center text-[11px] leading-relaxed text-zinc-500">
+            אורח ושחזור מגיבוי נשמרים על המכשיר בלבד, ללא שרת וללא סיסמה.
+          </p>
+        </div>
 
         <p className="mt-5 text-center text-sm text-zinc-600 dark:text-zinc-500">
           {mode === 'login' ? (
@@ -406,6 +532,18 @@ export default function Auth({ onAuthenticated }: AuthProps) {
           )}
         </p>
       </div>
+
+      {restoreOutcome && (
+        <RestoreResultModal
+          result={restoreOutcome.result}
+          onClose={() => {
+            const outcome = restoreOutcome;
+            setRestoreOutcome(null);
+            // Closing the success summary is the "continue": the restored profile is already saved and active.
+            if (outcome.userId) onAuthenticated(outcome.userId);
+          }}
+        />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>

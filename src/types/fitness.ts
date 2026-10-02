@@ -298,4 +298,6 @@ export interface AppState {
   stepLogs: StepLog[];
   circumferenceLogs: CircumferenceEntry[];
   circumferenceGoals: CircumferenceGoals;
+  /** Daily step target set from the steps card; the app falls back to 10,000 when unset. */
+  stepGoal?: number;
 }

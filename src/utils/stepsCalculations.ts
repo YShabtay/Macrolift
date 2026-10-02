@@ -1,5 +1,8 @@
 import type { StepLog } from '../types/fitness';
 
+export const DEFAULT_STEP_GOAL = 10000;
+export const MAX_STEPS_PER_DAY = 100000;
+
 export function getStepsForDate(stepLogs: StepLog[], date: string): number {
   return stepLogs.find((s) => s.date === date)?.steps ?? 0;
 }

@@ -1,26 +1,30 @@
 import { useMemo, useState } from 'react';
-import { Flame, Footprints, Play, Square } from 'lucide-react';
+import { Flame, Footprints, Pencil } from 'lucide-react';
 import type { StepLog } from '../types/fitness';
 import { todayIso, parseIsoDate, formatIsoDate } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
-import { useStepCounter } from '../hooks/useStepCounter';
+import { QuickStepsModal, StepGoalModal } from './StepsModals';
+import Toast from './Toast';
 
 interface StepsTrackerProps {
   stepLogs: StepLog[];
   goalSteps: number;
   weightKg: number;
   onSaveSteps: (date: string, steps: number) => void;
+  onSaveGoal: (goal: number) => void;
 }
 
 const WEEKDAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 
-export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveSteps }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
   const today = todayIso();
   const todaySteps = useMemo(() => getStepsForDate(stepLogs, today), [stepLogs, today]);
-  const [inputValue, setInputValue] = useState('');
-  const counter = useStepCounter();
+  const [isLogging, setIsLogging] = useState(false);
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const progress = goalSteps > 0 ? Math.min(todaySteps / goalSteps, 1) : 0;
+  const percent = goalSteps > 0 ? Math.round((todaySteps / goalSteps) * 100) : 0;
   const caloriesBurned = estimateStepCalories(todaySteps, weightKg);
 
   const radius = 40;
@@ -39,22 +43,6 @@ export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveStep
     return days;
   }, [stepLogs, today]);
   const historyMax = Math.max(...last7Days.map((d) => d.steps), goalSteps, 1);
-
-  function handleQuickUpdate() {
-    const n = Number(inputValue);
-    if (!inputValue.trim() || Number.isNaN(n) || n < 0) return;
-    onSaveSteps(today, Math.round(n));
-    setInputValue('');
-  }
-
-  async function handleToggleLiveCounter() {
-    if (counter.isActive) {
-      const counted = counter.stop();
-      if (counted > 0) onSaveSteps(today, todaySteps + counted);
-    } else {
-      await counter.start();
-    }
-  }
 
   return (
     <div className="glass-card p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
@@ -87,43 +75,33 @@ export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveStep
         </div>
 
         <div className="flex w-full flex-1 flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+              {percent >= 100 ? 'היעד הושג! 🎉' : `${percent}% מהיעד היומי`}
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsEditingGoal(true)}
+              aria-label="עריכת יעד צעדים"
+              className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50"
+            >
+              יעד: {goalSteps.toLocaleString()}
+              <Pencil className="h-3 w-3" />
+            </button>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+            <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
             נשרפו כ-{caloriesBurned} קק״ל מהליכה היום
           </div>
 
-          <div className="flex gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleQuickUpdate()}
-              placeholder="לדוגמה: 8500"
-              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-lime-400"
-            />
-            <button type="button" onClick={handleQuickUpdate} className="btn-primary px-4 text-xs">
-              עדכון
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleToggleLiveCounter}
-            className={
-              counter.isActive
-                ? 'btn-secondary border-orange-400/40 text-orange-700 dark:text-orange-400 hover:border-orange-400/60'
-                : 'btn-secondary'
-            }
-          >
-            {counter.isActive ? <Square className="h-3.5 w-3.5 fill-current" /> : <Play className="h-4 w-4" />}
-            {counter.isActive ? `עצירה (${counter.liveSteps} צעדים נספרו)` : 'הפעל מונה צעדים להליכה כעת'}
+          <button type="button" onClick={() => setIsLogging(true)} className="btn-primary">
+            עדכן צעדים 👟
           </button>
-
-          {counter.error && <p className="text-[11px] text-orange-700 dark:text-orange-400">{counter.error}</p>}
-          {!counter.isSupported && !counter.error && (
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-600">המונה בזמן אמת דורש חיישן תנועה וזמין בעיקר במכשירים ניידים.</p>
-          )}
         </div>
       </div>
 
@@ -143,6 +121,32 @@ export default function StepsTracker({ stepLogs, goalSteps, weightKg, onSaveStep
           ))}
         </div>
       </div>
+
+      {isLogging && (
+        <QuickStepsModal
+          currentSteps={todaySteps}
+          onSave={(steps) => {
+            onSaveSteps(today, steps);
+            setIsLogging(false);
+            setToastMessage('הצעדים עודכנו');
+          }}
+          onClose={() => setIsLogging(false)}
+        />
+      )}
+
+      {isEditingGoal && (
+        <StepGoalModal
+          goal={goalSteps}
+          onSave={(goal) => {
+            onSaveGoal(goal);
+            setIsEditingGoal(false);
+            setToastMessage('יעד הצעדים עודכן');
+          }}
+          onClose={() => setIsEditingGoal(false)}
+        />
+      )}
+
+      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>
   );
 }

@@ -303,6 +303,10 @@ export default function App() {
     });
   }
 
+  function handleSaveStepGoal(goal: number) {
+    setAppState((prev) => (prev ? { ...prev, stepGoal: goal } : prev));
+  }
+
   /** Upserts a circumference check-in for one date (replaces any existing entry for that date). */
   function handleSaveCircumferenceEntry(date: string, measurements: BodyMeasurements) {
     setAppState((prev) => {
@@ -461,6 +465,7 @@ export default function App() {
         onDeleteFood={handleDeleteFood}
         onUpdateFood={handleUpdateFood}
         onSaveSteps={handleSaveSteps}
+        onSaveStepGoal={handleSaveStepGoal}
         onSaveCircumferenceEntry={handleSaveCircumferenceEntry}
         onDeleteCircumferenceEntry={handleDeleteCircumferenceEntry}
         onSaveCircumferenceGoals={handleSaveCircumferenceGoals}
