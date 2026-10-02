@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import { useCountdown } from '../hooks/useCountdown';
 import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
 
 interface RestTimerProps {
@@ -20,25 +20,12 @@ function formatTime(totalSeconds: number): string {
  * internal state (remaining time, running/paused) resets cleanly.
  */
 export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps) {
-  const [remaining, setRemaining] = useState(seconds);
-  const [running, setRunning] = useState(true);
-  const hasFinishedRef = useRef(false);
-
-  useEffect(() => {
-    if (!running || remaining <= 0) return;
-    const id = setTimeout(() => setRemaining((r) => Math.max(r - 1, 0)), 1000);
-    return () => clearTimeout(id);
-  }, [running, remaining]);
-
-  useEffect(() => {
-    if (remaining > 0) {
-      hasFinishedRef.current = false;
-      return;
-    }
-    if (hasFinishedRef.current) return;
-    hasFinishedRef.current = true;
-    fireRestTimerFinishedAlert();
-  }, [remaining]);
+  // Deadline-based (endTime = Date.now() + duration), so time spent with the app backgrounded still counts.
+  const { remaining, running, start, pause, reset } = useCountdown({
+    durationSec: seconds,
+    autoStart: true,
+    onFinish: fireRestTimerFinishedAlert,
+  });
 
   const progress = seconds > 0 ? remaining / seconds : 0;
   const radius = 26;
@@ -82,7 +69,8 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
             type="button"
             onClick={() => {
               unlockRestTimerAudio();
-              setRunning((r) => !r);
+              if (running) pause();
+              else start();
             }}
             aria-label={running ? 'השהיה' : 'המשך'}
             disabled={isDone}
@@ -93,8 +81,9 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
           <button
             type="button"
             onClick={() => {
-              setRemaining(seconds);
-              setRunning(true);
+              unlockRestTimerAudio();
+              reset(seconds);
+              start();
             }}
             aria-label="איפוס"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400 active:scale-90"

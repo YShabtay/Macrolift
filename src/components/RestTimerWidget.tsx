@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pause, Play, RotateCcw, Timer as TimerIcon } from 'lucide-react';
+import { useCountdown, useStopwatch } from '../hooks/useCountdown';
 import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
 
 const QUICK_DURATIONS = [60, 90, 120, 180];
@@ -16,41 +17,28 @@ type Mode = 'countdown' | 'stopwatch';
 export default function RestTimerWidget() {
   const [mode, setMode] = useState<Mode>('countdown');
   const [duration, setDuration] = useState(90);
-  const [remaining, setRemaining] = useState(90);
-  const [elapsed, setElapsed] = useState(0);
-  const [running, setRunning] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
-  const hasFinishedRef = useRef(false);
 
-  useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => {
-      if (mode === 'countdown') {
-        setRemaining((r) => {
-          if (r <= 1) {
-            if (!hasFinishedRef.current) {
-              hasFinishedRef.current = true;
-              fireRestTimerFinishedAlert();
-              setJustFinished(true);
-              setRunning(false);
-            }
-            return 0;
-          }
-          return r - 1;
-        });
-      } else {
-        setElapsed((e) => e + 1);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [running, mode]);
+  // Both clocks derive their value from timestamps, so a locked screen or backgrounded app can't lose time.
+  const countdown = useCountdown({
+    durationSec: 90,
+    onFinish: () => {
+      fireRestTimerFinishedAlert();
+      setJustFinished(true);
+    },
+  });
+  const stopwatch = useStopwatch();
+
+  const remaining = countdown.remaining;
+  const elapsed = stopwatch.elapsed;
+  const running = mode === 'countdown' ? countdown.running : stopwatch.running;
 
   function selectDuration(d: number) {
+    // Tapping a duration is a user gesture: warm up audio now so the finish beeps are allowed later on iOS.
+    unlockRestTimerAudio();
     setDuration(d);
-    setRemaining(d);
-    setRunning(false);
+    countdown.reset(d);
     setJustFinished(false);
-    hasFinishedRef.current = false;
   }
 
   function toggleRunning() {
@@ -59,25 +47,23 @@ export default function RestTimerWidget() {
     // within a user gesture, not later when the countdown actually finishes.
     unlockRestTimerAudio();
     setJustFinished(false);
-    setRunning((r) => !r);
+    const clock = mode === 'countdown' ? countdown : stopwatch;
+    if (running) clock.pause();
+    else clock.start();
   }
 
   function handleReset() {
-    setRunning(false);
     setJustFinished(false);
-    hasFinishedRef.current = false;
-    if (mode === 'countdown') setRemaining(duration);
-    else setElapsed(0);
+    if (mode === 'countdown') countdown.reset(duration);
+    else stopwatch.reset();
   }
 
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
-    setRunning(false);
     setJustFinished(false);
-    hasFinishedRef.current = false;
-    setRemaining(duration);
-    setElapsed(0);
+    countdown.reset(duration);
+    stopwatch.reset();
   }
 
   const displaySeconds = mode === 'countdown' ? remaining : elapsed;

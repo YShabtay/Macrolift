@@ -44,6 +44,7 @@ import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
 import RestTimerWidget from './RestTimerWidget';
+import RestFinishedAlert from './RestFinishedAlert';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
 import DailyMealsModal from './DailyMealsModal';
 import CircumferenceTracker from './CircumferenceTracker';
@@ -171,6 +172,8 @@ export default function Dashboard({
       {/* Ambient background glows - fixed to the viewport so they read as soft, persistent lighting */}
       <div className="pointer-events-none fixed -top-24 -right-24 -z-10 h-[420px] w-[420px] rounded-full bg-lime-500/5 blur-[120px] dark:bg-lime-500/10" />
       <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
+
+      <RestFinishedAlert />
 
       {/* Opaque strip behind the iPhone status bar / camera cutout so scrolled content never shows through it */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:hidden" />

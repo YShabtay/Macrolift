@@ -34,6 +34,7 @@ export default {
         'toast-in': 'toast-in 0.3s ease-out',
         'toast-out': 'toast-out 0.3s ease-in forwards',
         'glow-pulse': 'glow-pulse 0.9s ease-in-out 3',
+        'rest-flash': 'rest-flash 1.4s ease-out forwards',
       },
       keyframes: {
         'fade-in': {
@@ -59,6 +60,13 @@ export default {
         'toast-out': {
           '0%': { opacity: '1', transform: 'translateY(0)' },
           '100%': { opacity: '0', transform: 'translateY(-16px)' },
+        },
+        'rest-flash': {
+          '0%': { opacity: '0' },
+          '12%': { opacity: '0.55' },
+          '32%': { opacity: '0.05' },
+          '52%': { opacity: '0.5' },
+          '100%': { opacity: '0' },
         },
         'glow-pulse': {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(163, 230, 53, 0.5)' },
