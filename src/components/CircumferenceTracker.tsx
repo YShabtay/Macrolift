@@ -8,21 +8,47 @@ import {
   getEffectiveExperience,
   getLatestValue,
   getMonthlyGrowthRateCm,
+  getWaistCeilingCm,
   getWaistCeilingWarning,
   isRealisticGoal,
   METRIC_LABELS,
   type GrowthMetric,
 } from '../utils/bodyMeasurements';
 import { formatDateDisplay, todayIso } from '../utils/weightCalculations';
-import { forecastBulkingPlan, formatCm, formatRangeCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
+import { formatCm, formatRangeCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
 
 const GROWTH_METRICS: GrowthMetric[] = ['armCm', 'chestCm', 'hipCm'];
-const GOAL_LABELS_SHORT: Record<Goal, string> = {
-  lose_weight: 'ירידה במשקל',
-  maintain: 'שמירה על המשקל',
-  gain_muscle: 'מסה מבוקרת',
-  recomp: 'שיפור הרכב גוף',
-};
+
+type GoalMode = 'duration' | 'target';
+
+const BASE_MONTH_OPTIONS = [3, 6, 9, 12];
+const MODE_STORAGE_KEY = 'macrolift-circumference-mode';
+const MONTHS_STORAGE_KEY = 'macrolift-circumference-months';
+
+function readStoredMode(): GoalMode {
+  try {
+    return localStorage.getItem(MODE_STORAGE_KEY) === 'target' ? 'target' : 'duration';
+  } catch {
+    return 'duration';
+  }
+}
+
+function readStoredMonths(fallback: number): number {
+  try {
+    const n = Number(localStorage.getItem(MONTHS_STORAGE_KEY));
+    return Number.isInteger(n) && n >= 1 && n <= 24 ? n : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function persist(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private mode / blocked storage: the choice just won't be remembered.
+  }
+}
 
 interface CircumferenceTrackerProps {
   logs: CircumferenceEntry[];
@@ -48,6 +74,19 @@ export default function CircumferenceTracker({
   const [isAddingMeasurement, setIsAddingMeasurement] = useState(false);
   const [isEditingGoals, setIsEditingGoals] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [mode, setMode] = useState<GoalMode>(readStoredMode);
+  const [months, setMonths] = useState(() => readStoredMonths(bulkingPlan?.durationMonths ?? 6));
+  const monthOptions = useMemo(() => [...new Set([...BASE_MONTH_OPTIONS, months])].sort((a, b) => a - b), [months]);
+
+  function changeMode(next: GoalMode) {
+    setMode(next);
+    persist(MODE_STORAGE_KEY, next);
+  }
+
+  function changeMonths(next: number) {
+    setMonths(next);
+    persist(MONTHS_STORAGE_KEY, String(next));
+  }
 
   const experience = getEffectiveExperience(experienceYears);
   const sortedLogs = useMemo(() => [...logs].sort((a, b) => (a.date < b.date ? 1 : -1)), [logs]);
@@ -60,34 +99,95 @@ export default function CircumferenceTracker({
         <h2 className="font-bold text-zinc-900 dark:text-zinc-100">יעדי היקפים ותחזית גדילה</h2>
       </div>
       <p className="mb-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-        עקיבה אחר זרוע, חזה, מותניים וירך, עם תחזית ריאלית לזמן ההגעה ליעד לפי ותק האימונים שלך
+        עקיבה אחר זרוע, חזה, מותניים וירך, עם תחזית ריאלית לפי ותק האימונים שלך
         {' '}({EXPERIENCE_LABELS[experience]}).
       </p>
 
-      {waistWarning && (
+      {mode === 'target' && waistWarning && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-orange-400/30 bg-orange-400/5 px-3.5 py-2.5 text-xs leading-relaxed text-orange-700 dark:text-orange-300">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {waistWarning}
         </div>
       )}
 
-      {goal === 'gain_muscle' && (
+      <div role="tablist" aria-label="מצב יעד בהיקפים" className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
+        {(
+          [
+            ['duration', 'לפי משך תקופה (חודשים)'],
+            ['target', 'לפי יעד מספרי (ס״מ)'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={mode === id}
+            onClick={() => changeMode(id)}
+            className={`rounded-lg px-2 py-2.5 text-xs font-bold transition ${
+              mode === id
+                ? 'bg-lime-400 text-zinc-950 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'duration' && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-500">משך תקופת המסה</p>
+          <div className="flex flex-wrap gap-1.5">
+            {monthOptions.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => changeMonths(m)}
+                className={`h-9 min-w-[4.5rem] rounded-lg border px-3 text-xs font-bold transition ${
+                  months === m
+                    ? 'border-lime-400/60 bg-lime-400/10 text-lime-700 dark:text-lime-400'
+                    : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+                }`}
+              >
+                {m} חודשים
+              </button>
+            ))}
+          </div>
+          {goal !== 'gain_muscle' && (
+            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">התחזית מניחה תקופת עלייה במסה (עודף קלורי מבוקר).</p>
+          )}
+        </div>
+      )}
+
+      {mode === 'duration' && goal === 'gain_muscle' && bulkingPlan && bulkingPlan.durationMonths === months && (
         <BulkingPlanCard plan={bulkingPlan} logs={logs} experience={experience} />
       )}
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {GROWTH_METRICS.map((metric) => (
-          <GrowthMetricCard
-            key={metric}
-            metric={metric}
-            current={getLatestValue(logs, metric)}
-            goalValue={goals[metric]}
-            experience={experience}
-            goalLabel={GOAL_LABELS_SHORT[goal]}
-            bulkMonths={goal === 'gain_muscle' ? bulkingPlan?.durationMonths : undefined}
-          />
-        ))}
-        <WaistMetricCard current={getLatestValue(logs, 'waistCm')} goalValue={goals.waistCm} />
+        {GROWTH_METRICS.map((metric) =>
+          mode === 'duration' ? (
+            <DurationMetricCard
+              key={metric}
+              metric={metric}
+              current={getLatestValue(logs, metric)}
+              months={months}
+              experience={experience}
+            />
+          ) : (
+            <TargetMetricCard
+              key={metric}
+              metric={metric}
+              current={getLatestValue(logs, metric)}
+              goalValue={goals[metric]}
+              experience={experience}
+            />
+          ),
+        )}
+        {mode === 'duration' ? (
+          <WaistDurationCard current={getLatestValue(logs, 'waistCm')} ceilingCm={goal === 'gain_muscle' ? getWaistCeilingCm(logs) : null} />
+        ) : (
+          <WaistMetricCard current={getLatestValue(logs, 'waistCm')} goalValue={goals.waistCm} />
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -99,14 +199,16 @@ export default function CircumferenceTracker({
           <Plus className="h-3.5 w-3.5" />
           עדכן מדידה חדשה
         </button>
-        <button
-          type="button"
-          onClick={() => setIsEditingGoals((v) => !v)}
-          className="btn-secondary text-xs"
-        >
-          <Target className="h-3.5 w-3.5" />
-          הגדרת יעדים
-        </button>
+        {mode === 'target' && (
+          <button
+            type="button"
+            onClick={() => setIsEditingGoals((v) => !v)}
+            className="btn-secondary text-xs"
+          >
+            <Target className="h-3.5 w-3.5" />
+            הגדרת יעדים
+          </button>
+        )}
       </div>
 
       {isAddingMeasurement && (
@@ -120,7 +222,7 @@ export default function CircumferenceTracker({
         />
       )}
 
-      {isEditingGoals && (
+      {mode === 'target' && isEditingGoals && (
         <GoalsForm
           goals={goals}
           onSave={(next) => {
@@ -187,76 +289,112 @@ export default function CircumferenceTracker({
   );
 }
 
-function GrowthMetricCard({
+const CARD_CLASS = 'rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5';
+
+function CurrentValue({ label, current }: { label: string; current: number }) {
+  return (
+    <>
+      <p className="text-xs text-zinc-600 dark:text-zinc-500">{label}</p>
+      <p className="mb-2 text-xl font-extrabold text-zinc-900 dark:text-zinc-100">
+        {current}
+        <span className="mr-1 text-xs font-normal text-zinc-600 dark:text-zinc-500">ס״מ</span>
+      </p>
+    </>
+  );
+}
+
+/** Duration mode: what a realistic bulk of N months adds to this region, and where that lands. */
+function DurationMetricCard({
+  metric,
+  current,
+  months,
+  experience,
+}: {
+  metric: GrowthMetric;
+  current: number | undefined;
+  months: number;
+  experience: TrainingExperience;
+}) {
+  const label = METRIC_LABELS[metric];
+  if (current === undefined) return <EmptyCard label={label} />;
+
+  const { minCm, maxCm } = forecastGrowthCm(metric, experience, months);
+
+  return (
+    <div className={CARD_CLASS}>
+      <CurrentValue label={label} current={current} />
+      <p className="text-[11px] text-zinc-600 dark:text-zinc-500">צפי עלייה ב-{months} חודשים</p>
+      <p className="whitespace-nowrap text-sm font-extrabold text-lime-700 dark:text-lime-400">+{formatRangeCm(minCm, maxCm)} ס״מ</p>
+      <p className="mt-1.5 text-[11px] text-zinc-600 dark:text-zinc-500">
+        היקף צפוי בסיום: <b className="whitespace-nowrap">{formatRangeCm(Math.round((current + minCm) * 10) / 10, Math.round((current + maxCm) * 10) / 10)} ס״מ</b>
+      </p>
+    </div>
+  );
+}
+
+/** Target mode: the user's own cm goal, what's left, and a controlled-pace estimate to get there. */
+function TargetMetricCard({
   metric,
   current,
   goalValue,
   experience,
-  goalLabel,
-  bulkMonths,
 }: {
   metric: GrowthMetric;
   current: number | undefined;
   goalValue: number | undefined;
   experience: TrainingExperience;
-  goalLabel: string;
-  /** Planned bulk length; when set, the forecast is anchored to it instead of an open-ended time-to-goal. */
-  bulkMonths?: number;
 }) {
   const label = METRIC_LABELS[metric];
-
-  if (current === undefined) {
-    return <EmptyCard label={label} />;
-  }
-
-  if (goalValue === undefined) {
-    return <CurrentOnlyCard label={label} current={current} />;
-  }
+  if (current === undefined) return <EmptyCard label={label} />;
+  if (goalValue === undefined) return <CurrentOnlyCard label={label} current={current} />;
 
   const delta = Math.round((goalValue - current) * 10) / 10;
-  const rate = getMonthlyGrowthRateCm(metric, experience);
-  const months = estimateMonthsToGoal(current, goalValue, rate);
-  const realistic = isRealisticGoal(metric, current, goalValue);
-  const bulkForecast = bulkMonths !== undefined ? forecastGrowthCm(metric, experience, bulkMonths) : null;
+  const months = estimateMonthsToGoal(current, goalValue, getMonthlyGrowthRateCm(metric, experience));
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
-      <p className="text-xs text-zinc-600 dark:text-zinc-500">{label}</p>
-      <p className="mb-1.5 text-xl font-extrabold text-zinc-900 dark:text-zinc-100">
-        {current}
-        <span className="mr-1 text-xs font-normal text-zinc-600 dark:text-zinc-500">ס״מ</span>
-      </p>
-
+    <div className={CARD_CLASS}>
+      <CurrentValue label={label} current={current} />
       {delta <= 0 ? (
         <p className="text-xs font-semibold text-lime-700 dark:text-lime-400">היעד הושג! 🎉</p>
       ) : (
         <>
           <p className="text-xs text-zinc-700 dark:text-zinc-300">
-            יעד: {goalValue} ס״מ <span className="text-zinc-500 dark:text-zinc-500">(נותרו {delta} ס״מ)</span>
+            יעד: <b>{goalValue} ס״מ</b> <span className="text-zinc-500">(נותרו {delta} ס״מ)</span>
           </p>
-          {!realistic ? (
+          {!isRealisticGoal(metric, current, goalValue) ? (
             <p className="mt-1.5 flex items-start gap-1 text-[11px] leading-relaxed text-orange-700 dark:text-orange-300">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
               זהו יעד שאינו ריאלי באופן טבעי - שקלו יעד מתון יותר
             </p>
           ) : (
-            (bulkForecast && bulkMonths !== undefined ? (
+            months !== null && (
               <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
-                ב-{bulkMonths} חודשי המסה צפויה עלייה של כ-{formatRangeCm(bulkForecast.minCm, bulkForecast.maxCm)} ס״מ
-                {delta <= bulkForecast.maxCm
-                  ? ' - היעד בהישג יד בתוך התקופה.'
-                  : ` - היעד דורש כ-${months} חודשים, יותר מתקופת המסה שהוגדרה.`}
+                משך משוער בקצב מבוקר: <b>כ-{months} חודשים</b> להגעה
               </p>
-            ) : (
-              months !== null && (
-                <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
-                  זמן הגעה משוער: כ-{months} חודשים ב{goalLabel} בקצב נוכחי
-                </p>
-              )
-            ))
+            )
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/** Duration mode: the waist isn't a growth target - show where it is and the line to stay under for a clean bulk. */
+function WaistDurationCard({ current, ceilingCm }: { current: number | undefined; ceilingCm: number | null }) {
+  const label = METRIC_LABELS.waistCm;
+  if (current === undefined) return <EmptyCard label={label} />;
+  return (
+    <div className={CARD_CLASS}>
+      <CurrentValue label={label} current={current} />
+      <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
+        {ceilingCm !== null ? (
+          <>
+            לעלייה נקייה: מתחת ל-<b>{ceilingCm} ס״מ</b>
+          </>
+        ) : (
+          'מדד לבקרת שומן'
+        )}
+      </p>
     </div>
   );
 }
@@ -446,28 +584,9 @@ function MeasurementInput({ label, value, onChange }: { label: string; value: st
 // Bulking period plan
 // ---------------------------------------------------------------------------
 
-const VERDICT_LABELS = { realistic: 'ריאלי', ambitious: 'שאפתני', unrealistic: 'לא סביר' } as const;
-
-function BulkingPlanCard({
-  plan,
-  logs,
-  experience,
-}: {
-  plan: BulkingPlan | undefined;
-  logs: CircumferenceEntry[];
-  experience: TrainingExperience;
-}) {
+function BulkingPlanCard({ plan, logs, experience }: { plan: BulkingPlan; logs: CircumferenceEntry[]; experience: TrainingExperience }) {
   const today = todayIso();
-  const rows = useMemo(() => (plan ? forecastBulkingPlan(plan, experience) : []), [plan, experience]);
-  const progress = useMemo(() => (plan ? getBulkingProgress(plan, logs, experience, today) : []), [plan, logs, experience, today]);
-
-  if (!plan) {
-    return (
-      <p className="mb-4 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-3.5 py-2.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-        אפשר לתכנן תקופת מסה (משך ויעד עלייה בהיקפים) דרך "עריכת פרטים" בלשונית הפרופיל.
-      </p>
-    );
-  }
+  const progress = useMemo(() => getBulkingProgress(plan, logs, experience, today), [plan, logs, experience, today]);
 
   const elapsed = getElapsedMonths(plan, today);
   const elapsedPct = Math.round((elapsed / plan.durationMonths) * 100);
@@ -476,7 +595,7 @@ function BulkingPlanCard({
   return (
     <div className="mb-4 rounded-xl border border-orange-400/20 bg-orange-400/5 p-3.5">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">תקופת מסה: {plan.durationMonths} חודשים</p>
+        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">התקדמות בתקופת המסה</p>
         <span className="text-[11px] text-zinc-600 dark:text-zinc-500">
           התחלה {formatDateDisplay(plan.startDate)} · נותרו כ-{Math.round(remaining * 10) / 10} חודשים
         </span>
@@ -486,27 +605,17 @@ function BulkingPlanCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        {rows.map((row) => {
-          const p = progress.find((x) => x.region === row.region);
-          return (
-            <div key={row.region} className="flex items-center justify-between gap-2 text-xs">
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                {row.label}: תחזית כ-{formatRangeCm(row.minCm, row.maxCm)} ס״מ
-                {row.targetCm !== undefined && row.verdict && (
-                  <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">
-                    (יעד {formatCm(row.targetCm)} · {VERDICT_LABELS[row.verdict]})
-                  </span>
-                )}
-              </span>
-              <span className="shrink-0 font-bold text-zinc-900 dark:text-zinc-100">
-                {p?.gainedCm == null ? 'אין מספיק מדידות' : `${p.gainedCm > 0 ? '+' : ''}${formatCm(p.gainedCm)} ס״מ`}
-                {p?.gainedCm != null && (
-                  <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">מתוך כ-{formatCm(p.expectedCm)} צפוי עד כה</span>
-                )}
-              </span>
-            </div>
-          );
-        })}
+        {progress.map((p) => (
+          <div key={p.region} className="flex items-center justify-between gap-2 text-xs">
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{p.label}</span>
+            <span className="shrink-0 font-bold text-zinc-900 dark:text-zinc-100">
+              {p.gainedCm == null ? 'אין מספיק מדידות' : `${p.gainedCm > 0 ? '+' : ''}${formatCm(p.gainedCm)} ס״מ`}
+              {p.gainedCm != null && (
+                <span className="mr-1 text-[11px] font-normal text-zinc-600 dark:text-zinc-500">מתוך כ-{formatCm(p.expectedCm)} צפוי עד כה</span>
+              )}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

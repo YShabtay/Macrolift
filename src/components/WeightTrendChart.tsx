@@ -1,10 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 import type { WeightLog } from '../types/fitness';
-import { formatDateDisplay } from '../utils/weightCalculations';
+import { daysBetween, formatDateDisplay, todayIso } from '../utils/weightCalculations';
 
 interface WeightTrendChartProps {
   logs: WeightLog[];
 }
+
+type RangeId = '30' | '90' | 'all';
+
+const RANGES: { id: RangeId; label: string; days: number | null }[] = [
+  { id: '30', label: 'חודש', days: 30 },
+  { id: '90', label: '3 חודשים', days: 90 },
+  { id: 'all', label: 'הכל', days: null },
+];
 
 interface ChartPoint {
   date: string;
@@ -81,11 +89,15 @@ function buildSmoothPath(pts: ChartPoint[]): string {
 export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [range, setRange] = useState<RangeId>('all');
 
-  const sortedLogs = useMemo(
-    () => [...logs].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
-    [logs],
-  );
+  const sortedLogs = useMemo(() => {
+    const days = RANGES.find((r) => r.id === range)?.days ?? null;
+    const today = todayIso();
+    return [...logs]
+      .filter((l) => days === null || daysBetween(l.date, today) <= days)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }, [logs, range]);
 
   const { points, ticks, yMin, yMax } = useMemo(() => {
     if (sortedLogs.length === 0) {
@@ -108,10 +120,36 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
     return { points: pts, ticks: buildTicks(domainMin, domainMax), yMin: domainMin, yMax: domainMax };
   }, [sortedLogs]);
 
+  const rangePills = (
+    <div dir="rtl" className="mb-3 flex justify-center gap-1.5">
+      {RANGES.map((r) => (
+        <button
+          key={r.id}
+          type="button"
+          onClick={() => {
+            setRange(r.id);
+            setActiveIndex(null);
+          }}
+          aria-pressed={range === r.id}
+          className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+            range === r.id
+              ? 'border-lime-400/60 bg-lime-400/10 text-lime-700 dark:text-lime-400'
+              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+          }`}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+
   if (points.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/30 dark:bg-zinc-900/30 text-sm text-zinc-600 dark:text-zinc-500">
-        אין עדיין מספיק נתונים להצגת גרף
+      <div>
+        {logs.length > 0 && rangePills}
+        <div className="flex h-48 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/30 dark:bg-zinc-900/30 text-sm text-zinc-600 dark:text-zinc-500">
+          {logs.length > 0 ? 'אין שקילות בטווח הזמן שנבחר' : 'אין עדיין מספיק נתונים להצגת גרף'}
+        </div>
       </div>
     );
   }
@@ -141,7 +179,10 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
   }
 
   return (
-    <div dir="ltr" className="select-none">
+    <div className="select-none">
+      {rangePills}
+      {/* Equal 16px gutters on both sides keep the plot centered in the card; the y-axis column sits inside them. */}
+      <div dir="ltr" className="mx-auto flex w-full flex-col px-4">
       <div className="flex gap-2">
         <div className="relative h-48 w-8 shrink-0 text-[10px] text-zinc-500 dark:text-zinc-600">
           {ticks.map((t) => (
@@ -236,7 +277,7 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
         </div>
       </div>
 
-      <div className="mr-10 mt-1.5 flex text-[10px] text-zinc-500 dark:text-zinc-600">
+      <div className="ml-10 mt-1.5 flex text-[10px] text-zinc-500 dark:text-zinc-600">
         <div className="relative h-3 flex-1">
           {points.map((p, i) =>
             labelIndices.has(i) ? (
@@ -250,6 +291,7 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
             ) : null,
           )}
         </div>
+      </div>
       </div>
     </div>
   );

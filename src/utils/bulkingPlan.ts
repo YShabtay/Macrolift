@@ -85,7 +85,6 @@ export interface BulkingProgress {
   region: BulkingGainRegion;
   label: string;
   gainedCm: number | null; // null until at least two measurements exist
-  targetCm: number;
   /** Typical realistic gain by now: the midpoint monthly pace for the user's experience times the months elapsed. */
   expectedCm: number;
 }
@@ -106,10 +105,8 @@ export function getBulkingProgress(
   experience: TrainingExperience,
   today: string = todayIso(),
 ): BulkingProgress[] {
-  const targets = getBulkingTargets(plan);
   const elapsed = getElapsedMonths(plan, today);
-  return BULKING_REGIONS.filter((r) => targets[r] !== undefined).map((region) => {
-    const targetCm = targets[region] as number;
+  return BULKING_REGIONS.map((region) => {
     const first = getEarliestValue(logs, region);
     const latest = getLatestValue(logs, region);
     const hasTwoPoints = first !== undefined && latest !== undefined && logs.filter((l) => l[region] !== undefined).length >= 2;
@@ -117,7 +114,6 @@ export function getBulkingProgress(
       region,
       label: REGION_LABELS[region],
       gainedCm: hasTwoPoints ? round2((latest as number) - (first as number)) : null,
-      targetCm,
       expectedCm: round2(getMonthlyGrowthRateCm(region, experience) * elapsed),
     };
   });

@@ -104,10 +104,13 @@ export function getEarliestValue(logs: CircumferenceEntry[], metric: Circumferen
  * Smart fat-control hint shown only while lean-bulking: keep the waist within a small
  * buffer of where it started, so the surplus is going mostly toward muscle, not fat.
  */
+export function getWaistCeilingCm(logs: CircumferenceEntry[]): number | null {
+  const startingWaist = getEarliestValue(logs, 'waistCm');
+  return startingWaist === undefined ? null : Math.round((startingWaist + 2) * 10) / 10;
+}
+
 export function getWaistCeilingWarning(logs: CircumferenceEntry[], goal: Goal): string | null {
   if (goal !== 'gain_muscle') return null;
-  const startingWaist = getEarliestValue(logs, 'waistCm');
-  if (startingWaist === undefined) return null;
-  const ceiling = Math.round((startingWaist + 2) * 10) / 10;
-  return `שמור על היקף מותניים מתחת ל-${ceiling} ס״מ כדי להבטיח עלייה נקייה בשריר`;
+  const ceiling = getWaistCeilingCm(logs);
+  return ceiling === null ? null : `שמור על היקף מותניים מתחת ל-${ceiling} ס״מ כדי להבטיח עלייה נקייה בשריר`;
 }
