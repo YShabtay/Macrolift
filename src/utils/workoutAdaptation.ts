@@ -9,6 +9,17 @@ import type {
 } from '../types/fitness';
 import { findExerciseTemplate } from '../data/workoutTemplates';
 
+/**
+ * Practical per-session ceiling for one muscle (see the research notes in data/workoutTemplates.ts): beyond roughly
+ * 6-8 hard sets in a single workout the extra sets add fatigue more than growth ("junk volume"), so personalization
+ * never stacks a muscle past this - extra weekly volume has to come from another session instead.
+ */
+const MAX_SETS_PER_MUSCLE_PER_SESSION = 8;
+
+function sessionSetsForMuscle(day: DayWorkout, muscle: MuscleGroup): number {
+  return day.exercises.filter((e) => e.muscleGroup === muscle).reduce((sum, e) => sum + e.sets, 0);
+}
+
 // ---------------------------------------------------------------------------
 // Focus-area volume boost
 // ---------------------------------------------------------------------------
@@ -80,10 +91,11 @@ const INJURY_SUBSTITUTIONS: Record<InjuryArea, Record<string, string>> = {
   },
 };
 
-function substituteExercise(exercise: Exercise, injuries: InjuryArea[]): Exercise {
+function substituteExercise(exercise: Exercise, injuries: InjuryArea[], dayExerciseNames: Set<string>): Exercise {
   for (const injury of injuries) {
     const replacementName = INJURY_SUBSTITUTIONS[injury][exercise.name];
-    if (!replacementName) continue;
+    // Skip a swap that would put the same exercise in the session twice.
+    if (!replacementName || dayExerciseNames.has(replacementName)) continue;
     const template = findExerciseTemplate(replacementName);
     if (!template) continue;
     return {
@@ -148,7 +160,7 @@ export function adaptWorkoutPlan(basePlan: WorkoutPlan, experience: ExperiencePr
   if (injuries.length > 0) {
     days = days.map((day) => ({
       ...day,
-      exercises: day.exercises.map((ex) => substituteExercise(ex, injuries)),
+      exercises: day.exercises.map((ex) => substituteExercise(ex, injuries, new Set(day.exercises.map((e) => e.name)))),
     }));
     notes.push(
       `התאמנו תרגילים מסוימים לחלופות בטוחות יותר בשל: ${injuries.map((i) => INJURY_LABELS[i]).join(', ')}.`,
@@ -160,6 +172,7 @@ export function adaptWorkoutPlan(basePlan: WorkoutPlan, experience: ExperiencePr
     const boostName = FOCUS_AREA_BOOST_EXERCISE[focusArea];
     const targetMuscles = FOCUS_AREA_MUSCLES[focusArea];
     let added = false;
+    let cappedByVolume = false;
 
     days = days.map((day) => {
       const alreadyHasBoost = day.exercises.some((ex) => ex.name === boostName);
@@ -169,12 +182,22 @@ export function adaptWorkoutPlan(basePlan: WorkoutPlan, experience: ExperiencePr
       const boostExercise = buildBoostExercise(boostName);
       if (!boostExercise) return day;
 
+      // Don't turn a well-built session into junk volume for that muscle.
+      if (sessionSetsForMuscle(day, boostExercise.muscleGroup) + boostExercise.sets > MAX_SETS_PER_MUSCLE_PER_SESSION) {
+        cappedByVolume = true;
+        return day;
+      }
+
       added = true;
       return { ...day, exercises: [...day.exercises, boostExercise] };
     });
 
     if (added) {
       notes.push(`הוספנו נפח נוסף ל${FOCUS_AREA_LABELS[focusArea]} לפי הדגשים שבחרת.`);
+    } else if (cappedByVolume) {
+      notes.push(
+        `לא הוספנו נפח ל${FOCUS_AREA_LABELS[focusArea]}: הנפח באימונים כבר בטווח האפקטיבי (עד 6-8 סטים לשריר באימון), ותוספת הייתה רק מעייפת בלי להוסיף צמיחה.`,
+      );
     }
   }
 

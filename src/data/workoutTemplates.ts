@@ -1,3 +1,28 @@
+/**
+ * Workout templates (FBW, Upper/Lower, PPL) built on hypertrophy research:
+ *
+ * - Weekly volume - Schoenfeld, Ogborn & Krieger (2017), "Dose-response relationship between weekly resistance
+ *   training volume and increases in muscle mass" (J Sports Sci): more weekly sets per muscle means more growth, with
+ *   10+ sets/week clearly ahead of lower volumes. Baz-Valle, Fontes-Villalba & Santos-Concejero (2022), a systematic review of
+ *   set volume for hypertrophy, supports roughly 12-20 weekly sets for trained lifters. These templates therefore
+ *   target 12-16 effective sets per week for the big muscles (chest, back, legs) for 1-3 year lifters.
+ * - Frequency - Schoenfeld, Grgic, Ogborn & Krieger (2016) meta-analysis: training a muscle at least twice a week
+ *   beats once a week when volume is matched, hence upper/lower and PPL give each muscle two exposures.
+ * - Per-session cap - a practical guideline, NOT a hard meta-analytic cut-off: keep to about 6-8 hard sets per muscle in
+ *   one session (returns diminish and later sets are mostly fatigue, "junk volume"). Spread the weekly volume across
+ *   sessions instead of stacking it. Plan adaptation (utils/workoutAdaptation.ts) enforces the same cap.
+ * - Exercise variation / regional hypertrophy - Fonseca et al. (2014), "Changes in exercises are more effective than
+ *   in loading schemes to improve muscle strength" (J Strength Cond Res; strength outcomes), plus research on
+ *   region-specific growth: use a heavy compound plus a complementary angle (stretched fly, vertical + horizontal pull,
+ *   knee- + hip-dominant legs) rather than one lone exercise per big muscle. Variant "a"/"b" days rotate exercises.
+ * - Legs - each lower session pairs a knee-dominant compound with a hip-dominant lift and a quad/calf accessory. Quads
+ *   reach 14 direct sets/week in upper/lower; hamstrings get 6 direct sets (RDL + leg curl) on top of heavy indirect work from
+ *   squats and hinges, so total lower-body volume is well above 12.
+ * - Small muscles - overhead pressing does not train the lateral deltoid, so every shoulder session includes lateral
+ *   raises (3-4 sets of 10-15); biceps and triceps get 3-4 focused sets per upper/push/pull session.
+ *
+ * Rep ranges: heavy compounds 6-10 (rest 90-120 s), complementary lifts 8-12, isolation 10-15 (rest 60-90 s).
+ */
 import type {
   DayWorkout,
   Equipment,
@@ -13,8 +38,15 @@ import type {
 // Exercise technique demos (YouTube short-form tutorials + execution cues)
 // ---------------------------------------------------------------------------
 
-/** Keyed by exact exercise name. Every exercise used below has an entry here. */
-const EXERCISE_MEDIA: Record<string, { youtubeId: string; cues: string[] }> = {
+/** Keyed by exact exercise name. Every exercise used below has an entry here (cues always; youtubeId when a verified video exists). */
+const EXERCISE_MEDIA: Record<string, { youtubeId?: string; cues: string[] }> = {
+  // Exercises below without a youtubeId intentionally omit it rather than guess a video: the player falls back to a YouTube search.
+  'פרפר בכבלים': {
+    cues: ['מרפקים כפופים מעט וקבועים, התנועה מגיעה מהכתף והחזה', 'עצירה קצרה בכיווץ מלא מול החזה, חזרה איטית עד מתיחה נוחה'],
+  },
+  'פרפר במכונה (פק דק)': {
+    cues: ['שכמות צמודות למשענת, חזה מורם', 'סגירה מבוקרת עד כיווץ החזה וחזרה איטית לטווח מתיחה מלא'],
+  },
   'סקוואט מוט': {
     youtubeId: 'rrJIyZGlK8c',
     cues: ['שמירה על גב ישר וחזה מורם לאורך כל התנועה', 'ברכיים בקו עם קצות הבהונות, לא קורסות פנימה'],
@@ -149,6 +181,46 @@ const EXERCISE_MEDIA: Record<string, { youtubeId: string; cues: string[] }> = {
  * brand-new exercises below intentionally omit youtubeId/cues rather than guess a video id.
  */
 const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
+  'פרפר בכבלים': [
+    {
+      id: 'alt-pec-deck',
+      name: 'פרפר במכונה (פק דק)',
+      nameEn: 'Pec Deck Fly',
+      muscleGroup: 'chest',
+      equipment: 'machine',
+      difficulty: 'beginner',
+      reason: 'מסלול קבוע ויציב, אידיאלי להתמקדות בכיווץ החזה',
+    },
+    {
+      id: 'alt-dumbbell-fly',
+      name: 'פרפר עם משקולות',
+      nameEn: 'Dumbbell Fly',
+      muscleGroup: 'chest',
+      equipment: 'dumbbell',
+      difficulty: 'intermediate',
+      reason: 'מתיחה עמוקה של החזה בתחתית התנועה עם ציוד פשוט',
+    },
+  ],
+  'פרפר במכונה (פק דק)': [
+    {
+      id: 'alt-cable-fly',
+      name: 'פרפר בכבלים',
+      nameEn: 'Cable Fly',
+      muscleGroup: 'chest',
+      equipment: 'cable',
+      difficulty: 'intermediate',
+      reason: 'מתח קבוע לאורך כל הטווח וגמישות בזווית העבודה',
+    },
+    {
+      id: 'alt-dumbbell-fly-2',
+      name: 'פרפר עם משקולות',
+      nameEn: 'Dumbbell Fly',
+      muscleGroup: 'chest',
+      equipment: 'dumbbell',
+      difficulty: 'intermediate',
+      reason: 'מתיחה עמוקה של החזה בתחתית התנועה עם ציוד פשוט',
+    },
+  ],
   'סקוואט מוט': [
     {
       id: 'alt-leg-press',
@@ -380,6 +452,8 @@ const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
 /** English name for every template exercise, keyed by its Hebrew name (swap-only alternatives carry their own `nameEn`). */
 const EXERCISE_NAMES_EN: Record<string, string> = {
   'סקוואט מוט': 'Barbell Back Squat',
+  'פרפר בכבלים': 'Cable Fly',
+  'פרפר במכונה (פק דק)': 'Pec Deck Fly',
   'דדליפט רומני': 'Romanian Deadlift',
   'לחיצת חזה במוט שטוח': 'Barbell Bench Press',
   'לחיצת חזה בשיפוע עם משקולות': 'Incline Dumbbell Press',
@@ -462,30 +536,33 @@ function day(id: string, dayLabel: string, focus: string, exercises: Exercise[])
  * Day labels are Sunday/Tuesday/Thursday (א/ג/ה), not Sunday/Monday/Tuesday - full-body
  * sessions hit every major muscle group each time, so back-to-back days don't leave
  * enough recovery. The gap also doubles as the suggested rest-day placement.
+ *
+ * Each big muscle is trained all three days but with ONE focused exercise per session (3-4 sets), which lands
+ * chest / back at 12 sets a week and legs above that - the hypertrophy range - without piling up junk volume.
  */
 function buildFbwDays(): DayWorkout[] {
   return [
     day('fbw-a', 'יום א׳', 'גוף מלא - דגש רגליים וחזה', [
       ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 120, 'תרגיל מרכזי, חימום הדרגתי'),
       ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120),
-      ex('חתירה בכבל ישיבה', 'back', 'cable', 3, '10-12', 90),
-      ex('לחיצת כתפיים בשיפוע (מכונה)', 'shoulders', 'machine', 3, '10-12', 90),
+      ex('חתירה בכבל ישיבה', 'back', 'cable', 4, '10-12', 90),
+      ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 3, '12-15', 60),
       ex('כפיפת מרפק בפולי', 'biceps', 'cable', 3, '10-12', 60),
       ex('פלאנק', 'core', 'bodyweight', 3, '30-45 שניות', 45),
     ]),
     day('fbw-b', 'יום ג׳', 'גוף מלא - דגש גב ורגליים אחוריים', [
       ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '8-10', 120, 'שמירה על גב ישר לאורך כל הטווח'),
-      ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '6-10', 120),
-      ex('לחיצת כתפיים בעמידה', 'shoulders', 'barbell', 3, '8-10', 90),
-      ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
+      ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '8-10', 120),
+      ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-12', 90),
       ex('מכרעים הליכה', 'glutes', 'dumbbell', 3, '10-12 לכל רגל', 90),
+      ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
       ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
     ]),
     day('fbw-c', 'יום ה׳', 'גוף מלא - דגש כוח כללי', [
       ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '10-12', 90),
-      ex('חתירת T או חתירת מוט', 'back', 'barbell', 4, '8-10', 90),
-      ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 3, '8-12', 90),
-      ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 3, '12-15', 60),
+      ex('חתירת T או חתירת מוט', 'back', 'barbell', 4, '8-12', 90),
+      ex('פרפר בכבלים', 'chest', 'cable', 4, '10-12', 75),
+      ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 4, '12-15', 60),
       ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 60),
       ex('הרמת ברכיים תלויה', 'core', 'bodyweight', 3, '10-15', 45),
     ]),
@@ -493,43 +570,76 @@ function buildFbwDays(): DayWorkout[] {
 }
 
 // ---------------------------------------------------------------------------
-// Upper / Lower — 4 days/week
+// Shared upper / lower / push / pull / legs sessions
 // ---------------------------------------------------------------------------
+//
+// Every session below follows the same architecture: two different exercises for each big muscle that is
+// trained (a heavy compound + a complementary angle/isolation, 6-7 sets together), a lateral-raise for the
+// side delts, and 3 focused sets per arm. Variant "a" and "b" swap the exercises for the same slots, so a
+// muscle trained twice a week sees different angles (exercise variation) rather than the same lifts twice.
+
+type SessionVariant = 'a' | 'b';
+
+/** Chest: heavy press + a fly-type movement under stretch (7 sets). Back: vertical + horizontal pull (6-7 sets). */
+function upperSession(id: string, label: string, focus: string, variant: SessionVariant): DayWorkout {
+  const isA = variant === 'a';
+  return day(id, label, focus, [
+    // Chest
+    isA
+      ? ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120)
+      : ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-10', 90),
+    isA
+      ? ex('פרפר בכבלים', 'chest', 'cable', 3, '10-12', 75)
+      : ex('פרפר במכונה (פק דק)', 'chest', 'machine', 3, '10-12', 75),
+    // Back: vertical then horizontal
+    isA
+      ? ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '8-10', 120)
+      : ex('פולי עליון לגב רחב', 'back', 'cable', 3, '8-10', 90),
+    isA
+      ? ex('חתירת מוט חבוק', 'back', 'barbell', 3, '8-12', 90)
+      : ex('חתירה בכבל ישיבה', 'back', 'cable', 3, '10-12', 90),
+    // Side delts (an overhead press alone doesn't train them)
+    ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', isA ? 4 : 3, '10-15', 60),
+    // Arms: 3 focused sets each
+    isA ? ex('כפיפת מרפק במוט', 'biceps', 'barbell', 3, '8-12', 60) : ex('כפיפת מרפק פטיש', 'biceps', 'dumbbell', 3, '10-12', 60),
+    isA
+      ? ex('פשיטת מרפק מעל הראש', 'triceps', 'dumbbell', 3, '10-12', 60)
+      : ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
+  ]);
+}
+
+/** Knee-dominant compound, hip-dominant movement, a quad/knee accessory and calves. */
+function lowerSession(id: string, label: string, focus: string, variant: SessionVariant): DayWorkout {
+  const isA = variant === 'a';
+  return day(id, label, focus, [
+    isA
+      ? ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 150, 'תרגיל מרכזי')
+      : ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '8-10', 120),
+    isA ? ex('דדליפט רומני', 'hamstrings', 'barbell', 3, '8-12', 120) : ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 90),
+    isA
+      ? ex('פשיטת ברך במכונה', 'quads', 'machine', 3, '12-15', 60)
+      : ex('מכרעים בולגריים', 'quads', 'dumbbell', 3, '10-12 לכל רגל', 90), // quad-dominant single-leg squat (glutes assist)
+    isA
+      ? ex('הרמת שוקיים בעמידה', 'calves', 'machine', 3, '10-15', 60)
+      : ex('הרמת שוקיים בישיבה', 'calves', 'machine', 3, '12-20', 60),
+    isA
+      ? ex('פלאנק צידי', 'core', 'bodyweight', 3, '30-40 שניות לכל צד', 45)
+      : ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Upper / Lower — 4 days/week ("AB" split)
+// ---------------------------------------------------------------------------
+//
+// Each big muscle is trained twice a week with 6-7 sets per session -> 12-14 sets/week.
 
 function buildUpperLowerDays(): DayWorkout[] {
   return [
-    day('ul-upper-a', 'יום א׳', 'פלג גוף עליון - כוח', [
-      ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-8', 120),
-      ex('חתירת מוט חבוק', 'back', 'barbell', 4, '6-8', 120),
-      ex('לחיצת כתפיים בעמידה', 'shoulders', 'barbell', 3, '8-10', 90),
-      ex('מתח באחיזה צרה', 'back', 'bodyweight', 3, '6-10', 90),
-      ex('כפיפת מרפק במוט', 'biceps', 'barbell', 3, '10-12', 60),
-      ex('פשיטת מרפק מעל הראש', 'triceps', 'dumbbell', 3, '10-12', 60),
-    ]),
-    day('ul-lower-a', 'יום ב׳', 'פלג גוף תחתון - כוח', [
-      ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 150, 'תרגיל מרכזי'),
-      ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '8-10', 120),
-      ex('לחיצת רגליים במכונה', 'quads', 'machine', 3, '10-12', 90),
-      ex('הרמת אגן (Hip Thrust)', 'glutes', 'barbell', 3, '10-12', 90),
-      ex('הרמת שוקיים בעמידה', 'calves', 'machine', 4, '12-15', 60),
-      ex('פלאנק צידי', 'core', 'bodyweight', 3, '30-40 שניות לכל צד', 45),
-    ]),
-    day('ul-upper-b', 'יום ג׳', 'פלג גוף עליון - נפח', [
-      ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-12', 90),
-      ex('חתירה בכבל ישיבה', 'back', 'cable', 4, '10-12', 90),
-      ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 3, '12-15', 60),
-      ex('פולי עליון לגב רחב', 'back', 'cable', 3, '10-12', 90),
-      ex('כפיפת מרפק פטיש', 'biceps', 'dumbbell', 3, '10-12', 60),
-      ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
-    ]),
-    day('ul-lower-b', 'יום ד׳', 'פלג גוף תחתון - נפח', [
-      ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '10-12', 90),
-      ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 4, '10-12', 90),
-      ex('מכרעים בולגריים', 'glutes', 'dumbbell', 3, '10-12 לכל רגל', 90),
-      ex('פשיטת ברך במכונה', 'quads', 'machine', 3, '12-15', 60),
-      ex('הרמת שוקיים בישיבה', 'calves', 'machine', 4, '15-20', 45),
-      ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
-    ]),
+    upperSession('ul-upper-a', 'יום א׳', 'פלג גוף עליון - כוח', 'a'),
+    lowerSession('ul-lower-a', 'יום ב׳', 'פלג גוף תחתון - כוח', 'a'),
+    upperSession('ul-upper-b', 'יום ג׳', 'פלג גוף עליון - נפח', 'b'),
+    lowerSession('ul-lower-b', 'יום ד׳', 'פלג גוף תחתון - נפח', 'b'),
   ];
 }
 
@@ -537,78 +647,61 @@ function buildUpperLowerDays(): DayWorkout[] {
 // Push / Pull / Legs — 5 or 6 days/week
 // ---------------------------------------------------------------------------
 
-function buildPushDay(id: string, label: string): DayWorkout {
+function buildPushDay(id: string, label: string, variant: SessionVariant): DayWorkout {
+  const isA = variant === 'a';
   return day(id, label, 'דחיפה - חזה, כתפיים, טריצפס', [
-    ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120),
-    ex('לחיצת כתפיים בעמידה', 'shoulders', 'barbell', 4, '8-10', 90),
-    ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 3, '8-12', 90),
-    ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 3, '12-15', 60),
-    ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
-    ex('פשיטת מרפק מעל הראש', 'triceps', 'dumbbell', 3, '10-12', 60),
+    isA
+      ? ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120)
+      : ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-10', 90),
+    isA ? ex('פרפר בכבלים', 'chest', 'cable', 3, '10-12', 75) : ex('פרפר במכונה (פק דק)', 'chest', 'machine', 3, '10-12', 75),
+    isA
+      ? ex('לחיצת כתפיים בעמידה', 'shoulders', 'barbell', 3, '8-10', 90)
+      : ex('לחיצת כתפיים בשיפוע (מכונה)', 'shoulders', 'machine', 3, '8-12', 90),
+    ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 4, '10-15', 60),
+    isA ? ex('פשיטת מרפק מעל הראש', 'triceps', 'dumbbell', 3, '10-12', 60) : ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
+    isA ? ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60) : ex('פשיטת מרפק מעל הראש', 'triceps', 'dumbbell', 3, '10-12', 60),
   ]);
 }
 
-function buildPullDay(id: string, label: string): DayWorkout {
+function buildPullDay(id: string, label: string, variant: SessionVariant): DayWorkout {
+  const isA = variant === 'a';
   return day(id, label, 'משיכה - גב וביצפס', [
-    ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '6-10', 120),
-    ex('חתירת מוט חבוק', 'back', 'barbell', 4, '8-10', 90),
-    ex('חתירה בכבל ישיבה', 'back', 'cable', 3, '10-12', 90),
-    ex('פולי עליון לגב רחב', 'back', 'cable', 3, '10-12', 90),
-    ex('כפיפת מרפק במוט', 'biceps', 'barbell', 3, '10-12', 60),
+    isA
+      ? ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '8-10', 120)
+      : ex('פולי עליון לגב רחב', 'back', 'cable', 4, '8-10', 90),
+    isA ? ex('חתירת מוט חבוק', 'back', 'barbell', 3, '8-12', 90) : ex('חתירת T או חתירת מוט', 'back', 'barbell', 3, '8-12', 90),
+    isA ? ex('כפיפת מרפק במוט', 'biceps', 'barbell', 3, '8-12', 60) : ex('כפיפת מרפק בפולי', 'biceps', 'cable', 3, '10-12', 60),
     ex('כפיפת מרפק פטיש', 'biceps', 'dumbbell', 3, '10-12', 60),
   ]);
 }
 
-function buildLegsDay(id: string, label: string): DayWorkout {
-  return day(id, label, 'רגליים - ירך, ישבן ושוקיים', [
-    ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 150, 'תרגיל מרכזי'),
-    ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '8-10', 120),
-    ex('לחיצת רגליים במכונה', 'quads', 'machine', 3, '10-12', 90),
-    ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 90),
-    ex('הרמת אגן (Hip Thrust)', 'glutes', 'barbell', 3, '10-12', 90),
-    ex('הרמת שוקיים בעמידה', 'calves', 'machine', 4, '12-15', 60),
-  ]);
+function buildLegsDay(id: string, label: string, variant: SessionVariant): DayWorkout {
+  return lowerSession(id, label, 'רגליים - ירך, ישבן ושוקיים', variant);
 }
 
+/** PPL5's fifth day: a compact upper session (same two-exercises-per-big-muscle structure) on the "b" variant. */
 function buildUpperDay(id: string, label: string): DayWorkout {
-  return day(id, label, 'פלג גוף עליון - שילוב', [
-    ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 3, '8-10', 90),
-    ex('חתירת מוט חבוק', 'back', 'barbell', 3, '8-10', 90),
-    ex('לחיצת כתפיים בעמידה', 'shoulders', 'barbell', 3, '8-10', 90),
-    ex('פולי עליון לגב רחב', 'back', 'cable', 3, '10-12', 60),
-    ex('כפיפת מרפק במוט', 'biceps', 'barbell', 2, '10-12', 60),
-    ex('פשיטת מרפק בפולי', 'triceps', 'cable', 2, '10-12', 60),
-  ]);
-}
-
-function buildLowerDay(id: string, label: string): DayWorkout {
-  return day(id, label, 'פלג גוף תחתון - שילוב', [
-    ex('סקוואט מוט', 'quads', 'barbell', 3, '8-10', 120),
-    ex('דדליפט רומני', 'hamstrings', 'barbell', 3, '8-10', 120),
-    ex('מכרעים הליכה', 'glutes', 'dumbbell', 3, '10-12 לכל רגל', 90),
-    ex('הרמת שוקיים בישיבה', 'calves', 'machine', 3, '15-20', 45),
-    ex('פלאנק', 'core', 'bodyweight', 3, '30-45 שניות', 45),
-  ]);
+  return upperSession(id, label, 'פלג גוף עליון - שילוב', 'b');
 }
 
 function buildPpl5Days(): DayWorkout[] {
   return [
-    buildPushDay('ppl5-push', 'יום א׳'),
-    buildPullDay('ppl5-pull', 'יום ב׳'),
-    buildLegsDay('ppl5-legs', 'יום ג׳'),
+    buildPushDay('ppl5-push', 'יום א׳', 'a'),
+    buildPullDay('ppl5-pull', 'יום ב׳', 'a'),
+    buildLegsDay('ppl5-legs', 'יום ג׳', 'a'),
     buildUpperDay('ppl5-upper', 'יום ד׳'),
-    buildLowerDay('ppl5-lower', 'יום ה׳'),
+    lowerSession('ppl5-lower', 'יום ה׳', 'פלג גוף תחתון - שילוב', 'b'),
   ];
 }
 
 function buildPpl6Days(): DayWorkout[] {
   return [
-    buildPushDay('ppl6-push-a', 'יום א׳'),
-    buildPullDay('ppl6-pull-a', 'יום ב׳'),
-    buildLegsDay('ppl6-legs-a', 'יום ג׳'),
-    buildPushDay('ppl6-push-b', 'יום ד׳'),
-    buildPullDay('ppl6-pull-b', 'יום ה׳'),
-    buildLegsDay('ppl6-legs-b', 'יום ו׳'),
+    buildPushDay('ppl6-push-a', 'יום א׳', 'a'),
+    buildPullDay('ppl6-pull-a', 'יום ב׳', 'a'),
+    buildLegsDay('ppl6-legs-a', 'יום ג׳', 'a'),
+    buildPushDay('ppl6-push-b', 'יום ד׳', 'b'),
+    buildPullDay('ppl6-pull-b', 'יום ה׳', 'b'),
+    buildLegsDay('ppl6-legs-b', 'יום ו׳', 'b'),
   ];
 }
 
