@@ -378,8 +378,13 @@ export default function App() {
   }
 
   /** Replaces the entire app state with an imported backup, running it through the same normalization boot-time data goes through. */
-  function handleImportAppState(data: AppState) {
-    setAppState(normalizeState(data));
+  async function handleImportAppState(data: AppState): Promise<void> {
+    if (!userId) return;
+    const restored = normalizeState(data);
+    // Persist before touching React state, so a storage failure (e.g. quota) rejects here
+    // and leaves the user's existing data fully intact instead of half-restored.
+    await storageService.saveAppState(userId, restored);
+    setAppState(restored);
   }
 
   /** Regenerates the workout plan and nutrition targets to match a new weekly training frequency. */

@@ -60,6 +60,7 @@ import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
 import { unlockRestTimerAudio } from '../utils/restTimerAlert';
 import { buildAppStateCsv } from '../utils/csvExport';
+import { parseBackupFile } from '../utils/backupValidation';
 import type {
   AppState,
   DayWorkout,
@@ -106,7 +107,7 @@ interface DashboardProps {
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
   onChangeTrainingDays: (days: TrainingDaysPerWeek) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
-  onImportAppState: (data: AppState) => void;
+  onImportAppState: (data: AppState) => Promise<void>;
   onReset: () => void;
   onLogout: () => void;
 }
@@ -1245,7 +1246,7 @@ function ProfileTab({
   onSaveCircumferenceEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
-  onImportAppState: (data: AppState) => void;
+  onImportAppState: (data: AppState) => Promise<void>;
   onNavigate: (tab: Tab) => void;
   onRequestReset: () => void;
   onLogout: () => void;
@@ -1270,7 +1271,7 @@ function ProfileTab({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'macrolift-backup.json';
+    a.download = `macrolift-backup-${todayIso()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1292,24 +1293,6 @@ function ProfileTab({
     setToastMessage('קובץ ה-CSV יוצא בהצלחה');
   }
 
-  function extractAppState(parsed: unknown): AppState | null {
-    if (!parsed || typeof parsed !== 'object') return null;
-    const obj = parsed as Record<string, unknown>;
-    const candidate = (obj.appState && typeof obj.appState === 'object' ? obj.appState : obj) as Record<string, unknown>;
-
-    if (!candidate.profile || !candidate.nutritionPlan || !candidate.workoutPlan) return null;
-
-    const profile = candidate.profile as Record<string, unknown>;
-    const workoutPlan = candidate.workoutPlan as Record<string, unknown>;
-    const isValid =
-      typeof profile.metrics === 'object' &&
-      profile.metrics !== null &&
-      Array.isArray(workoutPlan.days) &&
-      workoutPlan.days.length > 0;
-
-    return isValid ? (candidate as unknown as AppState) : null;
-  }
-
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -1317,23 +1300,27 @@ function ProfileTab({
 
     setImportError(null);
     try {
-      const text = await file.text();
-      const parsed = extractAppState(JSON.parse(text));
-      if (!parsed) {
-        setImportError('קובץ לא תקין - ודא שזהו קובץ גיבוי של MacroLift');
+      const result = parseBackupFile(await file.text());
+      if (!result.ok) {
+        setImportError(result.error);
         return;
       }
-      setPendingImport(parsed);
+      setPendingImport(result.state);
     } catch {
-      setImportError('קובץ לא תקין - ודא שזהו קובץ גיבוי של MacroLift');
+      setImportError('לא ניתן לקרוא את הקובץ');
     }
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!pendingImport) return;
-    onImportAppState(pendingImport);
+    const data = pendingImport;
     setPendingImport(null);
-    setToastMessage('הנתונים יובאו בהצלחה');
+    try {
+      await onImportAppState(data);
+      setToastMessage('הנתונים שוחזרו בהצלחה');
+    } catch {
+      setImportError('השחזור נכשל - האחסון המקומי מלא, הנתונים הקיימים לא שונו');
+    }
   }
 
   const rows = useMemo(
@@ -1528,7 +1515,7 @@ function ProfileTab({
       <div className="glass-card p-5 sm:p-6">
         <div className="mb-2 flex items-center gap-2">
           <Database className="h-4 w-4 text-lime-700 dark:text-lime-400" />
-          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">ניהול נתונים</h2>
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">ניהול וגיבוי נתונים</h2>
         </div>
         <p className="mb-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
           ייצוא גיבוי מלא של הנתונים שלך לקובץ JSON, שחזור נתונים ממכשיר אחר או מגיבוי קודם, או ייצוא
@@ -1537,11 +1524,11 @@ function ProfileTab({
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={handleExportData} className="btn-secondary">
             <Download className="h-4 w-4" />
-            ייצוא נתונים
+            גיבוי נתונים (JSON)
           </button>
           <button type="button" onClick={() => importInputRef.current?.click()} className="btn-secondary">
             <Upload className="h-4 w-4" />
-            ייבוא נתונים
+            שחזור מגיבוי
           </button>
           <button type="button" onClick={handleExportCsv} className="btn-secondary">
             <FileSpreadsheet className="h-4 w-4" />
