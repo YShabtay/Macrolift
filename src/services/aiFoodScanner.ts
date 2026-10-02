@@ -1,8 +1,8 @@
 // gemini-2.5-flash returns 404 on generateContent for accounts without prior usage of the
 // 2.x series (Google is restricting access to it) - gemini-3.5-flash-lite is multimodal
 // (supports image input) and is the current default Google recommends for new projects.
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+export const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 
 export interface FoodScanBreakdownItem {
   item: string;

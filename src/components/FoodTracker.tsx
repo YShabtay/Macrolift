@@ -16,10 +16,11 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FoodEntry, Meal, NutritionPlan } from '../types/fitness';
+import type { FoodEntry, FoodPer100g, Meal, NutritionPlan } from '../types/fitness';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
+import { FoodSearch, ServingPanel } from './FoodSearch';
 import { calculateRemaining, getEntriesForDate, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
 
@@ -397,6 +398,7 @@ function AddFoodModal({
   const [proteinG, setProteinG] = useState('');
   const [fatG, setFatG] = useState('');
   const [carbsG, setCarbsG] = useState('');
+  const [pickedFood, setPickedFood] = useState<FoodPer100g | null>(null);
 
   function handleQuickAdd(item: (typeof QUICK_FOODS)[number]) {
     onAdd({
@@ -444,8 +446,24 @@ function AddFoodModal({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 p-4">
-          <div>
+        {pickedFood && (
+          <div className="p-4">
+            <ServingPanel
+              food={pickedFood}
+              meal={meal}
+              date={date}
+              onBack={() => setPickedFood(null)}
+              onAdd={onAdd}
+              onDone={onClose}
+            />
+          </div>
+        )}
+
+        {/* Kept mounted (just hidden) while a food is picked, so the search text and results survive "back to search". */}
+        <div className={`flex-col gap-4 p-4 ${pickedFood ? 'hidden' : 'flex'}`}>
+          <FoodSearch onPick={setPickedFood} />
+
+          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
             <p className="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-500">פריטים נפוצים</p>
             <div className="grid grid-cols-2 gap-2">
               {QUICK_FOODS.map((item) => (

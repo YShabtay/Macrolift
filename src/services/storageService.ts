@@ -1,4 +1,4 @@
-import type { AppState } from '../types/fitness';
+import type { AppState, FoodPer100g } from '../types/fitness';
 
 export interface AuthUser {
   id: string;
@@ -32,11 +32,16 @@ export interface StorageService {
   getSessionUserId(): Promise<string | null>;
   setSessionUserId(userId: string): Promise<void>;
   clearSession(): Promise<void>;
+
+  /** Foods looked up through AI, cached on the device so repeat searches never hit the network. */
+  getCustomFoods(): Promise<FoodPer100g[]>;
+  saveCustomFoods(foods: FoodPer100g[]): Promise<void>;
 }
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
 const USERS_KEY = 'macrolift-users';
 const SESSION_KEY = 'macrolift-session';
+const CUSTOM_FOODS_KEY = 'macrolift-custom-foods';
 
 function appStateKey(userId: string): string {
   return `${APP_STATE_KEY_PREFIX}${userId}`;
@@ -86,6 +91,19 @@ class LocalStorageService implements StorageService {
 
   async clearSession(): Promise<void> {
     localStorage.removeItem(SESSION_KEY);
+  }
+
+  async getCustomFoods(): Promise<FoodPer100g[]> {
+    try {
+      const raw = localStorage.getItem(CUSTOM_FOODS_KEY);
+      return raw ? (JSON.parse(raw) as FoodPer100g[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveCustomFoods(foods: FoodPer100g[]): Promise<void> {
+    localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(foods));
   }
 }
 

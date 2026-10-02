@@ -254,6 +254,21 @@ export interface StepLog {
   steps: number;
 }
 
+/** A food's nutrition values normalized per 100 grams - the unit every search result is stored and scaled in. */
+export interface FoodPer100g {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servingUnit: 'גרם';
+  /** Extra search terms (e.g. the original query an AI-looked-up food was found with). */
+  aliases?: string[];
+  /** True for foods looked up through Gemini and cached locally. */
+  fromAI?: boolean;
+}
+
 export interface AppState {
   profile: UserProfile;
   nutritionPlan: NutritionPlan;
