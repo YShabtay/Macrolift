@@ -216,7 +216,7 @@ function FullTracker({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="glass-card p-5 sm:p-6">
+      <div data-tour="weight-entry" className="glass-card p-5 sm:p-6">
         <div className="mb-1 flex items-center gap-2">
           <Scale className="h-5 w-5 text-lime-700 dark:text-lime-400" />
           <h2 className="font-bold text-zinc-900 dark:text-zinc-100">שקילת בוקר</h2>

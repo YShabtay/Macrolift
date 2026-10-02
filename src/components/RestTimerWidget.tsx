@@ -81,6 +81,7 @@ export default function RestTimerWidget() {
 
   return (
     <div
+      data-tour="rest-timer"
       className={`glass-card p-5 transition sm:p-6 ${justFinished ? 'border-lime-400/60 shadow-glow animate-glow-pulse' : ''}`}
     >
       <div className="mb-4 flex items-center justify-between">

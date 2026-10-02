@@ -121,6 +121,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
 
       <button
         type="button"
+        data-tour="voice-meal"
         onClick={() => setIsVoiceOpen(true)}
         className="group flex w-full items-center gap-3 rounded-2xl border border-lime-400/40 bg-gradient-to-l from-lime-400/15 to-lime-400/5 p-4 text-right shadow-glow transition active:scale-[0.98]"
       >

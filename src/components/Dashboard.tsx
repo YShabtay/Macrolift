@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -14,12 +14,14 @@ import {
   FileSpreadsheet,
   Flame,
   Footprints,
+  HelpCircle,
   LayoutDashboard,
   List,
   LogOut,
   Moon,
   Pencil,
   Play,
+  Rocket,
   Ruler,
   RotateCcw,
   Scale,
@@ -47,6 +49,10 @@ import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
 import RestTimerMiniBar from './RestTimerMiniBar';
+import GuidedTour, { type TourStep } from './GuidedTour';
+import HelpCenterModal from './HelpCenterModal';
+import { hasSeenTour, markTourSeen } from '../utils/tourState';
+import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
 import DailyMealsModal from './DailyMealsModal';
@@ -138,6 +144,50 @@ const NAV_ITEMS: { id: Tab; label: string; shortLabel: string; icon: typeof Layo
   { id: 'profile', label: 'פרופיל', shortLabel: 'פרופיל', icon: UserIcon },
 ];
 
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: 'welcome',
+    tab: 'dashboard',
+    title: 'ברוכים הבאים ל-MacroLift! 👋',
+    body: 'סיור קצר שיראה לכם את הכלים המרכזיים: שקילה, תזונה בהקלטה קולית, אימון וטיימר מנוחה, תמונות התקדמות וגיבוי הנתונים. אפשר לדלג בכל שלב, ולחזור לסיור דרך מסך הפרופיל.',
+  },
+  {
+    id: 'weight',
+    tab: 'progress',
+    target: 'weight-entry',
+    title: 'שקילת בוקר וגרף מגמה',
+    body: 'מזינים כאן את המשקל כל בוקר. ככל שמצטברות שקילות מופיע גרף מגמה, ואפשר לסנן אותו לפי שבוע אחרון, חודש, 3 חודשים או כל הזמן, ולבחור בין קו חלק, נקודות או שטח מוצלל.',
+  },
+  {
+    id: 'voice',
+    tab: 'nutrition',
+    target: 'voice-meal',
+    title: 'הקלטה מהירה ב-AI 🎙️',
+    body: 'לוחצים ומספרים בדיבור חופשי מה אכלתם, למשל "אכלתי 200 גרם חזה עוף וכוס אורז". ה-AI מזהה את המאכלים, מעריך גרמים וערכים תזונתיים, ואתם בודקים, מתקנים ומוסיפים ליומן.',
+  },
+  {
+    id: 'workout',
+    tab: 'workout',
+    target: 'rest-timer',
+    title: 'אימון וטיימר המנוחה הגלובלי',
+    body: 'מסמנים סט שהושלם בתוכנית האימון וטיימר מנוחה מתחיל אוטומטית, או שמפעילים אותו ידנית כאן. הטיימר ממשיך לרוץ גם כשעוברים למסכים אחרים (סרגל קטן מעל התפריט מראה את הזמן), ובסיום תשמעו צפצופים ותראו הבהוב ירוק.',
+  },
+  {
+    id: 'photos',
+    tab: 'progress',
+    target: 'progress-photos',
+    title: 'תמונות התקדמות ומאמן ה-AI',
+    body: 'מעלים תמונה עם תאריך. כשיש שתיים לפחות אפשר להשוות לפני / אחרי, ללחוץ על "ניתוח התקדמות עם AI", ולהמשיך בדיון עם המאמן על הממצאים ועל הצעדים הבאים.',
+  },
+  {
+    id: 'backup',
+    tab: 'profile',
+    target: 'backup',
+    title: 'גיבוי נתונים (JSON)',
+    body: 'המידע שלכם נשמר רק במכשיר הזה. "גיבוי נתונים" יוצר קובץ JSON שאפשר להעביר למכשיר אחר ולשחזר שם, ובכך גם מגנים על המידע אם משנים טלפון או מנקים את הדפדפן.',
+  },
+];
+
 export default function Dashboard({
   appState,
   onToggleSet,
@@ -171,6 +221,18 @@ export default function Dashboard({
   const [tab, setTab] = useState<Tab>('dashboard');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const restTimerStatus = useRestTimer().status;
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const profileId = appState.profile.id;
+
+  // First launch for a new profile: start the tour once (the demo account is a showcase, so it skips it).
+  useEffect(() => {
+    if (profileId === DEMO_USER_ID || hasSeenTour()) return;
+    const id = setTimeout(() => {
+      markTourSeen();
+      setIsTourOpen(true);
+    }, 900);
+    return () => clearTimeout(id);
+  }, [profileId]);
 
   return (
     <div className="flex min-h-svh bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -179,6 +241,8 @@ export default function Dashboard({
       <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
 
       <RestFinishedAlert />
+
+      {isTourOpen && <GuidedTour steps={TOUR_STEPS} onNavigate={(t) => setTab(t as Tab)} onClose={() => setIsTourOpen(false)} />}
 
       {/* App-wide rest timer: the full card on the workout screen, a compact bar above the nav everywhere else */}
       {restTimerStatus !== 'idle' &&
@@ -311,6 +375,7 @@ export default function Dashboard({
               onNavigate={setTab}
               onRequestReset={() => setIsResetConfirmOpen(true)}
               onLogout={onLogout}
+              onStartTour={() => setIsTourOpen(true)}
             />
           )}
         </div>
@@ -1306,6 +1371,7 @@ function ProfileTab({
   onNavigate,
   onRequestReset,
   onLogout,
+  onStartTour,
 }: {
   appState: AppState;
   onChangeTrainingDays: (days: TrainingDaysPerWeek) => void;
@@ -1318,10 +1384,12 @@ function ProfileTab({
   onNavigate: (tab: Tab) => void;
   onRequestReset: () => void;
   onLogout: () => void;
+  onStartTour: () => void;
 }) {
   const { profile, nutritionPlan } = appState;
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
@@ -1596,6 +1664,26 @@ function ProfileTab({
 
       <div className="glass-card p-5 sm:p-6">
         <div className="mb-2 flex items-center gap-2">
+          <HelpCircle className="h-4 w-4 text-lime-700 dark:text-lime-400" />
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">מדריך ועזרה</h2>
+        </div>
+        <p className="mb-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
+          סיור קצר בכלים המרכזיים, והדרכה להתקנה על אייפון ומחשב, העברת נתונים בין מכשירים ושאלות נפוצות.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={onStartTour} className="btn-primary">
+            <Rocket className="h-4 w-4" />
+            סיור מודרך באפליקציה 🚀
+          </button>
+          <button type="button" onClick={() => setIsHelpOpen(true)} className="btn-secondary">
+            <HelpCircle className="h-4 w-4" />
+            מרכז עזרה ומדריך מכשירים
+          </button>
+        </div>
+      </div>
+
+      <div data-tour="backup" className="glass-card p-5 sm:p-6">
+        <div className="mb-2 flex items-center gap-2">
           <Database className="h-4 w-4 text-lime-700 dark:text-lime-400" />
           <h2 className="font-bold text-zinc-900 dark:text-zinc-100">ניהול וגיבוי נתונים</h2>
         </div>
@@ -1652,6 +1740,8 @@ function ProfileTab({
           onClose={() => setPendingImport(null)}
         />
       )}
+
+      {isHelpOpen && <HelpCenterModal onClose={() => setIsHelpOpen(false)} />}
 
       {restoreResult && <RestoreResultModal result={restoreResult} onClose={() => setRestoreResult(null)} />}
 
