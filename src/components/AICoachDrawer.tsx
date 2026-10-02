@@ -209,7 +209,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="פתיחת המאמן הדיגיטלי"
-        className="fixed bottom-20 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-lime-400 text-zinc-950 shadow-xl transition hover:scale-105 hover:bg-lime-500 active:scale-95 md:bottom-6 md:left-6"
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-lime-400 text-zinc-950 shadow-xl transition hover:scale-105 hover:bg-lime-500 active:scale-95 md:bottom-6 md:left-6"
       >
         <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-lime-400/40" />
         <Bot className="h-6 w-6" strokeWidth={2.5} />
@@ -225,7 +225,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
               className="flex h-full w-full max-w-md flex-col border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 shadow-glow animate-slide-in-right"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 p-4">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 px-4 pb-3 pt-[max(env(safe-area-inset-top),1.5rem)]">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-lime-400/10 text-lime-700 dark:text-lime-400">
                     <Bot className="h-4 w-4" />
@@ -245,7 +245,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                   type="button"
                   onClick={() => setIsOpen(false)}
                   aria-label="סגירה"
-                  className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-600 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -317,7 +317,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 p-3">
+                  <div className="flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 px-3 pt-3 pb-[max(env(safe-area-inset-bottom),1rem)]">
                     {pendingImage && (
                       <div className="flex items-center gap-2 self-start rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5">
                         <img src={pendingImage.previewUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />

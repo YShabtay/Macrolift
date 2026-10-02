@@ -29,6 +29,8 @@ import { getExerciseAlternatives, getWorkoutTemplate, suggestSplitType } from '.
 import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
+import { requestPersistentStorage } from './utils/persistentStorage';
+import UpdatePrompt from './components/UpdatePrompt';
 
 /** Backfills fields added after a user's data was first saved, so components can assume they exist. */
 function normalizeState(state: AppState): AppState {
@@ -71,6 +73,11 @@ export default function App() {
       if (sessionUserId) setAppState(await loadState(sessionUserId));
       setIsBooting(false);
     })();
+  }, []);
+
+  useEffect(() => {
+    // Best-effort and independent of the boot sequence above - never gates hydration.
+    void requestPersistentStorage();
   }, []);
 
   useEffect(() => {
@@ -399,15 +406,26 @@ export default function App() {
   }
 
   if (!userId) {
-    return <Auth onAuthenticated={handleAuthenticated} />;
+    return (
+      <>
+        <UpdatePrompt />
+        <Auth onAuthenticated={handleAuthenticated} />
+      </>
+    );
   }
 
   if (!appState) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return (
+      <>
+        <UpdatePrompt />
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </>
+    );
   }
 
   return (
     <>
+      <UpdatePrompt />
       <Dashboard
         appState={appState}
         onToggleSet={toggleSet}

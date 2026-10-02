@@ -11,6 +11,7 @@ import {
   Database,
   Download,
   Dumbbell,
+  FileSpreadsheet,
   Flame,
   Footprints,
   LayoutDashboard,
@@ -58,6 +59,7 @@ import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, type CalendarDay } fro
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
 import { unlockRestTimerAudio } from '../utils/restTimerAlert';
+import { buildAppStateCsv } from '../utils/csvExport';
 import type {
   AppState,
   DayWorkout,
@@ -164,7 +166,7 @@ export default function Dashboard({
       <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
 
       {/* Theme toggle - mobile top bar (no persistent header exists on mobile otherwise) */}
-      <div className="fixed left-4 top-4 z-30 md:hidden">
+      <div className="fixed left-4 top-[max(env(safe-area-inset-top),1rem)] z-30 md:hidden">
         <ThemeToggleButton />
       </div>
 
@@ -219,7 +221,7 @@ export default function Dashboard({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-24 pt-6 sm:px-6 md:pb-10 lg:px-10 lg:pt-10">
+      <main className="flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(env(safe-area-inset-top),1.5rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           {tab === 'dashboard' && (
             <DashboardTab
@@ -1276,6 +1278,20 @@ function ProfileTab({
     setToastMessage('הנתונים יוצאו בהצלחה');
   }
 
+  function handleExportCsv() {
+    const csv = buildAppStateCsv(appState);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'macrolift-export.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setToastMessage('קובץ ה-CSV יוצא בהצלחה');
+  }
+
   function extractAppState(parsed: unknown): AppState | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const obj = parsed as Record<string, unknown>;
@@ -1515,7 +1531,8 @@ function ProfileTab({
           <h2 className="font-bold text-zinc-900 dark:text-zinc-100">ניהול נתונים</h2>
         </div>
         <p className="mb-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-          ייצוא גיבוי מלא של הנתונים שלך לקובץ JSON, או שחזור נתונים ממכשיר אחר או מגיבוי קודם.
+          ייצוא גיבוי מלא של הנתונים שלך לקובץ JSON, שחזור נתונים ממכשיר אחר או מגיבוי קודם, או ייצוא
+          היסטוריית שקילות/תזונה/אימונים לקובץ CSV לניתוח באקסל.
         </p>
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={handleExportData} className="btn-secondary">
@@ -1525,6 +1542,10 @@ function ProfileTab({
           <button type="button" onClick={() => importInputRef.current?.click()} className="btn-secondary">
             <Upload className="h-4 w-4" />
             ייבוא נתונים
+          </button>
+          <button type="button" onClick={handleExportCsv} className="btn-secondary">
+            <FileSpreadsheet className="h-4 w-4" />
+            ייצוא לאקסל (CSV)
           </button>
           <input
             ref={importInputRef}
