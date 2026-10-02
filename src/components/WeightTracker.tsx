@@ -273,8 +273,8 @@ function FullTracker({
 
       {recentWeeks.length > 0 && (
         <div className="glass-card p-5 sm:p-6">
-          <h3 className="mb-4 font-bold text-zinc-900 dark:text-zinc-100">מגמת משקל</h3>
-          <WeightTrendChart logs={logs} />
+          <WeightTrendChart logs={logs} title="מגמת משקל" />
+
 
           <div className="mt-5 flex flex-col gap-2">
             {[...recentWeeks].reverse().map((week) => (

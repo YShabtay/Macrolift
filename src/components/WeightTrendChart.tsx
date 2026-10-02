@@ -1,17 +1,28 @@
 import { useMemo, useRef, useState } from 'react';
+import SelectMenu, { type SelectOption } from './SelectMenu';
 import type { WeightLog } from '../types/fitness';
 import { daysBetween, formatDateDisplay, todayIso } from '../utils/weightCalculations';
 
 interface WeightTrendChartProps {
   logs: WeightLog[];
+  /** Card heading, rendered on the same row as the range / chart-type dropdowns. */
+  title: string;
 }
 
-type RangeId = '30' | '90' | 'all';
+type RangeId = '7' | '30' | '90' | 'all';
+type ChartType = 'line' | 'dots' | 'area';
 
-const RANGES: { id: RangeId; label: string; days: number | null }[] = [
-  { id: '30', label: 'חודש', days: 30 },
+const RANGES: (SelectOption<RangeId> & { days: number | null })[] = [
+  { id: '7', label: 'שבוע אחרון', days: 7 },
+  { id: '30', label: 'חודש אחרון', days: 30 },
   { id: '90', label: '3 חודשים', days: 90 },
-  { id: 'all', label: 'הכל', days: null },
+  { id: 'all', label: 'כל הזמן', days: null },
+];
+
+const CHART_TYPES: SelectOption<ChartType>[] = [
+  { id: 'line', label: 'קו חלק' },
+  { id: 'dots', label: 'נקודות שקילה' },
+  { id: 'area', label: 'שטח מוצלל' },
 ];
 
 interface ChartPoint {
@@ -86,10 +97,11 @@ function buildSmoothPath(pts: ChartPoint[]): string {
   return d;
 }
 
-export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
+export default function WeightTrendChart({ logs, title }: WeightTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [range, setRange] = useState<RangeId>('all');
+  const [chartType, setChartType] = useState<ChartType>('area');
 
   const sortedLogs = useMemo(() => {
     const days = RANGES.find((r) => r.id === range)?.days ?? null;
@@ -120,34 +132,29 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
     return { points: pts, ticks: buildTicks(domainMin, domainMax), yMin: domainMin, yMax: domainMax };
   }, [sortedLogs]);
 
-  const rangePills = (
-    <div dir="rtl" className="mb-3 flex justify-center gap-1.5">
-      {RANGES.map((r) => (
-        <button
-          key={r.id}
-          type="button"
-          onClick={() => {
-            setRange(r.id);
+  const controls = (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{title}</h3>
+      <div className="flex items-center gap-1.5">
+        <SelectMenu
+          label="טווח זמן"
+          value={range}
+          options={RANGES}
+          onChange={(v) => {
+            setRange(v);
             setActiveIndex(null);
           }}
-          aria-pressed={range === r.id}
-          className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
-            range === r.id
-              ? 'border-lime-400/60 bg-lime-400/10 text-lime-700 dark:text-lime-400'
-              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
-          }`}
-        >
-          {r.label}
-        </button>
-      ))}
+        />
+        <SelectMenu label="סוג תצוגה" value={chartType} options={CHART_TYPES} onChange={setChartType} />
+      </div>
     </div>
   );
 
   if (points.length === 0) {
     return (
       <div>
-        {logs.length > 0 && rangePills}
-        <div className="flex h-48 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/30 dark:bg-zinc-900/30 text-sm text-zinc-600 dark:text-zinc-500">
+        {controls}
+        <div className="flex h-64 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/30 dark:bg-zinc-900/30 text-sm text-zinc-600 dark:text-zinc-500">
           {logs.length > 0 ? 'אין שקילות בטווח הזמן שנבחר' : 'אין עדיין מספיק נתונים להצגת גרף'}
         </div>
       </div>
@@ -159,8 +166,14 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
   const linePath = buildSmoothPath(points);
   const areaPath = points.length > 1 ? `${linePath} L ${points[points.length - 1].xPct},100 L ${points[0].xPct},100 Z` : '';
 
+  const showLine = chartType !== 'dots' && points.length > 1;
+  const showArea = chartType === 'area' && areaPath !== '';
+  const showAllDots = chartType === 'dots';
+
   const active = activeIndex !== null ? points[activeIndex] : null;
   const clampedTooltipLeft = active ? Math.min(Math.max(active.xPct, 14), 86) : 0;
+  // A single weigh-in has no line to show, so it always gets its dot.
+  const highlighted = active ?? (points.length === 1 ? points[0] : null);
 
   function handlePointer(e: React.PointerEvent<HTMLDivElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -180,118 +193,124 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
 
   return (
     <div className="select-none">
-      {rangePills}
-      {/* Equal 16px gutters on both sides keep the plot centered in the card; the y-axis column sits inside them. */}
-      <div dir="ltr" className="mx-auto flex w-full flex-col px-4">
-      <div className="flex gap-2">
-        <div className="relative h-48 w-8 shrink-0 text-[10px] text-zinc-500 dark:text-zinc-600">
-          {ticks.map((t) => (
-            <span
-              key={t}
-              className="absolute right-0 -translate-y-1/2 tabular-nums"
-              style={{ top: `${tickYPct(t)}%` }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+      {controls}
 
-        <div
-          ref={containerRef}
-          className="relative h-48 flex-1 cursor-crosshair"
-          onPointerMove={handlePointer}
-          onPointerDown={handlePointer}
-          onPointerLeave={() => setActiveIndex(null)}
-        >
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
-            <defs>
-              <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a3e635" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#a3e635" stopOpacity="0" />
-              </linearGradient>
-            </defs>
+      {/* Bleeds through the card's side padding so the plot uses the card's full width; 10px insets keep the line and end labels off the very edge. */}
+      <div dir="ltr" className="-mx-5 sm:-mx-6">
+        <div key={`${range}-${chartType}`} className="animate-fade-in px-2.5">
+          <div
+            ref={containerRef}
+            className="relative h-64 w-full cursor-crosshair"
+            style={{ touchAction: 'pan-y' }}
+            onPointerMove={handlePointer}
+            onPointerDown={handlePointer}
+            onPointerLeave={() => setActiveIndex(null)}
+          >
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+              <defs>
+                <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#a3e635" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#a3e635" stopOpacity="0" />
+                </linearGradient>
+              </defs>
 
+              {ticks.map((t) => (
+                <line
+                  key={t}
+                  x1="0"
+                  y1={tickYPct(t)}
+                  x2="100"
+                  y2={tickYPct(t)}
+                  className="stroke-zinc-200 dark:stroke-zinc-800"
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+
+              {showArea && <path d={areaPath} fill="url(#weightAreaGradient)" stroke="none" />}
+
+              {showLine && (
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="#a3e635"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+
+              {activeIndex !== null && (
+                <line
+                  x1={points[activeIndex].xPct}
+                  y1="0"
+                  x2={points[activeIndex].xPct}
+                  y2="100"
+                  stroke="#a3e635"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                  vectorEffect="non-scaling-stroke"
+                  opacity="0.5"
+                />
+              )}
+            </svg>
+
+            {/* Y-axis values sit on top of the plot, just above their gridline, so the axis takes no width of its own. */}
             {ticks.map((t) => (
-              <line
+              <span
                 key={t}
-                x1="0"
-                y1={tickYPct(t)}
-                x2="100"
-                y2={tickYPct(t)}
-                className="stroke-zinc-200 dark:stroke-zinc-800"
-                strokeWidth="1"
-                vectorEffect="non-scaling-stroke"
-              />
+                className="pointer-events-none absolute left-1 -translate-y-full pb-0.5 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-500"
+                style={{ top: `${tickYPct(t)}%` }}
+              >
+                {t}
+              </span>
             ))}
 
-            {areaPath && <path d={areaPath} fill="url(#weightAreaGradient)" stroke="none" />}
+            {showAllDots &&
+              points.map((p, i) => (
+                <div
+                  key={p.date}
+                  className={`pointer-events-none absolute rounded-full border-2 border-zinc-50 dark:border-zinc-950 bg-lime-400 transition-all ${
+                    i === activeIndex ? 'h-3.5 w-3.5 shadow-glow' : 'h-2.5 w-2.5'
+                  }`}
+                  style={{ left: `${p.xPct}%`, top: `${p.yPct}%`, transform: 'translate(-50%, -50%)' }}
+                />
+              ))}
 
-            {points.length > 1 && (
-              <path
-                d={linePath}
-                fill="none"
-                stroke="#a3e635"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
+            {/* Line / area modes draw no dot per weigh-in (dozens overlap into a blob) - only the touched point. */}
+            {!showAllDots && highlighted && (
+              <div
+                className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-zinc-50 dark:border-zinc-950 bg-lime-400 shadow-glow"
+                style={{ left: `${highlighted.xPct}%`, top: `${highlighted.yPct}%`, transform: 'translate(-50%, -50%)' }}
               />
             )}
 
-            {activeIndex !== null && (
-              <line
-                x1={points[activeIndex].xPct}
-                y1="0"
-                x2={points[activeIndex].xPct}
-                y2="100"
-                stroke="#a3e635"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                vectorEffect="non-scaling-stroke"
-                opacity="0.5"
-              />
-            )}
-          </svg>
-
-          {/* No dot per weigh-in (dozens overlap into a blob) - only the hovered/touched point, or the lone point of a one-entry history. */}
-          {(active ?? (points.length === 1 ? points[0] : null)) && (
-            <div
-              className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-zinc-950 bg-lime-400 shadow-glow"
-              style={{
-                left: `${(active ?? points[0]).xPct}%`,
-                top: `${(active ?? points[0]).yPct}%`,
-                transform: 'translate(-50%, -50%)',
-              }}
-            />
-          )}
-
-          {active && (
-            <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 px-3 py-1.5 text-center text-xs shadow-xl backdrop-blur"
-              style={{ left: `${clampedTooltipLeft}%`, top: `${active.yPct}%` }}
-            >
-              <p className="font-bold text-zinc-900 dark:text-zinc-100">{active.weightKg} ק״ג</p>
-              <p className="text-zinc-600 dark:text-zinc-500">{formatDateDisplay(active.date)}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="ml-10 mt-1.5 flex text-[10px] text-zinc-500 dark:text-zinc-600">
-        <div className="relative h-3 flex-1">
-          {points.map((p, i) =>
-            labelIndices.has(i) ? (
-              <span
-                key={p.date}
-                className="absolute -translate-x-1/2 tabular-nums"
-                style={{ left: `${p.xPct}%` }}
+            {active && (
+              <div
+                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 px-3 py-1.5 text-center text-xs shadow-xl backdrop-blur"
+                style={{ left: `${clampedTooltipLeft}%`, top: `${active.yPct}%` }}
               >
-                {formatDateDisplay(p.date)}
-              </span>
-            ) : null,
-          )}
+                <p className="font-bold text-zinc-900 dark:text-zinc-100">{active.weightKg} ק״ג</p>
+                <p className="text-zinc-600 dark:text-zinc-500">{formatDateDisplay(active.date)}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="relative mt-1.5 h-3 text-[10px] text-zinc-500 dark:text-zinc-600">
+            {points.map((p, i) =>
+              labelIndices.has(i) ? (
+                <span
+                  key={p.date}
+                  className={`absolute tabular-nums ${i === 0 && points.length > 1 ? '' : i === points.length - 1 && points.length > 1 ? '-translate-x-full' : '-translate-x-1/2'}`}
+                  style={{ left: `${p.xPct}%` }}
+                >
+                  {formatDateDisplay(p.date)}
+                </span>
+              ) : null,
+            )}
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
