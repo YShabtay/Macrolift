@@ -5,7 +5,7 @@ import { clearSession, getSessionUserId } from './utils/authStorage';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import AICoachDrawer from './components/AICoachDrawer';
-import { todayIso } from './utils/weightCalculations';
+import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -34,6 +34,8 @@ import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from '.
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
 import PullToRefresh from './components/PullToRefresh';
+import type { RebalanceChoice } from './components/RebalanceModal';
+import { getActiveAdjustment } from './utils/weeklyBalance';
 
 /** Backfills fields added after a user's data was first saved, so components can assume they exist. */
 function normalizeState(state: AppState): AppState {
@@ -457,6 +459,19 @@ export default function App() {
 
   /** Regenerates the workout plan and nutrition targets to match a new weekly training frequency. */
 
+  /** Stores the user's pick from the weekly rebalance modal. Everything is scoped to the current week and lapses on its own after it. */
+  function handleApplyRebalance(choice: RebalanceChoice) {
+    setAppState((prev) => {
+      if (!prev) return prev;
+      const today = todayIso();
+      const current = getActiveAdjustment(prev.weeklyBalance, today) ?? { weekStart: getWeekStart(today) };
+      const next = { ...current, handledDate: today };
+      if (choice.kind === 'taper') next.calorie = { reductionKcal: choice.reductionKcal, fromDate: choice.fromDate };
+      if (choice.kind === 'steps') next.steps = { boost: choice.boost, fromDate: choice.fromDate };
+      return { ...prev, weeklyBalance: next };
+    });
+  }
+
   function handleApplyProgram(splitType: WorkoutSplitType, daysPerWeek: TrainingDaysPerWeek) {
     setAppState((prev) => (prev ? applyProgramToState(prev, splitType, daysPerWeek) : prev));
   }
@@ -511,6 +526,7 @@ export default function App() {
         onDeleteCircumferenceEntry={handleDeleteCircumferenceEntry}
         onSaveCircumferenceGoals={handleSaveCircumferenceGoals}
         onApplyProgram={handleApplyProgram}
+        onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
         onReset={handleReset}

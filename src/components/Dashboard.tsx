@@ -70,6 +70,15 @@ import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
 import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, SPLIT_SHORT_LABELS, type CalendarDay } from '../utils/scheduleHelpers';
 import ProgramSwitcherModal from './ProgramSwitcherModal';
+import RebalanceModal, { type RebalanceChoice } from './RebalanceModal';
+import {
+  buildRebalanceOptions,
+  getActiveAdjustment,
+  getDailyTargets,
+  getEffectiveStepGoal,
+  getWeeklyEnergyBalance,
+  REBALANCE_MIN_EXCESS_KCAL,
+} from '../utils/weeklyBalance';
 import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
@@ -124,6 +133,7 @@ interface DashboardProps {
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
+  onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onReset: () => void;
@@ -219,6 +229,7 @@ export default function Dashboard({
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
   onApplyProgram,
+  onApplyRebalance,
   onUpdateProfileFull,
   onImportAppState,
   onReset,
@@ -319,6 +330,7 @@ export default function Dashboard({
             <DashboardTab
               appState={appState}
               onApplyProgram={onApplyProgram}
+              onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
               onUndoCompleteDay={onUndoCompleteDay}
               onSetSchedule={onSetSchedule}
@@ -349,6 +361,7 @@ export default function Dashboard({
             <FoodTracker
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
+              weeklyBalance={appState.weeklyBalance}
               onAddFood={onAddFood}
               onDeleteFood={onDeleteFood}
             />
@@ -425,6 +438,7 @@ export default function Dashboard({
 function DashboardTab({
   appState,
   onApplyProgram,
+  onApplyRebalance,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
@@ -437,6 +451,7 @@ function DashboardTab({
 }: {
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
+  onApplyRebalance: (choice: RebalanceChoice) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
@@ -452,8 +467,23 @@ function DashboardTab({
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
+  const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
+  const weeklyBalance = appState.weeklyBalance;
+  const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
+  const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
+  // The badge only shows for a real overshoot that hasn't been dealt with yet today.
+  const showRebalanceBadge =
+    overshootKcal >= REBALANCE_MIN_EXCESS_KCAL && getActiveAdjustment(weeklyBalance, todayIso())?.handledDate !== todayIso();
+  const rebalanceOptions = useMemo(
+    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, todayIso()) : null),
+    [isRebalanceOpen, overshootKcal, nutritionPlan],
+  );
+  const weeklyEnergyBalance = useMemo(
+    () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, todayIso()) : null),
+    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance],
+  );
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
   const todaysDayCompleted = useMemo(
     () => completedDates.includes(todayIso()) || isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
@@ -577,6 +607,9 @@ function DashboardTab({
         <NutritionCard
           metrics={profile.metrics}
           nutritionPlan={nutritionPlan}
+          targets={todayTargets}
+          overshootKcal={showRebalanceBadge ? overshootKcal : 0}
+          onOpenRebalance={() => setIsRebalanceOpen(true)}
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
         />
@@ -591,7 +624,7 @@ function DashboardTab({
 
       <StepsTracker
         stepLogs={stepLogs}
-        goalSteps={appState.stepGoal ?? DEFAULT_STEP_GOAL}
+        goalSteps={getEffectiveStepGoal(appState.stepGoal ?? DEFAULT_STEP_GOAL, weeklyBalance, todayIso())}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}
@@ -618,6 +651,15 @@ function DashboardTab({
           onSetSchedule={onSetSchedule}
           onOpenFull={() => onNavigate('workout')}
           onClose={() => setEditingDay(null)}
+        />
+      )}
+
+      {isRebalanceOpen && rebalanceOptions && weeklyEnergyBalance && (
+        <RebalanceModal
+          options={rebalanceOptions}
+          balance={weeklyEnergyBalance}
+          onChoose={onApplyRebalance}
+          onClose={() => setIsRebalanceOpen(false)}
         />
       )}
 
@@ -896,15 +938,24 @@ function StreaksCard({
 function NutritionCard({
   metrics,
   nutritionPlan,
+  targets,
+  overshootKcal,
+  onOpenRebalance,
   eaten,
   onOpenDailyMeals,
 }: {
   metrics: UserMetrics;
   nutritionPlan: NutritionPlan;
+  /** Today's targets - the base plan, or lower while a weekly rebalance reduction is active. */
+  targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number };
+  /** Calories over today's target when a rebalance suggestion should show (0 hides it). */
+  overshootKcal: number;
+  onOpenRebalance: () => void;
   eaten: DailyTotals;
   onOpenDailyMeals: () => void;
 }) {
-  const { targetCalories, macros } = nutritionPlan;
+  const targetCalories = targets.calories;
+  const macros = targets.macros;
   const remainingCalories = targetCalories - eaten.calories;
   const isOver = remainingCalories < 0;
   const progressPercent = targetCalories > 0 ? Math.min((eaten.calories / targetCalories) * 100, 100) : 0;
@@ -926,6 +977,18 @@ function NutritionCard({
       </p>
       <div className="mb-3 mt-1.5">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
+        {targets.reductionKcal > 0 && (
+          <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
+        )}
+        {overshootKcal > 0 && (
+          <button
+            type="button"
+            onClick={onOpenRebalance}
+            className="mt-1.5 rounded-lg border border-orange-400/30 bg-orange-400/5 px-2.5 py-1.5 text-right text-[11px] font-semibold leading-snug text-orange-700 transition hover:bg-orange-400/10 dark:text-orange-300"
+          >
+            {overshootKcal > 500 ? 'חריגה' : 'חריגה קלה'} של {overshootKcal} קק״ל • אפשרויות איזון שבועי ⚖️
+          </button>
+        )}
       </div>
 
       <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">

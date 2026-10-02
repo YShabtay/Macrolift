@@ -317,4 +317,18 @@ export interface AppState {
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).
    */
   completedWorkoutDates?: string[];
+  /** Temporary adjustments from the weekly calorie rebalance; each applies only within its own week and lapses on its own. */
+  weeklyBalance?: WeeklyBalanceAdjustment;
+}
+
+/** What the user chose after a calorie overshoot (see utils/weeklyBalance.ts). Stale once `weekStart` is no longer the current week. */
+export interface WeeklyBalanceAdjustment {
+  /** Sunday of the week this applies to. */
+  weekStart: string;
+  /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
+  calorie?: { reductionKcal: number; fromDate: string };
+  /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */
+  steps?: { boost: number; fromDate: string };
+  /** The day whose overshoot was already dealt with (any option, including "keep as is") - hides the badge for that day. */
+  handledDate?: string;
 }

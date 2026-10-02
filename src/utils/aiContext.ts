@@ -1,3 +1,4 @@
+import { getDailyTargets } from './weeklyBalance';
 import type { AppState } from '../types/fitness';
 import { calculateRemaining, getEntriesForDate, sumTotals } from './nutritionLog';
 import { countCompletedWorkoutsThisWeek } from './workoutStats';
@@ -21,7 +22,8 @@ export function buildCoachSystemPrompt(appState: AppState): string {
 
   const todaysEntries = getEntriesForDate(foodLog, today);
   const eatenToday = sumTotals(todaysEntries);
-  const remainingToday = calculateRemaining(nutritionPlan.targetCalories, nutritionPlan.macros, eatenToday);
+  const todayTargets = getDailyTargets(nutritionPlan, appState.weeklyBalance, today);
+  const remainingToday = calculateRemaining(todayTargets.calories, todayTargets.macros, eatenToday);
   const stepsToday = getStepsForDate(stepLogs, today);
 
   const weeklyWeightSummary = getLatestWeekSummary(weightLogs);
@@ -40,8 +42,8 @@ export function buildCoachSystemPrompt(appState: AppState): string {
 - ממוצע צעדים יומי: ${metrics.averageDailySteps}, צעדים שנצברו היום: ${stepsToday}
 
 ## יעד תזונתי יומי (מחושב אוטומטית לפי הפרופיל)
-- קלוריות: ${nutritionPlan.targetCalories} (BMR: ${nutritionPlan.bmr}, TDEE: ${nutritionPlan.tdee})
-- חלבון: ${nutritionPlan.macros.proteinG} גר', שומן: ${nutritionPlan.macros.fatG} גר', פחמימה: ${nutritionPlan.macros.carbsG} גר'
+- קלוריות להיום: ${todayTargets.calories}${todayTargets.reductionKcal > 0 ? ` (יעד בסיס ${nutritionPlan.targetCalories}, מופחת זמנית באיזון שבועי)` : ''} (BMR: ${nutritionPlan.bmr}, TDEE: ${nutritionPlan.tdee})
+- חלבון: ${todayTargets.macros.proteinG} גר', שומן: ${todayTargets.macros.fatG} גר', פחמימה: ${todayTargets.macros.carbsG} גר'
 
 ## מה נאכל היום (${today}) ומה נשאר
 - נאכל עד כה: ${eatenToday.calories} קק"ל, חלבון ${eatenToday.proteinG.toFixed(0)} גר', שומן ${eatenToday.fatG.toFixed(0)} גר', פחמימה ${eatenToday.carbsG.toFixed(0)} גר'

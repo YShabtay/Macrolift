@@ -17,7 +17,8 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FoodEntry, FoodPer100g, Meal, NutritionPlan } from '../types/fitness';
+import type { FoodEntry, FoodPer100g, Meal, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
+import { getDailyTargets } from '../utils/weeklyBalance';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
@@ -42,6 +43,8 @@ const MEAL_ICONS: Record<Meal, typeof Coffee> = {
 interface FoodTrackerProps {
   foodLog: FoodEntry[];
   nutritionPlan: NutritionPlan;
+  /** Temporary weekly rebalance, which can lower the target on the days it covers. */
+  weeklyBalance?: WeeklyBalanceAdjustment;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   onDeleteFood: (id: string) => void;
 }
@@ -55,7 +58,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDeleteFood }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, onDeleteFood }: FoodTrackerProps) {
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
@@ -66,10 +69,8 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const eaten = useMemo(() => sumTotals(entriesForDate), [entriesForDate]);
-  const remaining = useMemo(
-    () => calculateRemaining(nutritionPlan.targetCalories, nutritionPlan.macros, eaten),
-    [nutritionPlan, eaten],
-  );
+  const targets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, selectedDate), [nutritionPlan, weeklyBalance, selectedDate]);
+  const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,7 +119,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
         </button>
       </div>
 
-      <SummaryCard targetCalories={nutritionPlan.targetCalories} targetMacros={nutritionPlan.macros} eaten={eaten} remaining={remaining} />
+      <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} />
 
       <button
         type="button"
