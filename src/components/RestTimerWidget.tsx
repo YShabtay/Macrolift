@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Pause, Play, RotateCcw, Timer as TimerIcon } from 'lucide-react';
-import { useCountdown, useStopwatch } from '../hooks/useCountdown';
-import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
+import { useRestTimer } from '../context/restTimerContext';
+import { useStopwatch } from '../hooks/useStopwatch';
+import { unlockRestTimerAudio } from '../utils/restTimerAlert';
 
 const QUICK_DURATIONS = [60, 90, 120, 180];
 
@@ -17,57 +18,54 @@ type Mode = 'countdown' | 'stopwatch';
 export default function RestTimerWidget() {
   const [mode, setMode] = useState<Mode>('countdown');
   const [duration, setDuration] = useState(90);
-  const [justFinished, setJustFinished] = useState(false);
 
-  // Both clocks derive their value from timestamps, so a locked screen or backgrounded app can't lose time.
-  const countdown = useCountdown({
-    durationSec: 90,
-    onFinish: () => {
-      fireRestTimerFinishedAlert();
-      setJustFinished(true);
-    },
-  });
+  // Countdown mode drives the app-wide rest timer (so it survives tab switches and screen locks);
+  // the stopwatch is a plain local clock derived from timestamps.
+  const rest = useRestTimer();
   const stopwatch = useStopwatch();
 
-  const remaining = countdown.remaining;
+  const isRestActive = rest.status !== 'idle';
+  const justFinished = mode === 'countdown' && rest.status === 'finished';
+  // Idle shows the chosen duration; otherwise the live global countdown.
+  const remaining = isRestActive ? rest.remainingSec : duration;
   const elapsed = stopwatch.elapsed;
-  const running = mode === 'countdown' ? countdown.running : stopwatch.running;
+  const running = mode === 'countdown' ? rest.status === 'running' : stopwatch.running;
 
   function selectDuration(d: number) {
     // Tapping a duration is a user gesture: warm up audio now so the finish beeps are allowed later on iOS.
     unlockRestTimerAudio();
     setDuration(d);
-    countdown.reset(d);
-    setJustFinished(false);
+    rest.cancel();
   }
 
   function toggleRunning() {
-    if (mode === 'countdown' && remaining <= 0) return;
-    // Must run synchronously inside this click handler - iOS Safari only unlocks Web Audio
-    // within a user gesture, not later when the countdown actually finishes.
+    // These run synchronously inside this click handler - iOS Safari only unlocks Web Audio and
+    // allows the notification prompt within a user gesture, not later when the countdown finishes.
     unlockRestTimerAudio();
-    setJustFinished(false);
-    const clock = mode === 'countdown' ? countdown : stopwatch;
-    if (running) clock.pause();
-    else clock.start();
+    if (mode === 'stopwatch') {
+      if (stopwatch.running) stopwatch.pause();
+      else stopwatch.start();
+      return;
+    }
+    if (rest.status === 'running') rest.pause();
+    else if (rest.status === 'paused') rest.resume();
+    else rest.start(duration, 'טיימר מנוחה');
   }
 
   function handleReset() {
-    setJustFinished(false);
-    if (mode === 'countdown') countdown.reset(duration);
+    if (mode === 'countdown') rest.cancel();
     else stopwatch.reset();
   }
 
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
-    setJustFinished(false);
-    countdown.reset(duration);
     stopwatch.reset();
   }
 
   const displaySeconds = mode === 'countdown' ? remaining : elapsed;
-  const progress = mode === 'countdown' && duration > 0 ? remaining / duration : 0;
+  const total = isRestActive ? rest.durationSec : duration;
+  const progress = mode === 'countdown' && total > 0 ? remaining / total : 0;
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - progress);
@@ -149,8 +147,7 @@ export default function RestTimerWidget() {
             <button
               type="button"
               onClick={toggleRunning}
-              disabled={mode === 'countdown' && remaining <= 0}
-              className="btn-primary flex-1 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-primary flex-1 py-2.5 text-sm"
             >
               {running ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
               {running ? 'השהיה' : 'הפעלה'}

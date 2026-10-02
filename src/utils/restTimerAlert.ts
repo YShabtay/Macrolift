@@ -101,9 +101,14 @@ export function vibrateRestTimerAlert(): void {
   }
 }
 
-/** Beeps, vibration and the on-screen alert together - call once when a countdown hits 0. */
+/** Shows the on-screen alert (screen flash + big toast); `RestFinishedAlert` listens for this. */
+export function showRestTimerFinishedVisual(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(REST_TIMER_FINISHED_EVENT));
+}
+
+/** Beeps, vibration and the on-screen alert together - call once when a countdown hits 0 while the app is in view. */
 export function fireRestTimerFinishedAlert(): void {
   playRestTimerChime();
   vibrateRestTimerAlert();
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(REST_TIMER_FINISHED_EVENT));
+  showRestTimerFinishedVisual();
 }

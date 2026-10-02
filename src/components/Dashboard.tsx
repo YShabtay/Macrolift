@@ -45,6 +45,8 @@ import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
+import RestTimerMiniBar from './RestTimerMiniBar';
+import { useRestTimer } from '../context/restTimerContext';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
 import DailyMealsModal from './DailyMealsModal';
 import CircumferenceTracker from './CircumferenceTracker';
@@ -62,7 +64,6 @@ import { buildWeekGrid, getTodaysPlanDay, isDayCompleted, REST_DAY_ID, type Cale
 import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
-import { unlockRestTimerAudio } from '../utils/restTimerAlert';
 import { buildAppStateCsv } from '../utils/csvExport';
 import { parseBackupFile, type RestoreSummary } from '../utils/backupValidation';
 import RestoreResultModal, { type RestoreResult } from './RestoreResultModal';
@@ -166,6 +167,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const restTimerStatus = useRestTimer().status;
 
   return (
     <div className="flex min-h-svh bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -174,6 +176,10 @@ export default function Dashboard({
       <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
 
       <RestFinishedAlert />
+
+      {/* App-wide rest timer: the full card on the workout screen, a compact bar above the nav everywhere else */}
+      {restTimerStatus !== 'idle' &&
+        (tab === 'workout' ? <RestTimer /> : <RestTimerMiniBar onOpenWorkout={() => setTab('workout')} />)}
 
       {/* Opaque strip behind the iPhone status bar / camera cutout so scrolled content never shows through it */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:hidden" />
@@ -976,7 +982,7 @@ function WorkoutCard({
   const date = todayIso();
   const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
   const [swapExercise, setSwapExercise] = useState<Exercise | null>(null);
-  const [restSession, setRestSession] = useState<{ id: number; seconds: number; label: string } | null>(null);
+  const restTimer = useRestTimer();
 
   const totalSets = selectedDay.exercises.reduce((sum, e) => sum + e.sets, 0);
   const doneSets = selectedDay.exercises.reduce((sum, e) => {
@@ -1095,10 +1101,9 @@ function WorkoutCard({
                         const isCompletingNewSet = i >= completedSets;
                         onToggleSet(selectedDay.id, exercise.id, i);
                         if (isCompletingNewSet) {
-                          // Must run synchronously inside this click handler, not after the
-                          // timer mounts - iOS Safari only unlocks Web Audio within a user gesture.
-                          unlockRestTimerAudio();
-                          setRestSession({ id: Date.now(), seconds: exercise.restSeconds, label: exercise.name });
+                          // start() unlocks Web Audio and asks for notification permission, which both must
+                          // happen synchronously inside this click - iOS only allows them within a user gesture.
+                          restTimer.start(exercise.restSeconds, exercise.name);
                         }
                       }}
                       className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-bold transition active:scale-90 ${
@@ -1126,14 +1131,6 @@ function WorkoutCard({
           setSwapExercise(null);
         }}
       />
-      {restSession && (
-        <RestTimer
-          key={restSession.id}
-          seconds={restSession.seconds}
-          label={restSession.label}
-          onDismiss={() => setRestSession(null)}
-        />
-      )}
     </div>
   );
 }

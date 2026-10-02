@@ -1,13 +1,6 @@
 import { createPortal } from 'react-dom';
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
-import { useCountdown } from '../hooks/useCountdown';
-import { fireRestTimerFinishedAlert, unlockRestTimerAudio } from '../utils/restTimerAlert';
-
-interface RestTimerProps {
-  seconds: number;
-  label: string;
-  onDismiss: () => void;
-}
+import { useRestTimer } from '../context/restTimerContext';
 
 function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -16,16 +9,12 @@ function formatTime(totalSeconds: number): string {
 }
 
 /**
- * Floating rest-timer widget. Mount with a fresh `key` per rest session so
- * internal state (remaining time, running/paused) resets cleanly.
+ * Floating rest-timer card shown on the workout screen. It is only a view of the app-wide timer
+ * (see TimerContext) - the countdown itself lives there, so it keeps running across tabs and screen locks.
  */
-export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps) {
-  // Deadline-based (endTime = Date.now() + duration), so time spent with the app backgrounded still counts.
-  const { remaining, running, start, pause, reset } = useCountdown({
-    durationSec: seconds,
-    autoStart: true,
-    onFinish: fireRestTimerFinishedAlert,
-  });
+export default function RestTimer() {
+  const { status, label, durationSec: seconds, remainingSec: remaining, pause, resume, restart, cancel } = useRestTimer();
+  const running = status === 'running';
 
   const progress = seconds > 0 ? remaining / seconds : 0;
   const radius = 26;
@@ -67,11 +56,7 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              unlockRestTimerAudio();
-              if (running) pause();
-              else start();
-            }}
+            onClick={() => (running ? pause() : resume())}
             aria-label={running ? 'השהיה' : 'המשך'}
             disabled={isDone}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400 active:scale-90 disabled:opacity-40"
@@ -80,11 +65,7 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
           </button>
           <button
             type="button"
-            onClick={() => {
-              unlockRestTimerAudio();
-              reset(seconds);
-              start();
-            }}
+            onClick={restart}
             aria-label="איפוס"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400 active:scale-90"
           >
@@ -92,7 +73,7 @@ export default function RestTimer({ seconds, label, onDismiss }: RestTimerProps)
           </button>
           <button
             type="button"
-            onClick={onDismiss}
+            onClick={cancel}
             aria-label="דילוג"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-red-400/50 hover:text-red-400 active:scale-90"
           >
