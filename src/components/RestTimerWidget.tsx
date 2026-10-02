@@ -3,6 +3,7 @@ import { Pause, Play, RotateCcw, Timer as TimerIcon } from 'lucide-react';
 import { useRestTimer } from '../context/restTimerContext';
 import { useStopwatch } from '../hooks/useStopwatch';
 import { unlockRestTimerAudio } from '../utils/restTimerAlert';
+import { armBackgroundAudio, isBackgroundAudioEnabled, setBackgroundAudioEnabled } from '../utils/restTimerBackgroundAudio';
 
 const QUICK_DURATIONS = [60, 90, 120, 180];
 
@@ -18,6 +19,7 @@ type Mode = 'countdown' | 'stopwatch';
 export default function RestTimerWidget() {
   const [mode, setMode] = useState<Mode>('countdown');
   const [duration, setDuration] = useState(90);
+  const [keepAliveOn, setKeepAliveOn] = useState(isBackgroundAudioEnabled);
 
   // Countdown mode drives the app-wide rest timer (so it survives tab switches and screen locks);
   // the stopwatch is a plain local clock derived from timestamps.
@@ -50,6 +52,13 @@ export default function RestTimerWidget() {
     if (rest.status === 'running') rest.pause();
     else if (rest.status === 'paused') rest.resume();
     else rest.start(duration, 'טיימר מנוחה');
+  }
+
+  function toggleKeepAlive(next: boolean) {
+    setKeepAliveOn(next);
+    setBackgroundAudioEnabled(next);
+    // Turning it on mid-rest is a tap, so the keep-alive loop may start right away.
+    if (next && rest.status === 'running') armBackgroundAudio();
   }
 
   function handleReset() {
@@ -156,6 +165,20 @@ export default function RestTimerWidget() {
               <RotateCcw className="h-4 w-4" />
             </button>
           </div>
+
+          {mode === 'countdown' && (
+            <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
+              <input
+                type="checkbox"
+                checked={keepAliveOn}
+                onChange={(e) => toggleKeepAlive(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-lime-500"
+              />
+              <span>
+                הצלצול ימשיך גם כשהמסך נעול (מושמע צליל שקט ברקע; עשוי להשתיק לזמן המנוחה מוזיקה מאפליקציות אחרות)
+              </span>
+            </label>
+          )}
 
           {justFinished && <p className="text-center text-xs font-semibold text-lime-700 dark:text-lime-400">הזמן נגמר! זמן לסט הבא 💪</p>}
         </div>

@@ -6,6 +6,8 @@ import {
   unlockRestTimerAudio,
   vibrateRestTimerAlert,
 } from '../utils/restTimerAlert';
+import { armBackgroundAudio, startBackgroundAlarm, stopBackgroundAudio } from '../utils/restTimerBackgroundAudio';
+import { acquireScreenWakeLock, releaseScreenWakeLock } from '../utils/screenWakeLock';
 import { notifyRestTimerFinished, requestNotificationPermissionOnce } from '../utils/restTimerNotifications';
 
 const STORAGE_KEY = 'macrolift-rest-timer';
@@ -86,16 +88,32 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   /** Beeps/vibration/notification/visual for a timer that has just ended (or ended while the app was away). */
   const runFinishAlerts = useCallback((overdueMs: number) => {
-    if (overdueMs <= MAX_OVERDUE_FOR_BEEP_MS) {
-      playRestTimerChime();
-      vibrateRestTimerAlert();
-    }
-    if (document.visibilityState === 'visible') {
+    const isVisible = document.visibilityState === 'visible';
+    const isFresh = overdueMs <= MAX_OVERDUE_FOR_BEEP_MS;
+    releaseScreenWakeLock();
+
+    if (isVisible) {
+      // The user is looking at the app: one round of beeps through the unlocked context, then free the audio session.
+      stopBackgroundAudio();
+      if (isFresh) {
+        playRestTimerChime();
+        vibrateRestTimerAlert();
+      }
       showRestTimerFinishedVisual();
-    } else {
-      pendingVisualRef.current = true;
-      void notifyRestTimerFinished();
+      return;
     }
+
+    // Locked / backgrounded: the keep-alive loop is still playing, so swap it for the repeating alarm track
+    // (beeps every 5 s until the app is opened). If that can't play, fall back to a single Web Audio chime.
+    pendingVisualRef.current = true;
+    void notifyRestTimerFinished();
+    if (!isFresh) {
+      stopBackgroundAudio();
+      return;
+    }
+    void startBackgroundAlarm().then((started) => {
+      if (!started) playRestTimerChime();
+    });
   }, []);
 
   const finish = useCallback(
@@ -122,11 +140,13 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [isRunning, tick]);
 
-  // Returning to the app: recompute from the clock right away, and show any alert that was held back.
+  // Returning to the app: recompute from the clock right away, silence any lock-screen alarm (opening the
+  // app is the acknowledgement), and show any alert that was held back.
   useEffect(() => {
     const onWake = () => {
       if (document.visibilityState !== 'visible') return;
       tick();
+      if (timerRef.current.status !== 'running') stopBackgroundAudio();
       if (pendingVisualRef.current) {
         pendingVisualRef.current = false;
         showRestTimerFinishedVisual();
@@ -156,6 +176,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       if (!(seconds > 0)) return;
       // These two only work synchronously inside the user's tap, so they run before anything else.
       unlockRestTimerAudio();
+      armBackgroundAudio();
+      acquireScreenWakeLock();
       requestNotificationPermissionOnce();
       pendingVisualRef.current = false;
       commit({ status: 'running', label, durationSec: seconds, endTime: Date.now() + seconds * 1000, remainingMs: 0 });
@@ -166,6 +188,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const pause = useCallback(() => {
     const t = timerRef.current;
     if (t.status !== 'running' || t.endTime === null) return;
+    stopBackgroundAudio();
+    releaseScreenWakeLock();
     commit({ ...t, status: 'paused', endTime: null, remainingMs: Math.max(t.endTime - Date.now(), 0) });
   }, [commit]);
 
@@ -173,6 +197,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     const t = timerRef.current;
     if (t.status !== 'paused' || t.remainingMs <= 0) return;
     unlockRestTimerAudio();
+    armBackgroundAudio();
+    acquireScreenWakeLock();
     commit({ ...t, status: 'running', endTime: Date.now() + t.remainingMs, remainingMs: 0 });
   }, [commit]);
 
@@ -186,6 +212,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         commit({ ...t, remainingMs: t.remainingMs + seconds * 1000, durationSec: t.durationSec + seconds });
       } else {
         // Nothing active (or it just finished): "+30s" begins a fresh short rest.
+        armBackgroundAudio();
+        acquireScreenWakeLock();
         pendingVisualRef.current = false;
         commit({
           status: 'running',
@@ -203,11 +231,15 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     const t = timerRef.current;
     if (t.status === 'idle' || t.durationSec <= 0) return;
     unlockRestTimerAudio();
+    armBackgroundAudio();
+    acquireScreenWakeLock();
     pendingVisualRef.current = false;
     commit({ ...t, status: 'running', endTime: Date.now() + t.durationSec * 1000, remainingMs: 0 });
   }, [commit]);
 
   const cancel = useCallback(() => {
+    stopBackgroundAudio();
+    releaseScreenWakeLock();
     pendingVisualRef.current = false;
     commit(IDLE);
   }, [commit]);
