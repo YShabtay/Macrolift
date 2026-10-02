@@ -6,10 +6,12 @@ import { hasGeminiApiKey } from '../services/geminiChat';
 import { lookupAndCacheFood } from '../services/foodLookup';
 import { storageService } from '../services/storageService';
 import { normalizeFoodQuery, scaleNutrition, searchFoods } from '../utils/foodSearch';
+import { formatServingQuantity, formatUnitCount, shouldDefaultToUnits, unitsToGrams } from '../utils/servingUnits';
 import { MEAL_LABELS } from '../utils/nutritionLog';
 
 const AUTO_AI_DELAY_MS = 900;
 const QUICK_GRAMS = [100, 150, 200];
+const QUICK_UNIT_COUNTS = [1, 2, 3];
 
 interface FoodSearchProps {
   onPick: (food: FoodPer100g) => void;
@@ -157,10 +159,24 @@ interface ServingPanelProps {
 
 /** Gram-based entry for one chosen food: per-100g reference values, quick-gram buttons and live macro math. */
 export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: ServingPanelProps) {
-  const [gramsText, setGramsText] = useState('100');
-  const grams = Number(gramsText);
-  const isValid = Number.isFinite(grams) && grams > 0 && grams <= 5000;
+  const units = food.servingUnits;
+  const startsInUnits = shouldDefaultToUnits(units);
+  // '' = grams; otherwise the name of the selected serving unit.
+  const [unitName, setUnitName] = useState(startsInUnits && units ? units[0].name : '');
+  const [amountText, setAmountText] = useState(startsInUnits ? '1' : '100');
+  const selectedUnit = units?.find((u) => u.name === unitName);
+
+  const amount = Number(amountText);
+  const grams = selectedUnit ? unitsToGrams(amount, selectedUnit) : amount;
+  const isValid = Number.isFinite(amount) && amount > 0 && Number.isFinite(grams) && grams > 0 && grams <= 5000;
   const scaled = scaleNutrition(food, isValid ? grams : 0);
+  const quickAmounts = selectedUnit ? QUICK_UNIT_COUNTS : QUICK_GRAMS;
+
+  function selectUnit(next: string) {
+    if (next === unitName) return;
+    setUnitName(next);
+    setAmountText(next === '' ? '100' : '1');
+  }
 
   function handleAdd() {
     if (!isValid) return;
@@ -168,7 +184,7 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
       date,
       meal,
       name: food.name,
-      quantity: `${grams} גרם`,
+      quantity: selectedUnit ? formatServingQuantity(amount, selectedUnit) : `${grams} גרם`,
       weightGrams: grams,
       calories: scaled.calories,
       proteinG: scaled.protein,
@@ -203,15 +219,37 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">כמות בגרמים</label>
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-500">{selectedUnit ? `כמות (${selectedUnit.name})` : 'כמות בגרמים'}</label>
+          {units && units.length > 0 && (
+            <div role="group" aria-label="יחידת מידה" className="flex flex-wrap gap-1">
+              {[{ name: '', label: 'גרם' }, ...units.map((u) => ({ name: u.name, label: u.name }))].map((opt) => (
+                <button
+                  key={opt.name || 'grams'}
+                  type="button"
+                  aria-pressed={unitName === opt.name}
+                  onClick={() => selectUnit(opt.name)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${
+                    unitName === opt.name
+                      ? 'border-lime-400/60 bg-lime-400/10 text-lime-700 dark:text-lime-400'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex gap-2">
           <input
             type="number"
             inputMode="decimal"
-            min={1}
-            max={5000}
-            value={gramsText}
-            onChange={(e) => setGramsText(e.target.value)}
+            min={selectedUnit ? 0.5 : 1}
+            step={selectedUnit ? 0.5 : 1}
+            aria-label={selectedUnit ? `כמות ב${selectedUnit.name}` : 'כמות בגרמים'}
+            value={amountText}
+            onChange={(e) => setAmountText(e.target.value)}
             className={`w-28 rounded-xl border bg-white dark:bg-zinc-900 px-3 py-2.5 text-center text-lg font-bold text-zinc-900 dark:text-zinc-100 outline-none transition focus:ring-2 ${
               isValid
                 ? 'border-zinc-300 dark:border-zinc-700 focus:border-lime-400 focus:ring-lime-400/20'
@@ -219,23 +257,32 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
             }`}
           />
           <div className="flex flex-1 gap-2">
-            {QUICK_GRAMS.map((g) => (
+            {quickAmounts.map((q) => (
               <button
-                key={g}
+                key={q}
                 type="button"
-                onClick={() => setGramsText(String(g))}
+                onClick={() => setAmountText(String(q))}
                 className={`flex-1 rounded-xl border text-xs font-bold transition ${
-                  grams === g
+                  amount === q
                     ? 'border-lime-400/50 bg-lime-400/10 text-lime-700 dark:text-lime-400'
                     : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600'
                 }`}
               >
-                {g} גרם
+                {selectedUnit ? q : `${q} גרם`}
               </button>
             ))}
           </div>
         </div>
-        {!isValid && <p className="mt-1 text-[11px] text-orange-700 dark:text-orange-400">יש להזין כמות בין 1 ל-5000 גרם</p>}
+        {selectedUnit && isValid && (
+          <p className="mt-1.5 text-xs font-semibold text-lime-700 dark:text-lime-400">
+            {formatUnitCount(amount, selectedUnit)} (~{grams} גרם)
+          </p>
+        )}
+        {!isValid && (
+          <p className="mt-1 text-[11px] text-orange-700 dark:text-orange-400">
+            {selectedUnit ? 'יש להזין כמות חיובית (עד 5000 גרם בסך הכל)' : 'יש להזין כמות בין 1 ל-5000 גרם'}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-4 gap-2 text-center">

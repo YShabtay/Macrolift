@@ -2,6 +2,7 @@ import type { FoodPer100g } from '../types/fitness';
 import { API_KEY, GEMINI_MODEL, MissingApiKeyError } from './aiFoodScanner';
 import { storageService } from './storageService';
 import { normalizeFoodQuery } from '../utils/foodSearch';
+import { sanitizeServingUnits } from '../utils/servingUnits';
 
 export { MissingApiKeyError };
 
@@ -13,8 +14,11 @@ const SYSTEM_PROMPT = `אתה מאגר נתונים תזונתי. בהינתן �
   "calories": מספר (קלוריות ל-100 גרם),
   "protein": מספר (גרם חלבון ל-100 גרם),
   "carbs": מספר (גרם פחמימה ל-100 גרם),
-  "fat": מספר (גרם שומן ל-100 גרם)
+  "fat": מספר (גרם שומן ל-100 גרם),
+  "servingUnits": [ { "name": "יחידת מידה טבעית בעברית (למשל: יחידה, פרוסה, כף, כוס)", "grams": מספר (משקל ממוצע מקובל של יחידה אחת בגרמים) } ]
 }
+
+servingUnits הוא שדה אופציונלי: עד 3 יחידות מידה שבהן אנשים נוהגים לספור את המאכל הזה, עם המשקל הממוצע המקובל של כל אחת (למשל ביצה = 55 גרם, כף שמן = 15 גרם). אם אין יחידה טבעית למאכל, השמט את השדה.
 
 כל הערכים המספריים חייבים להיות מספרים (לא מחרוזות). אם הקלט אינו מאכל או מוצר מזון מזוהה, החזר {"error": "not_food"}.`;
 
@@ -66,6 +70,7 @@ function parseFoodResponse(rawText: string, query: string): FoodPer100g {
     carbs: round1(carbs),
     fat: round1(fat),
     servingUnit: 'גרם',
+    servingUnits: sanitizeServingUnits(obj.servingUnits),
     aliases: normalizeFoodQuery(query) !== normalizeFoodQuery(name) ? [query.trim()] : undefined,
     fromAI: true,
   };

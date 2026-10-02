@@ -275,6 +275,12 @@ export interface StepLog {
   steps: number;
 }
 
+/** A natural way to count a food (one date, one slice, a tablespoon) and what it weighs, so users can log units instead of grams. */
+export interface ServingUnit {
+  name: string; // e.g. "יחידה", "פרוסה", "כף", "כוס"
+  grams: number; // weight of one such unit
+}
+
 /** A food's nutrition values normalized per 100 grams - the unit every search result is stored and scaled in. */
 export interface FoodPer100g {
   id: string;
@@ -284,6 +290,8 @@ export interface FoodPer100g {
   carbs: number;
   fat: number;
   servingUnit: 'גרם';
+  /** Optional counting units with their typical weight, e.g. an egg = 55 g. */
+  servingUnits?: ServingUnit[];
   /** Extra search terms (e.g. the original query an AI-looked-up food was found with). */
   aliases?: string[];
   /** True for foods looked up through Gemini and cached locally. */

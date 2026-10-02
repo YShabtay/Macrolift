@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Calculator, Save, X } from 'lucide-react';
-import type { FoodEntry } from '../types/fitness';
+import type { FoodEntry, FoodPer100g } from '../types/fitness';
+import { COMMON_FOODS } from '../data/commonFoods';
+import { storageService } from '../services/storageService';
+import { findServingUnitsByName, formatServingQuantity, formatUnitCount, unitsToGrams } from '../utils/servingUnits';
 
 interface EditMealModalProps {
   entry: FoodEntry;
@@ -16,6 +19,41 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
   const [proteinG, setProteinG] = useState(String(entry.proteinG));
   const [carbsG, setCarbsG] = useState(String(entry.carbsG));
   const [fatG, setFatG] = useState(String(entry.fatG));
+
+  // Units come from the food database by name, so an entry logged in grams can still be edited as "2 eggs".
+  const [customFoods, setCustomFoods] = useState<FoodPer100g[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    storageService.getCustomFoods().then((foods) => {
+      if (!cancelled) setCustomFoods(foods);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const units = useMemo(() => findServingUnitsByName(entry.name, [...customFoods, ...COMMON_FOODS]), [entry.name, customFoods]);
+  const [unitName, setUnitName] = useState('');
+  const [unitQtyText, setUnitQtyText] = useState('1');
+  const selectedUnit = units?.find((u) => u.name === unitName);
+  const unitQty = Number(unitQtyText);
+  const unitQtyValid = selectedUnit !== undefined && Number.isFinite(unitQty) && unitQty > 0;
+
+  function selectUnit(next: string) {
+    setUnitName(next);
+    const unit = units?.find((u) => u.name === next);
+    if (!unit) return;
+    // Start from the current weight expressed in this unit (rounded to the nearest half), so the switch doesn't jump.
+    const current = Number(weightGrams);
+    const qty = Number.isFinite(current) && current > 0 ? Math.max(Math.round((current / unit.grams) * 2) / 2, 0.5) : 1;
+    setUnitQtyText(String(qty));
+    setWeightGrams(String(unitsToGrams(qty, unit)));
+  }
+
+  function handleUnitQtyChange(text: string) {
+    setUnitQtyText(text);
+    const q = Number(text);
+    if (selectedUnit && Number.isFinite(q) && q > 0) setWeightGrams(String(unitsToGrams(q, selectedUnit)));
+  }
 
   const originalWeight = entry.weightGrams;
   const currentWeight = Number(weightGrams);
@@ -42,7 +80,12 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
 
     onSave(entry.id, {
       name: name.trim(),
-      quantity: weightGrams.trim() ? `${weightGrams.trim()} גרם` : entry.quantity,
+      quantity:
+        selectedUnit && unitQtyValid
+          ? formatServingQuantity(unitQty, selectedUnit)
+          : weightGrams.trim()
+            ? `${weightGrams.trim()} גרם`
+            : entry.quantity,
       weightGrams: weightGrams.trim() ? Number(weightGrams) : undefined,
       calories: cal,
       proteinG: Number(proteinG) || 0,
@@ -84,17 +127,58 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">משקל (גר׳)</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={weightGrams}
-              onChange={(e) => setWeightGrams(e.target.value)}
-              placeholder="לא צויין"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
-            />
-          </div>
+          {units && (
+            <div role="group" aria-label="יחידת מידה" className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-500">הזנה לפי:</span>
+              {[{ name: '' }, ...units].map((u) => (
+                <button
+                  key={u.name || 'grams'}
+                  type="button"
+                  aria-pressed={unitName === u.name}
+                  onClick={() => selectUnit(u.name)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${
+                    unitName === u.name
+                      ? 'border-lime-400/60 bg-lime-400/10 text-lime-700 dark:text-lime-400'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {u.name || 'גרם'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {selectedUnit ? (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">כמות ({selectedUnit.name})</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step={0.5}
+                min={0.5}
+                value={unitQtyText}
+                onChange={(e) => handleUnitQtyChange(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+              />
+              {unitQtyValid && (
+                <p className="mt-1 text-xs font-semibold text-lime-700 dark:text-lime-400">
+                  {formatUnitCount(unitQty, selectedUnit)} (~{unitsToGrams(unitQty, selectedUnit)} גרם)
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">משקל (גר׳)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={weightGrams}
+                onChange={(e) => setWeightGrams(e.target.value)}
+                placeholder="לא צויין"
+                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+              />
+            </div>
+          )}
 
           {canRecalculateByWeight && (
             <button
