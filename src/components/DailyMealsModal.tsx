@@ -1,3 +1,4 @@
+import { formatMacro } from '../utils/formatMacro';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pencil, Trash2, UtensilsCrossed, X } from 'lucide-react';
@@ -88,10 +89,10 @@ export default function DailyMealsModal({ entries, onUpdate, onDelete, onClose }
               </div>
 
               <div className="grid grid-cols-4 gap-2 text-center">
-                <SummaryStat label="קלוריות" value={totals.calories} valueClassName="text-lime-700 dark:text-lime-400" />
-                <SummaryStat label="חלבון" value={`${totals.proteinG}ג׳`} valueClassName="text-sky-700 dark:text-sky-400" />
-                <SummaryStat label="פחמימה" value={`${totals.carbsG}ג׳`} valueClassName="text-amber-700 dark:text-amber-400" />
-                <SummaryStat label="שומן" value={`${totals.fatG}ג׳`} valueClassName="text-yellow-700 dark:text-yellow-400" />
+                <SummaryStat label="קלוריות" value={formatMacro(totals.calories)} valueClassName="text-lime-700 dark:text-lime-400" />
+                <SummaryStat label="חלבון" value={`${formatMacro(totals.proteinG)}ג׳`} valueClassName="text-sky-700 dark:text-sky-400" />
+                <SummaryStat label="פחמימה" value={`${formatMacro(totals.carbsG)}ג׳`} valueClassName="text-amber-700 dark:text-amber-400" />
+                <SummaryStat label="שומן" value={`${formatMacro(totals.fatG)}ג׳`} valueClassName="text-yellow-700 dark:text-yellow-400" />
               </div>
             </div>
 
@@ -177,9 +178,9 @@ function MealRow({
 
       <div className="grid grid-cols-4 gap-2 text-center">
         <MiniStat value={entry.calories} valueClassName="text-lime-700 dark:text-lime-400" />
-        <MiniStat value={`${entry.proteinG}ג׳`} valueClassName="text-sky-700 dark:text-sky-400" />
-        <MiniStat value={`${entry.carbsG}ג׳`} valueClassName="text-amber-700 dark:text-amber-400" />
-        <MiniStat value={`${entry.fatG}ג׳`} valueClassName="text-yellow-700 dark:text-yellow-400" />
+        <MiniStat value={`${formatMacro(entry.proteinG)}ג׳`} valueClassName="text-sky-700 dark:text-sky-400" />
+        <MiniStat value={`${formatMacro(entry.carbsG)}ג׳`} valueClassName="text-amber-700 dark:text-amber-400" />
+        <MiniStat value={`${formatMacro(entry.fatG)}ג׳`} valueClassName="text-yellow-700 dark:text-yellow-400" />
       </div>
     </div>
   );

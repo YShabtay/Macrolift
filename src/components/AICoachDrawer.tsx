@@ -1,3 +1,4 @@
+import { formatMacro } from '../utils/formatMacro';
 import { useRestTimer } from '../context/restTimerContext';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -200,7 +201,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
 
     const remainingAfter = computeRemainingAfterMeal(appState, result);
     setToastMessage(
-      `הארוחה נוספה ליומן היומי! נותרו לך עוד ${remainingAfter.calories} קק״ל ו-${remainingAfter.proteinG} גרם חלבון להיום`,
+      `הארוחה נוספה ליומן היומי! נותרו לך עוד ${formatMacro(remainingAfter.calories)} קק״ל ו-${formatMacro(remainingAfter.proteinG)} גרם חלבון להיום`,
     );
   }
 
@@ -477,7 +478,7 @@ function MealScanCard({
       <p className="text-xs text-zinc-600 dark:text-zinc-500">
         אחרי הארוחה הזו יישארו לך היום{' '}
         <span className="font-semibold text-zinc-800 dark:text-zinc-300">
-          {remainingAfter.calories} קק״ל ו-{remainingAfter.proteinG} גר׳ חלבון
+          {formatMacro(remainingAfter.calories)} קק״ל ו-{formatMacro(remainingAfter.proteinG)} גר׳ חלבון
         </span>
         .
       </p>

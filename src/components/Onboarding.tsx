@@ -1,3 +1,4 @@
+import { formatMacro } from '../utils/formatMacro';
 import { useMemo, useState } from 'react';
 import {
   Activity,
@@ -1037,12 +1038,12 @@ function StepResults({
 
 function MacroStat({ color, label, grams }: { color: string; label: string; grams: number }) {
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
+    <div className="relative min-w-0 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
       <div className="mb-1.5 flex items-center justify-center gap-1.5">
-        <span className={`h-2 w-2 rounded-full ${color}`} />
+        <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />
         <span className="text-xs text-zinc-600 dark:text-zinc-500">{label}</span>
       </div>
-      <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{grams}<span className="mr-1 text-xs font-normal text-zinc-600 dark:text-zinc-500">גר׳</span></p>
+      <p className="truncate whitespace-nowrap text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{formatMacro(grams)}<span className="mr-1 text-xs font-normal text-zinc-600 dark:text-zinc-500">גר׳</span></p>
     </div>
   );
 }

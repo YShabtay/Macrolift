@@ -1,3 +1,4 @@
+import { formatMacro } from '../utils/formatMacro';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Flame, GraduationCap, PieChart, Target, X } from 'lucide-react';
@@ -92,7 +93,7 @@ export default function TransparencyModal({ metrics, nutritionPlan, variant = 'b
                 <ExplanationSection
                   icon={PieChart}
                   title="חלוקת המאקרונוטריאנטים"
-                  text={`קבענו ${proteinPerKg} גרם חלבון לכל ק״ג משקל גוף (סה״כ ${macros.proteinG} גרם) כדי לתמוך בשימור ובניית מסת שריר, כ-${fatCaloriePercent}% מהקלוריות משומן (${macros.fatG} גרם) לשמירה על תפקוד הורמונלי תקין, והשאר - ${macros.carbsG} גרם פחמימה - לאנרגיה ולביצועים באימונים.`}
+                  text={`קבענו ${proteinPerKg} גרם חלבון לכל ק״ג משקל גוף (סה״כ ${formatMacro(macros.proteinG)} גרם) כדי לתמוך בשימור ובניית מסת שריר, כ-${fatCaloriePercent}% מהקלוריות משומן (${formatMacro(macros.fatG)} גרם) לשמירה על תפקוד הורמונלי תקין, והשאר - ${formatMacro(macros.carbsG)} גרם פחמימה - לאנרגיה ולביצועים באימונים.`}
                 />
               </div>
             </div>

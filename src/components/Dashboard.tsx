@@ -46,6 +46,7 @@ import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
 import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
+import { formatMacro } from '../utils/formatMacro';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
 import RestTimerMiniBar from './RestTimerMiniBar';
@@ -854,10 +855,10 @@ function NutritionCard({
       <p
         className={`text-5xl font-extrabold tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}
       >
-        {Math.abs(remainingCalories)}
+        {formatMacro(Math.abs(remainingCalories))}
       </p>
       <p className="text-xs text-zinc-600 dark:text-zinc-500">
-        {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {eaten.calories} מתוך {targetCalories} קק״ל
+        {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
       </p>
       <div className="mb-3 mt-1.5">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
@@ -900,20 +901,22 @@ function MacroStat({
   targetG: number;
 }) {
   const progressPercent = targetG > 0 ? Math.min((eatenG / targetG) * 100, 100) : 0;
-  const isOver = eatenG > targetG;
+  const isOver = formatMacro(eatenG) > formatMacro(targetG);
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-2.5">
-      <div className="mb-1 flex items-center justify-center gap-1.5">
-        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-[11px] text-zinc-600 dark:text-zinc-500">{label}</span>
+    <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-2 min-[360px]:p-2.5">
+      <div className="mb-1 flex min-w-0 items-center justify-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <span className="truncate text-[11px] text-zinc-600 dark:text-zinc-500">{label}</span>
       </div>
-      <p className="mb-1.5 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-        {eatenG}
-        <span className="mx-0.5 font-normal text-zinc-500 dark:text-zinc-500">/</span>
-        {targetG}
-        <span className="mr-1 text-[10px] font-normal text-zinc-600 dark:text-zinc-500">גר׳</span>
-      </p>
+      <div className="mb-1.5">
+        <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 min-[360px]:text-sm">
+          {formatMacro(eatenG)}
+          <span className="mx-0.5 font-normal text-zinc-500 dark:text-zinc-500">/</span>
+          {formatMacro(targetG)}
+        </p>
+        <span className="block text-[10px] font-normal leading-none text-zinc-600 dark:text-zinc-500">גר׳</span>
+      </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         <div
           className="h-full rounded-full transition-all duration-500"

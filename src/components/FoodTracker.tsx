@@ -27,6 +27,7 @@ import VoiceMealModal from './VoiceMealModal';
 import Toast from './Toast';
 import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
+import { formatMacro } from '../utils/formatMacro';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
 const NUTRITION_HEADER_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1600&q=80';
@@ -265,11 +266,11 @@ function CalorieRing({ target, eaten, remaining }: { target: number; eaten: numb
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className={`text-2xl font-extrabold ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
-          {Math.abs(remaining)}
+          {formatMacro(Math.abs(remaining))}
         </span>
         <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
         <span className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-600">
-          {eaten}/{target}
+          {formatMacro(eaten)}/{formatMacro(target)}
         </span>
       </div>
     </div>
@@ -300,8 +301,8 @@ function MacroRemainingBar({
           <Icon className="h-3.5 w-3.5" style={{ color }} />
           {label}
         </span>
-        <span className={`font-semibold ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
-          {isOver ? `חריגה ${Math.abs(remainingG)} גר׳` : `נותרו ${remainingG} גר׳`}
+        <span className={`truncate whitespace-nowrap font-semibold tabular-nums ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+          {isOver ? `חריגה ${formatMacro(Math.abs(remainingG))} גר׳` : `נותרו ${formatMacro(remainingG)} גר׳`}
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -375,8 +376,8 @@ function MealSection({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</p>
                 <p className="text-[11px] text-zinc-600 dark:text-zinc-500">
-                  {entry.quantity} &middot; {entry.calories} קק״ל &middot; {entry.proteinG}ח׳ {entry.fatG}ש׳{' '}
-                  {entry.carbsG}פ׳
+                  {entry.quantity} &middot; {formatMacro(entry.calories)} קק״ל &middot; {formatMacro(entry.proteinG)}ח׳ {formatMacro(entry.fatG)}ש׳{' '}
+                  {formatMacro(entry.carbsG)}פ׳
                 </p>
               </div>
               <button
