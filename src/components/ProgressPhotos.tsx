@@ -11,6 +11,7 @@ import {
 } from '../utils/weightCalculations';
 import { compressImage } from '../utils/imageCompressor';
 import ProgressAIReviewModal from './ProgressAIReviewModal';
+import DateField from './DateField';
 import { ConfirmDeletePhotoModal, EditPhotoModal } from './ProgressPhotoDialogs';
 import { MAX_WEIGHT_KG, MIN_WEIGHT_KG, parseWeightInput } from '../utils/weightInput';
 import Toast from './Toast';
@@ -152,12 +153,12 @@ export default function ProgressPhotos({
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            type="date"
+          <DateField
             value={pendingDate}
             max={today}
-            onChange={(e) => setPendingDate(e.target.value)}
-            className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 outline-none transition focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20 sm:flex-1"
+            onChange={setPendingDate}
+            wrapperClassName="sm:flex-1"
+            className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100"
           />
           <button
             type="button"

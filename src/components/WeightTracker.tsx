@@ -1,3 +1,4 @@
+import DateField from './DateField';
 import { useMemo, useState } from 'react';
 import { Calendar, ChevronDown, Pencil, Scale, Trash2, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 import type { WeightLog } from '../types/fitness';
@@ -228,12 +229,11 @@ function FullTracker({
         <div className="mb-5 flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Calendar className="pointer-events-none absolute inset-y-0 right-3 flex h-full items-center text-zinc-600 dark:text-zinc-500" />
-            <input
-              type="date"
+            <DateField
               value={formDate}
               max={today}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-3 pe-10 ps-4 text-zinc-900 dark:text-zinc-100 outline-none transition focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20"
+              onChange={handleDateChange}
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 py-3 pe-10 ps-4 text-zinc-900 dark:text-zinc-100"
             />
           </div>
           <div className="relative flex-1">

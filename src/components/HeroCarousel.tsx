@@ -60,7 +60,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
 
   return (
     <div
-      className={`group relative isolate flex flex-col overflow-hidden rounded-2xl border border-zinc-800 shadow-glow ${
+      className={`group relative isolate grid overflow-hidden rounded-2xl border border-zinc-800 shadow-glow ${
         compact ? 'min-h-[160px] sm:min-h-[190px]' : 'min-h-[280px] sm:min-h-[320px]'
       }`}
       onMouseEnter={() => setIsPaused(true)}
@@ -74,7 +74,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
           <div
             key={slide.id}
             aria-hidden={!isActive}
-            className={`absolute inset-0 flex flex-col justify-end transition-opacity duration-700 ease-out ${
+            className={`relative col-start-1 row-start-1 flex flex-col justify-end transition-opacity duration-700 ease-out ${
               isActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
             }`}
           >

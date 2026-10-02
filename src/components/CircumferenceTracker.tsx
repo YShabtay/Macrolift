@@ -16,6 +16,7 @@ import {
 } from '../utils/bodyMeasurements';
 import { formatDateDisplay, todayIso } from '../utils/weightCalculations';
 import { formatCm, formatRangeCm, getBulkingProgress, getElapsedMonths } from '../utils/bulkingPlan';
+import DateField from './DateField';
 
 const GROWTH_METRICS: GrowthMetric[] = ['armCm', 'chestCm', 'hipCm'];
 
@@ -492,12 +493,11 @@ function MeasurementForm({
     <div className="mb-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 p-3.5">
       <div className="mb-3">
         <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">תאריך</label>
-        <input
-          type="date"
+        <DateField
           value={date}
           max={today}
-          onChange={(e) => handleDateChange(e.target.value)}
-          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+          onChange={handleDateChange}
+          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
         />
       </div>
 

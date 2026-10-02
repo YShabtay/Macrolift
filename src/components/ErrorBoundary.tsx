@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950 px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),3rem)] text-center text-zinc-900 dark:text-zinc-100">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950 px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] text-center text-zinc-900 dark:text-zinc-100">
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-400/10 text-orange-700 dark:text-orange-400">
           <AlertTriangle className="h-7 w-7" />
         </span>

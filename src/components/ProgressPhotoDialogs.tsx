@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Pencil, Trash2, X } from 'lucide-react';
 import type { ProgressPhoto } from '../types/fitness';
 import { formatDateDisplay, todayIso } from '../utils/weightCalculations';
+import DateField from './DateField';
 import { MAX_WEIGHT_KG, MIN_WEIGHT_KG, parseWeightInput } from '../utils/weightInput';
 
 export function ConfirmDeletePhotoModal({ photo, onConfirm, onClose }: { photo: ProgressPhoto; onConfirm: () => void; onClose: () => void }) {
@@ -96,12 +97,11 @@ export function EditPhotoModal({ photo, currentWeightKg, onSave, onClose }: Edit
 
         <div>
           <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">תאריך התמונה</label>
-          <input
-            type="date"
+          <DateField
             value={date}
             max={today}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+            onChange={setDate}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100"
           />
         </div>
 

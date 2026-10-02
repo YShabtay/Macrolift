@@ -187,8 +187,8 @@ export default function GuidedTour({ steps, onNavigate, onClose }: GuidedTourPro
           {steps.map((s, i) => (
             <span key={s.id} className={`h-1.5 rounded-full transition-all ${i === index ? 'w-5 bg-lime-400' : 'w-1.5 bg-zinc-300 dark:bg-zinc-700'}`} />
           ))}
-          <span className="mr-auto text-[11px] font-semibold text-zinc-500">
-            {index + 1} / {steps.length}
+          <span dir="rtl" className="mr-auto text-[11px] font-semibold text-zinc-500">
+            שלב {index + 1} מתוך {steps.length}
           </span>
         </div>
 
