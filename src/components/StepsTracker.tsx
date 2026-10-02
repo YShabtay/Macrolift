@@ -14,6 +14,8 @@ interface StepsTrackerProps {
   baseGoalSteps: number;
   /** Extra steps per day added by the weekly rebalance (0 when none is active). */
   stepBoost: number;
+  /** Extra steps the weekly rebalance adds tomorrow (shown while today has no boost yet). */
+  tomorrowStepBoost: number;
   weightKg: number;
   onSaveSteps: (date: string, steps: number) => void;
   onSaveGoal: (goal: number) => void;
@@ -21,7 +23,7 @@ interface StepsTrackerProps {
 
 const WEEKDAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 
-export default function StepsTracker({ stepLogs, goalSteps, baseGoalSteps, stepBoost, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, goalSteps, baseGoalSteps, stepBoost, tomorrowStepBoost, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
   const today = todayIso();
   const todaySteps = useMemo(() => getStepsForDate(stepLogs, today), [stepLogs, today]);
   const [isLogging, setIsLogging] = useState(false);
@@ -94,6 +96,11 @@ export default function StepsTracker({ stepLogs, goalSteps, baseGoalSteps, stepB
               <Pencil className="h-3 w-3" />
             </button>
           </div>
+          {stepBoost === 0 && tomorrowStepBoost > 0 && (
+            <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+              מחר: יעד מותאם (+{tomorrowStepBoost.toLocaleString()} לאיזון) ⚖️
+            </p>
+          )}
           {stepBoost > 0 && (
             <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
               מותאם שבועית (+{stepBoost.toLocaleString()} לאיזון) ⚖️

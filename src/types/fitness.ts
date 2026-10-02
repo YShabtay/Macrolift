@@ -328,5 +328,5 @@ export interface WeeklyBalanceAdjustment {
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */
-  steps?: { boost: number; fromDate: string };
+  steps?: { boost: number; fromDate: string; /** Last day the boost covers; omitted = through the end of the week. */ toDate?: string };
 }

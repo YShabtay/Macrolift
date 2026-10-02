@@ -4,7 +4,7 @@ import type { RebalanceOptions, WeeklyEnergyBalance } from '../utils/weeklyBalan
 
 export type RebalanceChoice =
   | { kind: 'taper'; reductionKcal: number; fromDate: string }
-  | { kind: 'steps'; boost: number; fromDate: string }
+  | { kind: 'steps'; boost: number; fromDate: string; toDate?: string }
   | { kind: 'keep' };
 
 interface RebalanceModalProps {
@@ -18,7 +18,7 @@ interface RebalanceModalProps {
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
 export default function RebalanceModal({ options, balance, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
-  const { taper, steps, daysRemaining, excessKcal, fatEquivalentG } = options;
+  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn } = options;
 
   function choose(choice: RebalanceChoice) {
     onChoose(choice);
@@ -65,12 +65,22 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
           <p className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
             <TrendingDown className="h-4 w-4 text-lime-700 dark:text-lime-400" />
-            פיזור עדין על שאר השבוע
+            קיזוז קלורי עדין בשאר השבוע
           </p>
           {taper.available ? (
             <>
               <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-                הפחתה קלה של {excessKcal} ÷ {daysRemaining} = <b>{taper.perDayKcal} קק״ל</b> {daysRemaining === 1 ? 'מהיעד של מחר (סוף השבוע)' : 'בכל יום עד סוף השבוע'} ({daysRemaining === 1 ? 'נותר יום אחד' : `נותרו ${daysRemaining} ימים`}). היעד חוזר לרגיל בתחילת השבוע הבא.
+                החריגה החד-פעמית של {excessKcal} קק״ל מתחלקת על פני {daysRemaining === 1 ? 'היום שנותר' : `${daysRemaining} הימים שנותרו`} בשבוע:
+                {daysRemaining === 1 ? (
+                  <>
+                    הפחתה של <b>{taper.perDayKcal} קק״ל</b> מהיעד של מחר (היום האחרון בשבוע).
+                  </>
+                ) : (
+                  <>
+                    הפחתה מתונה של <b>{taper.perDayKcal} קק״ל ליום</b> ב-{daysRemaining} הימים שנותרו בשבוע.
+                  </>
+                )} היעד חוזר
+                לרגיל ביום ראשון.
                 {taper.capped && ' ההפחתה הוגבלה כדי לשמור על יעד בטוח, ולכן החריגה תאוזן חלקית.'}
               </p>
               <button
@@ -86,28 +96,49 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
           )}
         </div>
 
-        {/* Option 2: steps */}
+        {/* Option 2: steps (NEAT) - one day, or spread */}
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
           <p className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
             <Footprints className="h-4 w-4 text-lime-700 dark:text-lime-400" />
-            איזון תנועתי
+            השלמת תנועה (צעדים)
           </p>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-            הוסיפו כ-<b>{steps.perDay.toLocaleString()} צעדים</b>{' '}
-            {steps.days > 1 ? 'ביום, מהיום ועד סוף השבוע' : 'היום'} (כ-{steps.minutes} דקות הליכה מתונה), לפי הערכה של כ-40 קק״ל
-            ל-1,000 צעדים.
-            {steps.capped && ' הוגבל לתוספת סבירה ליום - האיזון יהיה חלקי.'}
+            {excessKcal} קק״ל שווים לכ-<b>{totalStepsToBurn.toLocaleString()} צעדים</b> בסך הכל (כ-40 קק״ל ל-1,000 צעדים).
           </p>
-          <button type="button" onClick={() => choose({ kind: 'steps', boost: steps.perDay, fromDate: steps.fromDate })} className="btn-secondary text-sm">
-            העלה את יעד הצעדים היומי ל-{(baseStepGoal + steps.perDay).toLocaleString()} 👟
+          <button
+            type="button"
+            onClick={() => choose({ kind: 'steps', boost: stepsOneDay.steps, fromDate: stepsOneDay.date, toDate: stepsOneDay.date })}
+            className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
+          >
+            <span>
+              {stepsOneDay.isToday ? 'היום בלבד' : 'מחר בלבד'}: יעד צעדים {(baseStepGoal + stepsOneDay.steps).toLocaleString()} 👟
+            </span>
+            <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
+              הוסף כ-{stepsOneDay.steps.toLocaleString()} צעדים {stepsOneDay.isToday ? 'היום' : 'מחר'} בלבד (הליכה מתונה חד-פעמית, כ-{stepsOneDay.minutes} דקות)
+              {stepsOneDay.capped && ' - הוגבל לתוספת סבירה'}
+            </span>
           </button>
+          {stepsSpread.available && (
+            <button
+              type="button"
+              onClick={() => choose({ kind: 'steps', boost: stepsSpread.perDay, fromDate: stepsSpread.fromDate })}
+              className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
+            >
+              <span>פיזור: יעד צעדים {(baseStepGoal + stepsSpread.perDay).toLocaleString()} בכל יום 👟</span>
+              <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
+                הוסף {stepsSpread.perDay.toLocaleString()} צעדים בכל יום עד סוף השבוע ({stepsSpread.days} ימים, כ-{stepsSpread.minutes} דקות ביום)
+                {stepsSpread.capped && ' - הוגבל, האיזון יהיה חלקי'}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Option 3: keep going */}
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
           <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">המשך כרגיל</p>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-            החריגה שווה ערך אנרגטי לכ-{fatEquivalentG} גרם שומן בלבד. אין צורך בשינוי, פשוט חזרו ליעד הרגיל מחר.
+            {excessKcal <= 300 ? `חריגה של ${excessKcal} קק״ל היא זניחה (` : `חריגה של ${excessKcal} קק״ל קטנה ביחס לשבוע שלם (`}כ-{fatEquivalentG} גרם שומן
+            בלבד). הגוף מאזן זאת טבעית, אין צורך בשינוי - פשוט חזרו ליעד הרגיל מחר.
           </p>
           <button type="button" onClick={() => choose({ kind: 'keep' })} className="btn-secondary text-sm">
             השאר הכל כרגיל 👍

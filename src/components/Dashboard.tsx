@@ -86,6 +86,7 @@ import {
   buildRebalanceOptions,
   getDailyTargets,
   getEffectiveStepGoal,
+  getTomorrowAdjustments,
   getWeeklyEnergyBalance,
 } from '../utils/weeklyBalance';
 import QuickDayEditSheet from './QuickDayEditSheet';
@@ -494,6 +495,7 @@ function DashboardTab({
   const weeklyBalance = appState.weeklyBalance;
   const baseStepGoal = appState.stepGoal ?? DEFAULT_STEP_GOAL;
   const effectiveStepGoal = getEffectiveStepGoal(baseStepGoal, weeklyBalance, todayIso());
+  const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, todayIso());
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
@@ -656,6 +658,7 @@ function DashboardTab({
           nutritionPlan={nutritionPlan}
           targets={todayTargets}
           overshootKcal={showRebalanceButton ? overshootKcal : 0}
+          tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
@@ -674,6 +677,7 @@ function DashboardTab({
         goalSteps={effectiveStepGoal}
         baseGoalSteps={baseStepGoal}
         stepBoost={effectiveStepGoal - baseStepGoal}
+        tomorrowStepBoost={tomorrowAdjustments.stepBoost}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}
@@ -995,6 +999,7 @@ function NutritionCard({
   nutritionPlan,
   targets,
   overshootKcal,
+  tomorrowReductionKcal,
   onOpenRebalance,
   eaten,
   onOpenDailyMeals,
@@ -1005,6 +1010,8 @@ function NutritionCard({
   targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number };
   /** Calories over today's target when a rebalance suggestion should show (0 hides it). */
   overshootKcal: number;
+  /** Calories the weekly rebalance will take off tomorrow's target (0 if none). */
+  tomorrowReductionKcal: number;
   onOpenRebalance: () => void;
   eaten: DailyTotals;
   onOpenDailyMeals: () => void;
@@ -1034,6 +1041,9 @@ function NutritionCard({
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
+        )}
+        {targets.reductionKcal === 0 && tomorrowReductionKcal > 0 && (
+          <p className="mt-1 text-[11px] text-zinc-500">מחר: יעד מותאם -{tomorrowReductionKcal} קק״ל (איזון שבועי) ⚖️</p>
         )}
         {overshootKcal > 0 && (
           <button
