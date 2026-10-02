@@ -286,7 +286,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   }
 
   return (
-    <div className="min-h-svh bg-zinc-50 dark:bg-zinc-950 px-4 py-8 text-zinc-900 dark:text-zinc-100 sm:px-6">
+    <div className="min-h-svh bg-zinc-50 dark:bg-zinc-950 px-4 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),2.5rem)] text-zinc-900 dark:text-zinc-100 sm:px-6">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-8">
         <Header step={step} />
 

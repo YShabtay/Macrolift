@@ -193,7 +193,7 @@ export default function Auth({ onAuthenticated }: AuthProps) {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4 py-10 text-zinc-900 dark:text-zinc-100">
+    <div className="flex min-h-svh items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4 pb-[max(env(safe-area-inset-bottom),2.5rem)] pt-[max(env(safe-area-inset-top),3.5rem)] text-zinc-900 dark:text-zinc-100">
       <div className="fixed left-4 top-[max(env(safe-area-inset-top),1rem)] z-30">
         <ThemeToggleButton />
       </div>

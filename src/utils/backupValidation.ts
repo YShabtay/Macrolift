@@ -4,9 +4,19 @@ import { calculateNutritionPlan } from './calculations';
 import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
 
+/** What a restore actually loaded - only pieces that were present in the file are counted. */
+export interface RestoreSummary {
+  weights?: number;
+  meals?: number;
+  photos?: number;
+  workoutDays?: number;
+  measurements?: number;
+  profileUpdated?: boolean;
+}
+
 export type BackupParseResult =
-  | { ok: true; kind: 'full'; state: AppState; skippedEntries: number }
-  | { ok: true; kind: 'weights'; entries: BulkWeightEntry[]; skippedEntries: number }
+  | { ok: true; kind: 'full'; state: AppState; skippedEntries: number; summary: RestoreSummary }
+  | { ok: true; kind: 'weights'; entries: BulkWeightEntry[]; skippedEntries: number; summary: RestoreSummary }
   | { ok: false; error: string };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -271,11 +281,38 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (rawCircumference) state.circumferenceLogs = keepObjects(rawCircumference, (p) => typeof p.date === 'string');
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];
 
-  return { ok: true, kind: 'full', state, skippedEntries: skipped };
+  const summary: RestoreSummary = {
+    profileUpdated: hasProfile,
+    weights: rawWeights ? state.weightLogs.length : undefined,
+    meals: rawFood ? state.foodLog.length : undefined,
+    photos: rawPhotos ? state.progressPhotos.length : undefined,
+    workoutDays: rawProgress ? new Set(state.progress.map((p) => p.date)).size : undefined,
+    measurements: rawCircumference ? state.circumferenceLogs.length : undefined,
+  };
+
+  return { ok: true, kind: 'full', state, skippedEntries: skipped, summary };
 }
 
 function weightsOnlyResult(raw: unknown[], invalid: (e: string) => BackupParseResult): BackupParseResult {
   const { logs, skipped } = normalizeWeightList(raw);
   if (logs.length === 0) return invalid('לא נמצאו שקילות תקינות בקובץ');
-  return { ok: true, kind: 'weights', entries: logs.map((l) => ({ date: l.date, weightKg: l.weightKg })), skippedEntries: skipped };
+  return {
+    ok: true,
+    kind: 'weights',
+    entries: logs.map((l) => ({ date: l.date, weightKg: l.weightKg })),
+    skippedEntries: skipped,
+    summary: { weights: logs.length },
+  };
+}
+
+/** The human-readable lines describing what a restore loaded, e.g. "נטענו בהצלחה 23 שקילות". */
+export function describeRestore(summary: RestoreSummary): string[] {
+  const lines: string[] = [];
+  if (summary.weights !== undefined) lines.push(`נטענו בהצלחה ${summary.weights} שקילות`);
+  if (summary.profileUpdated) lines.push('פרטי הפרופיל עודכנו');
+  if (summary.meals !== undefined) lines.push(`שוחזרו ${summary.meals} רשומות ביומן התזונה`);
+  if (summary.workoutDays !== undefined) lines.push(`שוחזרה היסטוריית אימונים (${summary.workoutDays} ימים)`);
+  if (summary.photos !== undefined) lines.push(`שוחזרו ${summary.photos} תמונות התקדמות`);
+  if (summary.measurements !== undefined) lines.push(`שוחזרו ${summary.measurements} מדידות היקפים`);
+  return lines;
 }

@@ -8,6 +8,7 @@ import {
   Coffee,
   Cookie,
   Droplet,
+  Mic,
   Moon,
   Plus,
   Sun,
@@ -22,7 +23,9 @@ import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
 import { FoodSearch, ServingPanel } from './FoodSearch';
 import PhotoSourceSheet from './PhotoSourceSheet';
-import { calculateRemaining, getEntriesForDate, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
+import VoiceMealModal from './VoiceMealModal';
+import Toast from './Toast';
+import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
@@ -56,6 +59,8 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
   const [scanSourceMeal, setScanSourceMeal] = useState<Meal | null>(null);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const today = todayIso();
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
@@ -114,6 +119,20 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
 
       <SummaryCard targetCalories={nutritionPlan.targetCalories} targetMacros={nutritionPlan.macros} eaten={eaten} remaining={remaining} />
 
+      <button
+        type="button"
+        onClick={() => setIsVoiceOpen(true)}
+        className="group flex w-full items-center gap-3 rounded-2xl border border-lime-400/40 bg-gradient-to-l from-lime-400/15 to-lime-400/5 p-4 text-right shadow-glow transition active:scale-[0.98]"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lime-400 text-zinc-950">
+          <Mic className="h-6 w-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-extrabold text-zinc-900 dark:text-zinc-100">הקלטה מהירה ב-AI 🎙️</span>
+          <span className="block text-xs text-zinc-600 dark:text-zinc-400">ספרו מה אכלתם, ה-AI יחשב קלוריות ומאקרו</span>
+        </span>
+      </button>
+
       <div className="flex flex-col gap-4">
         {MEAL_ORDER.map((meal) => (
           <MealSection
@@ -126,6 +145,20 @@ export default function FoodTracker({ foodLog, nutritionPlan, onAddFood, onDelet
           />
         ))}
       </div>
+
+      {isVoiceOpen && (
+        <VoiceMealModal
+          meal={getMealForCurrentTime()}
+          date={selectedDate}
+          onConfirm={(entries) => {
+            entries.forEach(onAddFood);
+            setToastMessage(entries.length === 1 ? 'הארוחה נוספה ליומן' : `${entries.length} פריטים נוספו ליומן`);
+          }}
+          onClose={() => setIsVoiceOpen(false)}
+        />
+      )}
+
+      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
 
       {scanSourceMeal && (
         <PhotoSourceSheet

@@ -216,6 +216,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
       {isOpen &&
         createPortal(
           <div
+            data-safe-area="self"
             className="fixed inset-0 z-50 flex justify-end bg-zinc-950/70 backdrop-blur-sm animate-fade-in"
             onClick={() => setIsOpen(false)}
           >

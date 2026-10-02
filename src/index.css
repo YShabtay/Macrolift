@@ -37,6 +37,24 @@
 }
 
 @layer components {
+  /*
+   * iOS safe areas for every full-screen overlay (modals, sheets, lightboxes - they all share
+   * `fixed inset-0`). Without this they sit flush against the screen edges, so the top of a modal
+   * hides behind the camera / Dynamic Island and the bottom behind the home bar. Left/right padding
+   * from each overlay's own p-* is untouched. The chat drawer pads itself (data-safe-area="self").
+   */
+  .fixed.inset-0:not([data-safe-area='self']) {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+  .fixed.inset-0:not(.items-end):not([data-safe-area='self']) {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+  /* A tall dialog must never outgrow the safe area, or its top edge would slide back under the camera. */
+  .fixed.inset-0:not([data-safe-area='self']) > div {
+    max-height: 100%;
+  }
+
+
   /* Glass / neon card used across the app - softly translucent white glass in
      light mode, translucent dark glass in dark mode. Both blend into their
      near-identical page background, so the transparency stays safe for text

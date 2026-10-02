@@ -63,7 +63,8 @@ import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
 import { unlockRestTimerAudio } from '../utils/restTimerAlert';
 import { buildAppStateCsv } from '../utils/csvExport';
-import { parseBackupFile } from '../utils/backupValidation';
+import { parseBackupFile, type RestoreSummary } from '../utils/backupValidation';
+import RestoreResultModal, { type RestoreResult } from './RestoreResultModal';
 import type {
   AppState,
   DayWorkout,
@@ -225,7 +226,7 @@ export default function Dashboard({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(env(safe-area-inset-top),1.5rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
+      <main className="flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(env(safe-area-inset-top),2.5rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           {tab === 'dashboard' && (
             <DashboardTab
@@ -1301,9 +1302,11 @@ function ProfileTab({
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
-    { kind: 'full'; state: AppState; skipped: number } | { kind: 'weights'; entries: BulkWeightEntry[]; skipped: number } | null
+    | { kind: 'full'; state: AppState; skipped: number; summary: RestoreSummary }
+    | { kind: 'weights'; entries: BulkWeightEntry[]; skipped: number; summary: RestoreSummary }
+    | null
   >(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -1346,20 +1349,19 @@ function ProfileTab({
     e.target.value = '';
     if (!file) return;
 
-    setImportError(null);
     try {
       const result = parseBackupFile(await file.text(), appState);
       if (!result.ok) {
-        setImportError(result.error);
+        setRestoreResult({ kind: 'error', message: result.error });
         return;
       }
       setPendingImport(
         result.kind === 'full'
-          ? { kind: 'full', state: result.state, skipped: result.skippedEntries }
-          : { kind: 'weights', entries: result.entries, skipped: result.skippedEntries },
+          ? { kind: 'full', state: result.state, skipped: result.skippedEntries, summary: result.summary }
+          : { kind: 'weights', entries: result.entries, skipped: result.skippedEntries, summary: result.summary },
       );
     } catch {
-      setImportError('לא ניתן לקרוא את הקובץ');
+      setRestoreResult({ kind: 'error', message: 'לא ניתן לקרוא את הקובץ שנבחר.' });
     }
   }
 
@@ -1367,17 +1369,12 @@ function ProfileTab({
     if (!pendingImport) return;
     const pending = pendingImport;
     setPendingImport(null);
-    const skippedNote = pending.skipped > 0 ? ` (${pending.skipped} רשומות לא תקינות דולגו)` : '';
     try {
-      if (pending.kind === 'weights') {
-        onBulkImportWeightLogs(pending.entries);
-        setToastMessage(`${pending.entries.length} שקילות שוחזרו בהצלחה${skippedNote}`);
-      } else {
-        await onImportAppState(pending.state);
-        setToastMessage(`הנתונים שוחזרו בהצלחה${skippedNote}`);
-      }
+      if (pending.kind === 'weights') onBulkImportWeightLogs(pending.entries);
+      else await onImportAppState(pending.state);
+      setRestoreResult({ kind: 'success', summary: pending.summary, skipped: pending.skipped });
     } catch {
-      setImportError('השחזור נכשל - האחסון המקומי מלא, הנתונים הקיימים לא שונו');
+      setRestoreResult({ kind: 'error', message: 'האחסון המקומי במכשיר מלא, ולכן השחזור לא הושלם.' });
     }
   }
 
@@ -1606,7 +1603,6 @@ function ProfileTab({
             className="hidden"
           />
         </div>
-        {importError && <p className="mt-3 text-xs font-medium text-red-600 dark:text-red-400">{importError}</p>}
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -1635,6 +1631,8 @@ function ProfileTab({
           onClose={() => setPendingImport(null)}
         />
       )}
+
+      {restoreResult && <RestoreResultModal result={restoreResult} onClose={() => setRestoreResult(null)} />}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>
