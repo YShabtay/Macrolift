@@ -304,7 +304,7 @@ export default function ProgressAIReviewModal({
                           <Bot className="h-3.5 w-3.5" />
                         </span>
                         <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 px-3.5 py-2.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
-                          {m.text}
+                          <FormattedReply text={m.text} />
                         </div>
                       </div>
                     ),
@@ -368,6 +368,18 @@ export default function ProgressAIReviewModal({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** Gemini answers in light markdown; renders **bold** spans and drops stray bullet asterisks instead of showing raw symbols. */
+function FormattedReply({ text }: { text: string }) {
+  const cleaned = text.replace(/^\s*\*\s+/gm, '• ');
+  return (
+    <>
+      {cleaned.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <strong key={i}>{part.slice(2, -2)}</strong> : part,
+      )}
+    </>
   );
 }
 
