@@ -70,7 +70,9 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
 
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress);
+  // Ring geometry: a credit slice (amber) first, then the steps walked (green) continuing from there; together never past a full circle.
+  const creditFrac = hasCredit && displayGoal > 0 ? Math.min(boost.credited / displayGoal, 1) : 0;
+  const todayFrac = displayGoal > 0 ? Math.min(selectedSteps / displayGoal, 1 - creditFrac) : 0;
 
   const last7Days = useMemo(() => {
     const days: { date: string; steps: number; goal: number; weekday: number }[] = [];
@@ -117,33 +119,57 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       </div>
 
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
-        <div className="flex shrink-0 flex-col items-center gap-2 sm:max-w-[10rem]">
-          <div className="relative flex h-32 w-32 shrink-0 items-center justify-center">
-            <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
+        <div className="flex shrink-0 flex-col items-center">
+          <div className={`relative flex shrink-0 items-center justify-center ${hasCredit ? 'h-40 w-40' : 'h-32 w-32'}`}>
+            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden="true">
               <circle cx="50" cy="50" r={radius} fill="none" className="stroke-zinc-200 dark:stroke-zinc-800" strokeWidth="8" />
-              <circle
-                cx="50"
-                cy="50"
-                r={radius}
-                fill="none"
-                stroke="#a3e635"
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={offset}
-                className="transition-[stroke-dashoffset] duration-500 ease-out"
-              />
+              {/* Segment A: credit carried from earlier days (amber), the first slice of the ring. */}
+              {creditFrac > 0 && (
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={radius}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeOpacity="0.85"
+                  strokeWidth="8"
+                  strokeDasharray={`${creditFrac * circumference} ${circumference}`}
+                  className="transition-[stroke-dasharray] duration-500 ease-out"
+                />
+              )}
+              {/* Segment B: steps actually walked, continuing from where the credit ends (neon green). */}
+              {todayFrac > 0 && (
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={radius}
+                  fill="none"
+                  stroke="#a3e635"
+                  strokeWidth="8"
+                  strokeLinecap={creditFrac > 0 ? 'butt' : 'round'}
+                  strokeDasharray={`${todayFrac * circumference} ${circumference}`}
+                  style={{ transform: `rotate(${creditFrac * 360}deg)`, transformOrigin: '50% 50%' }}
+                  className="transition-[stroke-dasharray,transform] duration-500 ease-out"
+                />
+              )}
             </svg>
-            <div className="absolute flex flex-col items-center">
-              <span className="text-2xl font-extrabold tracking-tight text-lime-700 dark:text-lime-400">{displaySteps.toLocaleString()}</span>
-              <span className="text-[10px] text-zinc-600 dark:text-zinc-500">מתוך {displayGoal.toLocaleString()}</span>
+            <div className="absolute flex max-w-[7.5rem] flex-col items-center text-center">
+              {/* The big number is always what was physically walked on this day. */}
+              <span className="text-2xl font-extrabold tracking-tight text-lime-700 dark:text-lime-400">{selectedSteps.toLocaleString()}</span>
+              {hasCredit ? (
+                <>
+                  <span className="mt-0.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold leading-tight text-amber-700 dark:text-amber-300">
+                    +{boost.credited.toLocaleString()} מקדמה מ{creditSource} ↩️
+                  </span>
+                  <span className="mt-1 text-[9px] leading-tight text-zinc-600 dark:text-zinc-500">
+                    סך משוקלל: {displaySteps.toLocaleString()} מתוך {displayGoal.toLocaleString()}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[10px] text-zinc-600 dark:text-zinc-500">מתוך {goalSteps.toLocaleString()}</span>
+              )}
             </div>
           </div>
-          {hasCredit && (
-            <p className="rounded-lg bg-lime-400/10 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-lime-800 dark:text-lime-300">
-              🌟 {boost.credited.toLocaleString()} צעדים הועברו כקרדיט מ{creditSource} • נותרו {remainingToday.toLocaleString()} להשלמה {isToday ? 'היום' : dateLabel}
-            </p>
-          )}
         </div>
 
         <div className="flex w-full flex-1 flex-col gap-3">
@@ -204,6 +230,19 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
         </div>
       </div>
 
+      {hasCredit && (
+        <div
+          className="mt-4 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-2.5 text-center"
+          aria-label="פירוט מאזן הצעדים"
+        >
+          <BreakdownCell label={isToday ? 'צעדים היום' : `צעדים ${dateLabel}`} value={selectedSteps} tone="lime" />
+          <span className="text-sm font-bold text-zinc-400">+</span>
+          <BreakdownCell label={`קרדיט מ${creditSource}`} value={boost.credited} tone="amber" />
+          <span className="text-sm font-bold text-zinc-400">←</span>
+          <BreakdownCell label="נותר להשלמה" value={remainingToday} tone="neutral" />
+        </div>
+      )}
+
       <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800 pt-4">
         <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-500">7 הימים האחרונים - לחצו על יום כדי לראות או לתקן את הצעדים שלו</p>
         <div className="flex items-end justify-between gap-1.5">
@@ -259,6 +298,17 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       )}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+    </div>
+  );
+}
+
+function BreakdownCell({ label, value, tone }: { label: string; value: number; tone: 'lime' | 'amber' | 'neutral' }) {
+  const color =
+    tone === 'lime' ? 'text-lime-700 dark:text-lime-400' : tone === 'amber' ? 'text-amber-700 dark:text-amber-400' : 'text-zinc-900 dark:text-zinc-100';
+  return (
+    <div className="min-w-0">
+      <p className={`text-sm font-extrabold tabular-nums ${color}`}>{value.toLocaleString()}</p>
+      <p className="truncate text-[10px] text-zinc-600 dark:text-zinc-500">{label}</p>
     </div>
   );
 }
