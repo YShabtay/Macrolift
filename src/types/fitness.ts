@@ -328,5 +328,16 @@ export interface WeeklyBalanceAdjustment {
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */
-  steps?: { boost: number; fromDate: string; /** Last day the boost covers; omitted = through the end of the week. */ toDate?: string };
+  steps?: {
+    /**
+     * GROSS extra steps per day the rebalance asks for, before crediting steps already walked. The goal actually shown subtracts the
+     * bonus steps from earlier days (read live from the step history), so correcting an earlier day changes it immediately.
+     */
+    boost: number;
+    /** How many days the boost is spread over (1 for a one-day catch-up); the credit is shared between them. Derived from the dates when omitted. */
+    days?: number;
+    fromDate: string;
+    /** Last day the boost covers; omitted = through the end of the week. */
+    toDate?: string;
+  };
 }

@@ -4,7 +4,7 @@ import type { RebalanceOptions, WeeklyEnergyBalance } from '../utils/weeklyBalan
 
 export type RebalanceChoice =
   | { kind: 'taper'; reductionKcal: number; fromDate: string }
-  | { kind: 'steps'; boost: number; fromDate: string; toDate?: string }
+  | { kind: 'steps'; boost: number; days: number; fromDate: string; toDate?: string }
   | { kind: 'keep' };
 
 interface RebalanceModalProps {
@@ -149,12 +149,12 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
             <>
               <button
                 type="button"
-                onClick={() => choose({ kind: 'steps', boost: stepsOneDay.boost, fromDate: stepsOneDay.date, toDate: stepsOneDay.date })}
+                onClick={() => choose({ kind: 'steps', boost: stepsOneDay.storedBoost, days: 1, fromDate: stepsOneDay.date, toDate: stepsOneDay.date })}
                 className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
               >
                 <span>
                   הוסף {stepsOneDay.steps.toLocaleString()} צעדים {stepsOneDay.isToday ? 'היום' : 'למחר'} בלבד (יעד מעודכן:{' '}
-                  {(baseStepGoal + stepsOneDay.boost).toLocaleString()}) 👟
+                  {(baseStepGoal + stepsOneDay.goalIncrease).toLocaleString()}) 👟
                 </span>
                 <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
                   הליכה מתונה חד-פעמית, כ-{stepsOneDay.minutes} דקות{stepsOneDay.capped && ' - הוגבל לתוספת סבירה'}
@@ -163,7 +163,7 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
               {stepsSpread.available && (
                 <button
                   type="button"
-                  onClick={() => choose({ kind: 'steps', boost: stepsSpread.perDay, fromDate: stepsSpread.fromDate })}
+                  onClick={() => choose({ kind: 'steps', boost: stepsSpread.storedPerDay, days: stepsSpread.days, fromDate: stepsSpread.fromDate })}
                   className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
                 >
                   <span>פיזור: יעד צעדים {(baseStepGoal + stepsSpread.perDay).toLocaleString()} בכל יום 👟</span>

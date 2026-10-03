@@ -56,11 +56,72 @@ export function getDailyTargets(plan: NutritionPlan, adjustment: WeeklyBalanceAd
   };
 }
 
-/** The daily step goal for a date: the base goal plus any rebalance boost that covers it. */
-export function getEffectiveStepGoal(baseGoal: number, adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+export interface StepBoostBreakdown {
+  /** True when a step boost covers this date. */
+  active: boolean;
+  /** Extra steps per day the rebalance asked for, before crediting anything. */
+  gross: number;
+  /** Steps per day already covered by bonus steps walked on earlier days of the week. */
+  credited: number;
+  /** What is actually added to the goal: gross minus credited, never below 0. */
+  net: number;
+  /** True when every credited day is the day right before `date`. */
+  creditFromYesterdayOnly: boolean;
+}
+
+/** Bonus steps (above the plain base goal) on each day of the week that precedes `before`. */
+function bonusBefore(stepLogs: StepLog[], baseGoal: number, weekStart: string, before: string): { total: number; onlyYesterday: boolean; days: string[] } {
+  let total = 0;
+  const days: string[] = [];
+  for (let i = 0; i <= daysBetween(weekStart, before); i++) {
+    const date = addDays(weekStart, i);
+    if (date >= before) break;
+    const bonus = getStepsForDate(stepLogs, date) - baseGoal;
+    if (bonus > 0) {
+      total += bonus;
+      days.push(date);
+    }
+  }
+  return { total, onlyYesterday: days.every((d) => d === addDays(before, -1)), days };
+}
+
+/**
+ * How a temporary step boost applies on `date`. The boost stored is the full amount the rebalance needs; the bonus steps the user already
+ * walked on days before the boost starts (yesterday, or any earlier day this week - including ones filled in afterwards) are subtracted,
+ * shared evenly across the days the boost covers. Computed from the live history on every read, so edits to earlier days show up at once.
+ */
+export function getStepBoostBreakdown(
+  baseGoal: number,
+  adjustment: WeeklyBalanceAdjustment | undefined,
+  date: string,
+  stepLogs: StepLog[] = [],
+): StepBoostBreakdown {
+  const none: StepBoostBreakdown = { active: false, gross: 0, credited: 0, net: 0, creditFromYesterdayOnly: false };
   const active = getActiveAdjustment(adjustment, date);
   const steps = active?.steps;
-  return steps && date >= steps.fromDate && (!steps.toDate || date <= steps.toDate) ? baseGoal + steps.boost : baseGoal;
+  if (!active || !steps || date < steps.fromDate || (steps.toDate && date > steps.toDate)) return none;
+
+  const lastDay = steps.toDate ?? getWeekEnd(steps.fromDate);
+  const days = Math.max(steps.days ?? daysBetween(steps.fromDate, lastDay) + 1, 1);
+  const credit = bonusBefore(stepLogs, baseGoal, active.weekStart, steps.fromDate);
+  const credited = Math.min(Math.round(credit.total / days), steps.boost);
+  return {
+    active: true,
+    gross: steps.boost,
+    credited,
+    net: Math.max(steps.boost - credited, 0),
+    creditFromYesterdayOnly: credit.days.length > 0 && credit.onlyYesterday,
+  };
+}
+
+/** The daily step goal for a date: the base goal plus the net (credit-adjusted) rebalance boost that covers it. */
+export function getEffectiveStepGoal(
+  baseGoal: number,
+  adjustment: WeeklyBalanceAdjustment | undefined,
+  date: string,
+  stepLogs: StepLog[] = [],
+): number {
+  return baseGoal + getStepBoostBreakdown(baseGoal, adjustment, date, stepLogs).net;
 }
 
 /** What a rebalance already chosen will change tomorrow (shown today, when the adjustment hasn't started yet). */
@@ -69,11 +130,12 @@ export function getTomorrowAdjustments(
   adjustment: WeeklyBalanceAdjustment | undefined,
   baseStepGoal: number,
   today: string,
+  stepLogs: StepLog[] = [],
 ): { calorieReductionKcal: number; stepBoost: number } {
   const tomorrow = addDays(today, 1);
   return {
     calorieReductionKcal: getDailyTargets(plan, adjustment, tomorrow).reductionKcal,
-    stepBoost: getEffectiveStepGoal(baseStepGoal, adjustment, tomorrow) - baseStepGoal,
+    stepBoost: getStepBoostBreakdown(baseStepGoal, adjustment, tomorrow, stepLogs).net,
   };
 }
 
@@ -97,7 +159,7 @@ export function getBonusStepDays(
   const days: BonusStepDay[] = [];
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const date = addDays(weekStart, i);
-    const bonus = getStepsForDate(stepLogs, date) - getEffectiveStepGoal(baseGoal, adjustment, date);
+    const bonus = getStepsForDate(stepLogs, date) - getEffectiveStepGoal(baseGoal, adjustment, date, stepLogs);
     if (bonus > 0) days.push({ date, steps: bonus });
   }
   return days;
@@ -162,9 +224,20 @@ export interface RebalanceOptions {
   /** Option A: the total surplus split evenly over the remaining days of the week. */
   taper: { available: boolean; perDayKcal: number; days: number; fromDate: string; capped: boolean };
   /** Option B1: all the extra walking on a single day - tomorrow, or today when the week ends today. */
-  stepsOneDay: { steps: number; boost: number; date: string; isToday: boolean; minutes: number; capped: boolean };
+  stepsOneDay: {
+    /** Steps still left to walk after the credit. */
+    steps: number;
+    /** How much the day's goal rises right now (what the button promises). */
+    goalIncrease: number;
+    /** The gross amount to store; the live credit is subtracted from it whenever the goal is read. */
+    storedBoost: number;
+    date: string;
+    isToday: boolean;
+    minutes: number;
+    capped: boolean;
+  };
   /** Option B2: the extra walking split over the remaining days (only meaningful with 2+ days left). */
-  stepsSpread: { available: boolean; perDay: number; days: number; fromDate: string; minutes: number; capped: boolean };
+  stepsSpread: { available: boolean; perDay: number; storedPerDay: number; days: number; fromDate: string; minutes: number; capped: boolean };
 }
 
 /**
@@ -223,7 +296,8 @@ export function buildRebalanceOptions(
       steps: oneDaySteps,
       // Tomorrow's goal rises by exactly the net steps. On the last day of the week the bonus steps walked *today* are already in today's
       // count, so the goal rises by the net steps plus those; bonus from earlier days is not in today's count and is not added back.
-      boost: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(netStepsNeeded + Math.round(extraStepsToday), MAX_ONE_DAY_STEP_BOOST),
+      goalIncrease: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(netStepsNeeded + Math.round(extraStepsToday), MAX_ONE_DAY_STEP_BOOST),
+      storedBoost: netStepsNeeded === 0 ? 0 : Math.min(totalStepsRequired, MAX_ONE_DAY_STEP_BOOST),
       date: daysRemaining > 0 ? tomorrow : today,
       isToday: daysRemaining === 0,
       minutes: Math.round(oneDaySteps / STEPS_PER_MINUTE),
@@ -232,6 +306,7 @@ export function buildRebalanceOptions(
     stepsSpread: {
       available: daysRemaining >= 2,
       perDay: spreadCapped,
+      storedPerDay: Math.min(Math.round(totalStepsRequired / Math.max(daysRemaining, 1)), MAX_STEP_BOOST),
       days: daysRemaining,
       fromDate: tomorrow,
       minutes: Math.round(spreadCapped / STEPS_PER_MINUTE),

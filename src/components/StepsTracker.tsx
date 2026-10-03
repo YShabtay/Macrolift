@@ -4,7 +4,7 @@ import type { StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
-import { getEffectiveStepGoal } from '../utils/weeklyBalance';
+import { getStepBoostBreakdown } from '../utils/weeklyBalance';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
 
@@ -48,9 +48,10 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
   const selectedSteps = useMemo(() => getStepsForDate(stepLogs, selectedDate), [stepLogs, selectedDate]);
 
   // The goal that applies to the viewed day, including any temporary weekly-rebalance boost on that day.
-  const goalSteps = getEffectiveStepGoal(baseGoalSteps, weeklyBalance, selectedDate);
-  const stepBoost = goalSteps - baseGoalSteps;
-  const tomorrowStepBoost = isToday ? getEffectiveStepGoal(baseGoalSteps, weeklyBalance, shiftDate(today, 1)) - baseGoalSteps : 0;
+  // The boost is stored gross; bonus steps from earlier days are subtracted live from the history, so editing yesterday updates this at once.
+  const boost = getStepBoostBreakdown(baseGoalSteps, weeklyBalance, selectedDate, stepLogs);
+  const goalSteps = baseGoalSteps + boost.net;
+  const tomorrowBoost = isToday ? getStepBoostBreakdown(baseGoalSteps, weeklyBalance, shiftDate(today, 1), stepLogs) : null;
 
   const progress = goalSteps > 0 ? Math.min(selectedSteps / goalSteps, 1) : 0;
   const percent = goalSteps > 0 ? Math.round((selectedSteps / goalSteps) * 100) : 0;
@@ -67,7 +68,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       days.push({
         date: key,
         steps: getStepsForDate(stepLogs, key),
-        goal: getEffectiveStepGoal(baseGoalSteps, weeklyBalance, key),
+        goal: baseGoalSteps + getStepBoostBreakdown(baseGoalSteps, weeklyBalance, key, stepLogs).net,
         weekday: parseIsoDate(key).getDay(),
       });
     }
@@ -142,14 +143,21 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
               <Pencil className="h-3 w-3" />
             </button>
           </div>
-          {stepBoost === 0 && tomorrowStepBoost > 0 && (
-            <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
-              מחר: יעד מותאם (+{tomorrowStepBoost.toLocaleString()} לאיזון) ⚖️
+          {boost.active && boost.net === 0 && (
+            <p className="-mt-1.5 self-start rounded-md bg-lime-400/20 px-2 py-1 text-[11px] font-bold text-lime-800 dark:text-lime-300">
+              החריגה כוסתה ע״י צעדי {boost.creditFromYesterdayOnly ? 'אתמול' : 'הימים הקודמים'}! 🏆
             </p>
           )}
-          {stepBoost > 0 && (
+          {boost.active && boost.net > 0 && (
             <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
-              מותאם שבועית (+{stepBoost.toLocaleString()} לאיזון) ⚖️
+              מותאם (+{boost.net.toLocaleString()} לאיזון
+              {boost.credited > 0 && ` • קוזזו ${boost.credited.toLocaleString()} מ${boost.creditFromYesterdayOnly ? 'אתמול' : 'הימים הקודמים'}`}) ⚖️
+            </p>
+          )}
+          {!boost.active && tomorrowBoost?.active && tomorrowBoost.net > 0 && (
+            <p className="-mt-1.5 self-start rounded-md bg-lime-400/10 px-2 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+              מחר: יעד מותאם (+{tomorrowBoost.net.toLocaleString()} לאיזון
+              {tomorrowBoost.credited > 0 && ` • קוזזו ${tomorrowBoost.credited.toLocaleString()}`}) ⚖️
             </p>
           )}
 

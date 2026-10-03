@@ -494,7 +494,7 @@ function DashboardTab({
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
   const baseStepGoal = appState.stepGoal ?? DEFAULT_STEP_GOAL;
-  const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, todayIso());
+  const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, todayIso(), stepLogs);
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
