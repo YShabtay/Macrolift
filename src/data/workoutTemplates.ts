@@ -4,8 +4,9 @@
  * - Weekly volume - Schoenfeld, Ogborn & Krieger (2017, J Sports Sci; 15 studies): hypertrophy rises with weekly sets, with
  *   10+ sets per muscle clearly ahead of fewer. Baz-Valle, Fontes-Villalba & Santos-Concejero (2022, J Hum Kinet; 7 RCTs):
  *   12-20 weekly sets per muscle suggested - but only in trained young MEN (18-35), and 12-20 vs >20 showed no difference for
- *   quads and biceps (triceps favored more). These templates target 12-16 sets/week for the big muscles; for women and other
- *   groups that range is an extrapolation, not a tested prescription.
+ *   quads and biceps (triceps favored more). These templates target 12-16 direct sets/week for the big four (chest, back, quads,
+ *   hamstrings) in every program - verified by counting the sets per muscle in each template; for women and other groups that
+ *   range is an extrapolation, not a tested prescription.
  * - Frequency - Schoenfeld, Ogborn & Krieger (2016, Sports Med) found higher frequency better, but it was confounded with volume.
  *   The volume-equated update (Schoenfeld, Grgic & Krieger 2019, J Sports Sci; 25 studies) found NO meaningful difference. So
  *   splitting a muscle across two sessions is a convenience that keeps per-session volume manageable, not a hypertrophy rule.
@@ -698,8 +699,9 @@ function day(id: string, dayLabel: string, focus: string, exercises: Exercise[],
  * schedules them). Full-body sessions hit every major muscle each time, so a rest day between them is recommended
  * (see getFrequencyRecommendation) but never enforced.
  *
- * Each big muscle is trained all three days but with ONE focused exercise per session (3-4 sets), which lands
- * chest / back at 12 sets a week and legs above that - the hypertrophy range - without piling up junk volume.
+ * Each big muscle (chest, back, quads, hamstrings) is trained all three days with ONE focused exercise per session of
+ * 4 sets, which lands every one of them at exactly 12 direct sets a week - the bottom of the 12-16 target - while a session
+ * stays at about 22 sets and never stacks more than 4 sets on a muscle.
  */
 function buildFbwDays(): DayWorkout[] {
   return [
@@ -707,15 +709,15 @@ function buildFbwDays(): DayWorkout[] {
       ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 120, 'תרגיל מרכזי, חימום הדרגתי'),
       ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120),
       ex('חתירה בכבל ישיבה', 'back', 'cable', 4, '10-12', 90),
+      ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 4, '10-12', 75),
       ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 3, '12-15', 60),
       ex('כפיפת מרפק בפולי', 'biceps', 'cable', 3, '10-12', 60),
-      ex('פלאנק', 'core', 'bodyweight', 3, '30-45 שניות', 45),
     ]),
     day('fbw-b', 'אימון B', 'גוף מלא - דגש גב ורגליים אחוריים', [
       ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '8-10', 120, 'שמירה על גב ישר לאורך כל הטווח'),
       ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '8-10', 120),
       ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-12', 90),
-      ex('מכרעים הליכה', 'glutes', 'dumbbell', 3, '10-12 לכל רגל', 90),
+      ex('מכרעים בולגריים', 'quads', 'dumbbell', 4, '10-12 לכל רגל', 90),
       ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
       ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
     ], ['pull', 'push', 'legs']),
@@ -724,7 +726,7 @@ function buildFbwDays(): DayWorkout[] {
       ex('חתירת T או חתירת מוט', 'back', 'barbell', 4, '8-12', 90),
       ex('פרפר בכבלים', 'chest', 'cable', 4, '10-12', 75),
       ex('הרחקת כתפיים לצד', 'shoulders', 'dumbbell', 4, '12-15', 60),
-      ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 60),
+      ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 4, '10-12', 75),
       ex('הרמת ברכיים תלויה', 'core', 'bodyweight', 3, '10-15', 45),
     ]),
   ];
@@ -769,14 +771,18 @@ function upperSession(id: string, label: string, focus: string, variant: Session
   ]);
 }
 
-/** Knee-dominant compound, hip-dominant movement, a quad/knee accessory and calves. */
+/**
+ * Knee-dominant compound, a quad accessory, TWO hamstring movements (a hip hinge and a leg curl - one lift alone left the hamstrings
+ * at about 6 weekly sets), plus calves and core. Over two leg sessions: quads 14, hamstrings 13 sets a week.
+ */
 function lowerSession(id: string, label: string, focus: string, variant: SessionVariant): DayWorkout {
   const isA = variant === 'a';
   return day(id, label, focus, [
     isA
       ? ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 150, 'תרגיל מרכזי')
       : ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '8-10', 120),
-    isA ? ex('דדליפט רומני', 'hamstrings', 'barbell', 3, '8-12', 120) : ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 90),
+    isA ? ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '6-8', 120) : ex('דדליפט רומני', 'hamstrings', 'barbell', 3, '10-12', 90),
+    isA ? ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 75) : ex('כפיפת ברך שכיבה', 'hamstrings', 'machine', 3, '10-12', 90),
     isA
       ? ex('פשיטת ברך במכונה', 'quads', 'machine', 3, '12-15', 60)
       : ex('מכרעים בולגריים', 'quads', 'dumbbell', 3, '10-12 לכל רגל', 90), // quad-dominant single-leg squat (glutes assist)
@@ -793,7 +799,7 @@ function lowerSession(id: string, label: string, focus: string, variant: Session
 // Upper / Lower — 4 days/week ("AB" split)
 // ---------------------------------------------------------------------------
 //
-// Each big muscle is trained twice a week with 6-7 sets per session -> 12-14 sets/week.
+// Each big muscle is trained twice a week with 6-7 sets per session -> 13-14 sets/week (chest 14, back 13, quads 14, hamstrings 13).
 
 function buildUpperLowerDays(): DayWorkout[] {
   return [
