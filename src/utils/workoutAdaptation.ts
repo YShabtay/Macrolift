@@ -8,6 +8,7 @@ import type {
   TargetFocus,
   WorkoutPlan,
 } from '../types/fitness';
+import { inferBlockOrder, orderExercisesByBlock, type ExerciseBlock } from './exerciseOrdering';
 import { findExerciseTemplate, getExerciseAlternatives } from '../data/workoutTemplates';
 
 /**
@@ -40,6 +41,14 @@ const FOCUS_AREA_MUSCLES: Record<FocusArea, MuscleGroup[]> = {
   shoulders: ['shoulders'],
   legs_glutes: ['quads', 'hamstrings', 'glutes'],
   arms: ['biceps', 'triceps'],
+};
+
+/** The block a focus area leads with (arms stay in their usual place at the end of the session). */
+const FOCUS_AREA_BLOCK: Partial<Record<FocusArea, ExerciseBlock>> = {
+  upper_chest: 'push',
+  back_width: 'pull',
+  shoulders: 'push',
+  legs_glutes: 'legs',
 };
 
 /** The isolation exercise appended to a qualifying day when a focus area is selected. */
@@ -344,6 +353,18 @@ export function adaptWorkoutPlan(
       'זיהינו תקיעות (פלאטו) שדיווחת עליה - התוכנית הותאמה לשבוע דילואד: נפח מופחת וטווח חזרות כבד יותר (6-8) בתרגילי הליבה, כדי לאפשר התאוששות למערכת העצבים לפני שממשיכים להעלות.',
     );
   }
+
+  // 4. Re-cluster every session by muscle block: the steps above append or move exercises, which can scatter a muscle.
+  const leadFocus = focusAreas[0];
+  days = days.map((day) => {
+    if (targetFocus === 'lower_body') return { ...day, exercises: orderExercisesByBlock(day.exercises, { blockOrder: ['legs', 'pull', 'push'] }) };
+    if (targetFocus === 'upper_body') {
+      return { ...day, exercises: orderExercisesByBlock(day.exercises, { blockOrder: ['push', 'pull', 'legs'], shouldersFirst: true }) };
+    }
+    const leadBlock = leadFocus ? FOCUS_AREA_BLOCK[leadFocus] : undefined;
+    const blockOrder = leadBlock ? [leadBlock, ...inferBlockOrder(day).filter((b) => b !== leadBlock)] : inferBlockOrder(day);
+    return { ...day, exercises: orderExercisesByBlock(day.exercises, { blockOrder, shouldersFirst: leadFocus === 'shoulders' }) };
+  });
 
   const wasAdapted = notes.length > 0;
 

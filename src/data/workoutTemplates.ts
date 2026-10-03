@@ -34,6 +34,7 @@ import type {
   WorkoutPlan,
   WorkoutSplitType,
 } from '../types/fitness';
+import { orderExercisesByBlock, type ExerciseBlock } from '../utils/exerciseOrdering';
 
 // ---------------------------------------------------------------------------
 // Exercise technique demos (YouTube short-form tutorials + execution cues)
@@ -681,8 +682,9 @@ function ex(
   };
 }
 
-function day(id: string, dayLabel: string, focus: string, exercises: Exercise[]): DayWorkout {
-  return { id, dayLabel, focus, exercises };
+/** Builds a session with its exercises clustered by muscle block; `blockOrder` puts the session's emphasis first. */
+function day(id: string, dayLabel: string, focus: string, exercises: Exercise[], blockOrder?: ExerciseBlock[]): DayWorkout {
+  return { id, dayLabel, focus, exercises: orderExercisesByBlock(exercises, { blockOrder }) };
 }
 
 // ---------------------------------------------------------------------------
@@ -714,7 +716,7 @@ function buildFbwDays(): DayWorkout[] {
       ex('מכרעים הליכה', 'glutes', 'dumbbell', 3, '10-12 לכל רגל', 90),
       ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
       ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
-    ]),
+    ], ['pull', 'push', 'legs']),
     day('fbw-c', 'אימון C', 'גוף מלא - דגש כוח כללי', [
       ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '10-12', 90),
       ex('חתירת T או חתירת מוט', 'back', 'barbell', 4, '8-12', 90),
