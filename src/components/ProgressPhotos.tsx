@@ -53,22 +53,6 @@ function getPhotoWeight(photo: ProgressPhoto, weightLogs: WeightLog[]): PhotoWei
   return { kg: photo.weightKg ?? estimateWeightForDate(weightLogs, photo.date), isExact: false };
 }
 
-/** Among photos older than the latest one, picks whichever sits closest to `targetDaysAgo` before it. */
-function pickDefaultBeforePhoto(sortedPhotos: ProgressPhoto[], targetDaysAgo = 28): ProgressPhoto {
-  const latest = sortedPhotos[sortedPhotos.length - 1];
-  let closest = sortedPhotos[0];
-  let closestDiff = Infinity;
-  for (const photo of sortedPhotos) {
-    if (photo.id === latest.id) continue;
-    const diff = Math.abs(Math.abs(daysBetween(photo.date, latest.date)) - targetDaysAgo);
-    if (diff < closestDiff) {
-      closest = photo;
-      closestDiff = diff;
-    }
-  }
-  return closest;
-}
-
 export default function ProgressPhotos({
   photos,
   weightLogs,
@@ -99,8 +83,29 @@ export default function ProgressPhotos({
 
   const [beforeId, setBeforeId] = useState<string | null>(null);
   const [afterId, setAfterId] = useState<string | null>(null);
-  const beforePhoto = sortedPhotos.find((p) => p.id === beforeId) ?? (sortedPhotos.length >= 2 ? pickDefaultBeforePhoto(sortedPhotos) : sortedPhotos[0]);
+  // Default comparison is the whole journey: the very first photo (baseline) against the most recent one.
   const afterPhoto = sortedPhotos.find((p) => p.id === afterId) ?? sortedPhotos[sortedPhotos.length - 1];
+  let beforePhoto = sortedPhotos.find((p) => p.id === beforeId) ?? sortedPhotos[0];
+  // A deleted photo can leave both sides pointing at the same one - fall back to the earliest other photo.
+  if (sortedPhotos.length >= 2 && beforePhoto.id === afterPhoto.id) beforePhoto = sortedPhotos.find((p) => p.id !== afterPhoto.id) ?? beforePhoto;
+
+  // The same photo can never be on both sides: choosing the one already on the other side swaps them.
+  function chooseBefore(id: string) {
+    if (id === afterPhoto.id) setAfterId(beforePhoto.id);
+    setBeforeId(id);
+  }
+
+  function chooseAfter(id: string) {
+    if (id === beforePhoto.id) setBeforeId(afterPhoto.id);
+    setAfterId(id);
+  }
+
+  function setComparisonFromTimeline(photo: ProgressPhoto, side: 'before' | 'after') {
+    if (side === 'before') chooseBefore(photo.id);
+    else chooseAfter(photo.id);
+    setViewingPhoto(null);
+    setToastMessage(side === 'before' ? `תמונת "לפני" עודכנה: ${formatDateDisplay(photo.date)}` : `תמונת "אחרי" עודכנה: ${formatDateDisplay(photo.date)}`);
+  }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -182,8 +187,8 @@ export default function ProgressPhotos({
             goal={goal}
             beforeId={beforePhoto.id}
             afterId={afterPhoto.id}
-            onChangeBeforeId={setBeforeId}
-            onChangeAfterId={setAfterId}
+            onChangeBeforeId={chooseBefore}
+            onChangeAfterId={chooseAfter}
             onEdit={setEditingPhoto}
             onDelete={setDeletingPhoto}
             onSaveWeightLog={onSaveWeightLog}
@@ -205,19 +210,28 @@ export default function ProgressPhotos({
           <p className="text-sm text-zinc-600 dark:text-zinc-500">עדיין לא הועלו תמונות. התמונה הראשונה שלך תופיע כאן.</p>
         ) : (
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
-            {[...sortedPhotos].reverse().map((photo) => (
+            {[...sortedPhotos].reverse().map((photo) => {
+              const comparisonSide = sortedPhotos.length >= 2 ? (photo.id === beforePhoto.id ? 'לפני' : photo.id === afterPhoto.id ? 'אחרי' : null) : null;
+              return (
               <button
                 key={photo.id}
                 type="button"
                 onClick={() => setViewingPhoto(photo)}
-                className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 transition hover:border-lime-400/50"
+                aria-label={`תמונה מ-${formatDateDisplay(photo.date)}${comparisonSide ? ` - נבחרה כתמונת ${comparisonSide} בהשוואה` : ''}`}
+                className={`group relative aspect-[3/4] overflow-hidden rounded-xl border transition hover:border-lime-400/50 ${
+                  comparisonSide ? 'border-lime-400 ring-2 ring-lime-400/60' : 'border-zinc-200 dark:border-zinc-800'
+                }`}
               >
                 <img src={photo.photoUrl} alt={photo.date} className="h-full w-full object-cover" loading="lazy" />
+                {comparisonSide && (
+                  <span className="absolute right-1.5 top-1.5 rounded-md bg-lime-400 px-1.5 py-0.5 text-[10px] font-extrabold text-zinc-950">{comparisonSide}</span>
+                )}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                   <p className="text-[11px] font-semibold text-white">{formatDateDisplay(photo.date)}</p>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -243,7 +257,7 @@ export default function ProgressPhotos({
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="flex items-center justify-between gap-3 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
                   <p className="font-bold text-zinc-900 dark:text-zinc-100">{formatDateDisplay(viewingPhoto.date)}</p>
                   {(() => {
@@ -256,6 +270,27 @@ export default function ProgressPhotos({
                     ) : null;
                   })()}
                 </div>
+                {sortedPhotos.length >= 2 && (
+                  <div className="order-last grid basis-full grid-cols-2 gap-2">
+                    {(['before', 'after'] as const).map((side) => {
+                      const isChosen = (side === 'before' ? beforePhoto.id : afterPhoto.id) === viewingPhoto.id;
+                      return (
+                        <button
+                          key={side}
+                          type="button"
+                          onClick={() => setComparisonFromTimeline(viewingPhoto, side)}
+                          className={`rounded-lg border px-3 py-2.5 text-xs font-bold transition ${
+                            isChosen
+                              ? 'border-lime-400 bg-lime-400/15 text-lime-700 dark:text-lime-400'
+                              : 'border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-lime-400/50'
+                          }`}
+                        >
+                          {isChosen ? '✓ ' : ''}הגדר כתמונת "{side === 'before' ? 'לפני' : 'אחרי'}"
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
@@ -385,8 +420,8 @@ function BeforeAfterComparison({
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3">
-        <PhotoSelect label="לפני" photos={photos} value={beforeId} onChange={onChangeBeforeId} />
-        <PhotoSelect label="אחרי" photos={photos} value={afterId} onChange={onChangeAfterId} />
+        <PhotoSelect label="לפני" photos={photos} weightLogs={weightLogs} value={beforeId} disabledId={afterId} onChange={onChangeBeforeId} />
+        <PhotoSelect label="אחרי" photos={photos} weightLogs={weightLogs} value={afterId} disabledId={beforeId} onChange={onChangeAfterId} />
       </div>
 
       {viewMode === 'side-by-side' ? (
@@ -644,12 +679,17 @@ function PhotoManageBar({
 function PhotoSelect({
   label,
   photos,
+  weightLogs,
   value,
+  disabledId,
   onChange,
 }: {
   label: string;
   photos: ProgressPhoto[];
+  weightLogs: WeightLog[];
   value: string;
+  /** The photo chosen on the other side - not selectable here, so both sides can never match. */
+  disabledId: string;
   onChange: (id: string) => void;
 }) {
   return (
@@ -660,11 +700,15 @@ function PhotoSelect({
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20"
       >
-        {photos.map((photo) => (
-          <option key={photo.id} value={photo.id}>
-            {formatDateDisplay(photo.date)}
-          </option>
-        ))}
+        {photos.map((photo) => {
+          const weight = getPhotoWeight(photo, weightLogs);
+          return (
+            <option key={photo.id} value={photo.id} disabled={photo.id === disabledId}>
+              {formatDateDisplay(photo.date)}.{photo.date.slice(2, 4)}
+              {weight.kg !== undefined ? ` · ${weight.isExact ? '' : '≈ '}${weight.kg} ק״ג` : ''}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
