@@ -209,8 +209,8 @@ export default function ProgressPhotos({
         {sortedPhotos.length === 0 ? (
           <p className="text-sm text-zinc-600 dark:text-zinc-500">עדיין לא הועלו תמונות. התמונה הראשונה שלך תופיע כאן.</p>
         ) : (
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
-            {[...sortedPhotos].reverse().map((photo) => {
+          <div dir="rtl" className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
+            {sortedPhotos.map((photo) => {
               const comparisonSide = sortedPhotos.length >= 2 ? (photo.id === beforePhoto.id ? 'לפני' : photo.id === afterPhoto.id ? 'אחרי' : null) : null;
               return (
               <button
@@ -419,15 +419,15 @@ function BeforeAfterComparison({
         <ViewModeToggle mode={viewMode} onChange={setViewMode} />
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3">
+      <div dir="rtl" className="mb-4 grid grid-cols-2 gap-3">
         <PhotoSelect label="לפני" photos={photos} weightLogs={weightLogs} value={beforeId} disabledId={afterId} onChange={onChangeBeforeId} />
         <PhotoSelect label="אחרי" photos={photos} weightLogs={weightLogs} value={afterId} disabledId={beforeId} onChange={onChangeAfterId} />
       </div>
 
       {viewMode === 'side-by-side' ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ComparisonPhotoCard photo={before} label="נקודת התחלה (לפני)" weight={beforeInfo} onEdit={onEdit} onDelete={onDelete} onSaveWeight={onSaveWeightLog} />
-          <ComparisonPhotoCard photo={after} label="מצב נוכחי (אחרי)" weight={afterInfo} onEdit={onEdit} onDelete={onDelete} onSaveWeight={onSaveWeightLog} />
+        <div dir="rtl" className="grid grid-cols-2 gap-2.5 sm:gap-4">
+          <ComparisonPhotoCard photo={before} label="לפני" weight={beforeInfo} onEdit={onEdit} onDelete={onDelete} onSaveWeight={onSaveWeightLog} />
+          <ComparisonPhotoCard photo={after} label="אחרי" weight={afterInfo} onEdit={onEdit} onDelete={onDelete} onSaveWeight={onSaveWeightLog} />
         </div>
       ) : (
         <div
@@ -439,7 +439,7 @@ function BeforeAfterComparison({
             src={before.photoUrl}
             alt="לפני"
             className="absolute inset-0 h-full w-full object-cover object-center"
-            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+            style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
           />
 
           <div
@@ -453,10 +453,10 @@ function BeforeAfterComparison({
             </div>
           </div>
 
-          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-zinc-950/80 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+          <span className="pointer-events-none absolute right-2 top-2 rounded-full border border-lime-400/40 bg-zinc-950/70 px-2.5 py-0.5 text-[11px] font-bold text-lime-400 backdrop-blur">
             לפני
           </span>
-          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-zinc-950/80 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+          <span className="pointer-events-none absolute left-2 top-2 rounded-full border border-lime-400/40 bg-zinc-950/70 px-2.5 py-0.5 text-[11px] font-bold text-lime-400 backdrop-blur">
             אחרי
           </span>
 
@@ -548,12 +548,12 @@ interface PhotoManageProps {
 
 function ComparisonPhotoCard({ photo, label, ...manage }: PhotoManageProps & { label: string }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-xl">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-xl">
       <div className="relative">
         <div className={COMPARISON_ASPECT_CLASS}>
           <img src={photo.photoUrl} alt={label} className="h-full w-full object-cover object-center" />
         </div>
-        <span className="absolute right-3 top-3 rounded-full bg-zinc-950/80 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+        <span className="absolute right-2 top-2 rounded-full border border-lime-400/40 bg-zinc-950/70 px-2.5 py-0.5 text-[11px] font-bold text-lime-400 backdrop-blur">
           {label}
         </span>
       </div>
@@ -589,7 +589,7 @@ function PhotoManageBar({
   return (
     <div
       className={`flex flex-col gap-2 p-3 ${
-        embedded ? 'border-t border-zinc-800 bg-zinc-950/70' : 'rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60'
+        embedded ? 'flex-1 border-t border-zinc-800 bg-zinc-950/70' : 'rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
