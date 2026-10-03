@@ -25,6 +25,7 @@ import {
   Ruler,
   RotateCcw,
   Scale,
+  Smartphone,
   Sparkles,
   Target,
   TrendingUp,
@@ -52,6 +53,9 @@ import RestFinishedAlert from './RestFinishedAlert';
 import RestTimerMiniBar from './RestTimerMiniBar';
 import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
+import PwaInstallModal from './PwaInstallModal';
+import PwaInstallBanner from './PwaInstallBanner';
+import { shouldShowInstallBanner, snoozeInstallBanner } from '../utils/pwaInstall';
 import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
@@ -490,6 +494,8 @@ function DashboardTab({
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
   const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
+  const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(() => shouldShowInstallBanner());
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
@@ -598,6 +604,18 @@ function DashboardTab({
         <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100">שלום, {profile.name} 👋</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">הנה סיכום היעדים והאימון שלך להיום</p>
       </div>
+
+      {isInstallBannerVisible && (
+        <PwaInstallBanner
+          onOpen={() => setIsInstallGuideOpen(true)}
+          onDismiss={() => {
+            snoozeInstallBanner();
+            setIsInstallBannerVisible(false);
+          }}
+        />
+      )}
+
+      {isInstallGuideOpen && <PwaInstallModal onClose={() => setIsInstallGuideOpen(false)} />}
 
       {showWorkoutBanner && plannedToday && (
         <WorkoutDayBanner
@@ -1603,6 +1621,7 @@ function ProfileTab({
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
@@ -1875,6 +1894,21 @@ function ProfileTab({
         </div>
       )}
 
+      <button
+        type="button"
+        onClick={() => setIsInstallGuideOpen(true)}
+        className="glass-card flex w-full items-center gap-3 border-lime-400/30 p-4 text-right transition hover:border-lime-400/60 sm:p-5"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400 text-zinc-950">
+          <Smartphone className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-extrabold text-zinc-900 dark:text-zinc-100">התקנת האפליקציה במסך הבית 📲</span>
+          <span className="block text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">מדריך קצר לאייפון ולאנדרואיד, עם הדגמה שלב אחר שלב</span>
+        </span>
+        <ChevronLeft className="h-5 w-5 shrink-0 text-zinc-500" />
+      </button>
+
       <div className="glass-card p-5 sm:p-6">
         <div className="mb-2 flex items-center gap-2">
           <HelpCircle className="h-4 w-4 text-lime-700 dark:text-lime-400" />
@@ -1955,6 +1989,7 @@ function ProfileTab({
       )}
 
       {isHelpOpen && <HelpCenterModal onClose={() => setIsHelpOpen(false)} />}
+      {isInstallGuideOpen && <PwaInstallModal onClose={() => setIsInstallGuideOpen(false)} />}
 
       {restoreResult && <RestoreResultModal result={restoreResult} onClose={() => setRestoreResult(null)} />}
 
