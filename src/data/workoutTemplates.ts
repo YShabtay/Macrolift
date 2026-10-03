@@ -1,27 +1,29 @@
 /**
- * Workout templates (FBW, Upper/Lower, PPL) built on hypertrophy research:
+ * Workout templates (FBW, Upper/Lower, PPL). Evidence they lean on (checked against the published abstracts):
  *
- * - Weekly volume - Schoenfeld, Ogborn & Krieger (2017), "Dose-response relationship between weekly resistance
- *   training volume and increases in muscle mass" (J Sports Sci): more weekly sets per muscle means more growth, with
- *   10+ sets/week clearly ahead of lower volumes. Baz-Valle, Fontes-Villalba & Santos-Concejero (2022), a systematic review of
- *   set volume for hypertrophy, supports roughly 12-20 weekly sets for trained lifters. These templates therefore
- *   target 12-16 effective sets per week for the big muscles (chest, back, legs) for 1-3 year lifters.
- * - Frequency - Schoenfeld, Grgic, Ogborn & Krieger (2016) meta-analysis: training a muscle at least twice a week
- *   beats once a week when volume is matched, hence upper/lower and PPL give each muscle two exposures.
- * - Per-session cap - a practical guideline, NOT a hard meta-analytic cut-off: keep to about 6-8 hard sets per muscle in
- *   one session (returns diminish and later sets are mostly fatigue, "junk volume"). Spread the weekly volume across
- *   sessions instead of stacking it. Plan adaptation (utils/workoutAdaptation.ts) enforces the same cap.
- * - Exercise variation / regional hypertrophy - Fonseca et al. (2014), "Changes in exercises are more effective than
- *   in loading schemes to improve muscle strength" (J Strength Cond Res; strength outcomes), plus research on
- *   region-specific growth: use a heavy compound plus a complementary angle (stretched fly, vertical + horizontal pull,
- *   knee- + hip-dominant legs) rather than one lone exercise per big muscle. Variant "a"/"b" days rotate exercises.
- * - Legs - each lower session pairs a knee-dominant compound with a hip-dominant lift and a quad/calf accessory. Quads
- *   reach 14 direct sets/week in upper/lower; hamstrings get 6 direct sets (RDL + leg curl) on top of heavy indirect work from
- *   squats and hinges, so total lower-body volume is well above 12.
- * - Small muscles - overhead pressing does not train the lateral deltoid, so every shoulder session includes lateral
- *   raises (3-4 sets of 10-15); biceps and triceps get 3-4 focused sets per upper/push/pull session.
+ * - Weekly volume - Schoenfeld, Ogborn & Krieger (2017, J Sports Sci; 15 studies): hypertrophy rises with weekly sets, with
+ *   10+ sets per muscle clearly ahead of fewer. Baz-Valle, Fontes-Villalba & Santos-Concejero (2022, J Hum Kinet; 7 RCTs):
+ *   12-20 weekly sets per muscle suggested - but only in trained young MEN (18-35), and 12-20 vs >20 showed no difference for
+ *   quads and biceps (triceps favored more). These templates target 12-16 sets/week for the big muscles; for women and other
+ *   groups that range is an extrapolation, not a tested prescription.
+ * - Frequency - Schoenfeld, Ogborn & Krieger (2016, Sports Med) found higher frequency better, but it was confounded with volume.
+ *   The volume-equated update (Schoenfeld, Grgic & Krieger 2019, J Sports Sci; 25 studies) found NO meaningful difference. So
+ *   splitting a muscle across two sessions is a convenience that keeps per-session volume manageable, not a hypertrophy rule.
+ * - Per-session cap - a practical guideline, NOT a meta-analytic cut-off: about 6-8 hard sets per muscle per session
+ *   (diminishing returns). Plan adaptation (utils/workoutAdaptation.ts) enforces the same cap.
+ * - Exercise variation - Fonseca et al. (2014, J Strength Cond Res; 49 active adults, 12 weeks): varying exercises improved
+ *   STRENGTH more, while hypertrophy was similar. Variant "a"/"b" days rotate exercises for that reason; it is not a hypertrophy claim.
+ * - Shoulders - EMG work and a 2025 trial (Frontiers in Physiology) support lateral raises for the lateral deltoid, so every
+ *   shoulder session includes them; overhead pressing is not required for deltoid growth.
+ * - Glutes - Plotkin et al. (2023, Frontiers in Physiology; untrained college-aged adults): hip thrust and squat gave similar
+ *   glute growth; squat gave more thigh growth. Hence both appear in leg work.
+ * - Men vs women - Roberts, Nuckols & Krieger (2020, J Strength Cond Res; 10 hypertrophy studies): no significant sex difference
+ *   in hypertrophy or lower-body strength gains; relative upper-body strength gains favored women. Refalo et al. (2025, PeerJ;
+ *   29 studies): relative muscle growth similar, absolute upper-body growth favored men. Conclusion: the same core programming
+ *   fits both; the only sex default is the glute emphasis added in utils/workoutAdaptation.ts, a preference-based choice.
  *
- * Rep ranges: heavy compounds 6-10 (rest 90-120 s), complementary lifts 8-12, isolation 10-15 (rest 60-90 s).
+ * Rep ranges: heavy compounds 6-10 (rest 90-120 s), complementary lifts 8-12, isolation 10-15 (rest 60-90 s) - conventional
+ * practice, not a single study's result.
  */
 import type {
   DayWorkout,

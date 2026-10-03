@@ -59,7 +59,7 @@ function applyProgramToState(
   metricsUpdates: Partial<UserMetrics> = {},
 ): AppState {
   const updatedMetrics: UserMetrics = { ...prev.profile.metrics, ...metricsUpdates, trainingDaysPerWeek: daysPerWeek };
-  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience, updatedMetrics.targetFocus);
+  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience, updatedMetrics.targetFocus, updatedMetrics.gender);
 
   // The old plan's day ids/exercises are about to disappear, so completed days are remembered by date.
   const completed = new Set(prev.completedWorkoutDates ?? []);

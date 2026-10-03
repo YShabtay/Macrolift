@@ -1,4 +1,5 @@
 import type {
+  Gender,
   DayWorkout,
   Exercise,
   ExperienceProfile,
@@ -153,6 +154,20 @@ function applyLowerBodyFocus(days: DayWorkout[]): { days: DayWorkout[]; changed:
   return { days: result, changed };
 }
 
+/** Adds Hip Thrust (3 sets, within the per-session cap) to every dedicated leg session that lacks it. */
+function addGluteWorkToLegDays(days: DayWorkout[]): { days: DayWorkout[]; changed: boolean } {
+  let changed = false;
+  const result = days.map((day) => {
+    const lowerCount = day.exercises.filter((e) => LOWER_MUSCLES.includes(e.muscleGroup)).length;
+    if (lowerCount < 3 || day.exercises.some((e) => e.name === LOWER_FOCUS_PRIORITY[0])) return day;
+    const hipThrust = buildExerciseByName(LOWER_FOCUS_PRIORITY[0], { sets: 3, repsRange: '8-12', restSeconds: 90, notes: 'ברירת מחדל לנשים - עבודת ישבן' });
+    if (!hipThrust || sessionSetsForMuscle(day, hipThrust.muscleGroup) + hipThrust.sets > MAX_SETS_PER_MUSCLE_PER_SESSION) return day;
+    changed = true;
+    return { ...day, exercises: [...day.exercises, hipThrust] };
+  });
+  return { days: result, changed };
+}
+
 /**
  * Upper body & shoulders emphasis: sessions that train chest or shoulders get an overhead press when they lack one, the shoulder
  * work moves right after the opening lift, and the lateral raise gets an extra set (within the cap). Leg-only and pull-only
@@ -278,9 +293,11 @@ export function adaptWorkoutPlan(
   basePlan: WorkoutPlan,
   experience: ExperienceProfile | undefined,
   targetFocus: TargetFocus = 'balanced',
+  gender?: Gender,
 ): AdaptedWorkout {
   const trainee = experience?.isCurrentlyTraining ? experience : undefined;
-  if (!trainee && targetFocus === 'balanced') {
+  const femaleDefault = gender === 'female' && targetFocus === 'balanced';
+  if (!trainee && targetFocus === 'balanced' && !femaleDefault) {
     return { plan: basePlan, notes: [] };
   }
 
@@ -299,6 +316,17 @@ export function adaptWorkoutPlan(
     const focused = applyUpperBodyFocus(days);
     days = focused.days;
     if (focused.changed) notes.push('דגש פלג גוף עליון וכתפיים: לחיצת כתפיים בכל אימון דחיפה/עליון, עבודת כתפיים מוקדמת וסט נוסף להרחקות לצד.');
+  }
+
+  // 0b. Women's default (only when no explicit emphasis was picked). Trained-vs-untrained meta-analyses (Roberts 2020; Refalo 2025)
+  // show relative hypertrophy and lower-body strength gains are similar for both sexes, so volume, frequency and rep ranges stay the same.
+  // The one default is a glute lift on leg days: a 2023 RCT (Plotkin) found hip thrust grows the glutes about as much as the squat.
+  if (femaleDefault) {
+    const added = addGluteWorkToLegDays(days);
+    days = added.days;
+    if (added.changed) {
+      notes.push('ברירת מחדל לנשים: נוספה הרמת אגן (Hip Thrust) לימי הרגליים. נפח, תדירות וטווחי חזרות זהים לגברים - מחקרים מראים תגובה יחסית דומה לאימון התנגדות. אפשר לשנות דגש בפרופיל.');
+    }
   }
 
   // 1. Injury-safe substitutions.

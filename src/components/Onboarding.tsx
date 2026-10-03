@@ -265,7 +265,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (!metrics) return null;
     const split = suggestSplitType(metrics.trainingDaysPerWeek);
     const baseTemplate = getWorkoutTemplate(split, metrics.trainingDaysPerWeek);
-    return adaptWorkoutPlan(baseTemplate, metrics.experience, metrics.targetFocus).plan;
+    return adaptWorkoutPlan(baseTemplate, metrics.experience, metrics.targetFocus, metrics.gender).plan;
   }, [metrics]);
 
   function goNext() {
