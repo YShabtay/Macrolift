@@ -1,4 +1,5 @@
 import type { AppState, FoodPer100g } from '../types/fitness';
+import { safeGetJSON } from '../utils/safeStorage';
 
 export interface AuthUser {
   id: string;
@@ -55,8 +56,7 @@ function appStateKey(userId: string): string {
 class LocalStorageService implements StorageService {
   async getAppState(userId: string): Promise<AppState | null> {
     try {
-      const raw = localStorage.getItem(appStateKey(userId));
-      return raw ? (JSON.parse(raw) as AppState) : null;
+      return safeGetJSON<AppState | null>(appStateKey(userId), null);
     } catch {
       return null;
     }
@@ -75,8 +75,8 @@ class LocalStorageService implements StorageService {
 
   async getUsers(): Promise<AuthUser[]> {
     try {
-      const raw = localStorage.getItem(USERS_KEY);
-      return raw ? (JSON.parse(raw) as AuthUser[]) : [];
+      const users = safeGetJSON<unknown>(USERS_KEY, []);
+      return Array.isArray(users) ? (users as AuthUser[]) : [];
     } catch {
       return [];
     }
@@ -87,7 +87,11 @@ class LocalStorageService implements StorageService {
   }
 
   async getSessionUserId(): Promise<string | null> {
-    return localStorage.getItem(SESSION_KEY);
+    try {
+      return localStorage.getItem(SESSION_KEY);
+    } catch {
+      return null;
+    }
   }
 
   async setSessionUserId(userId: string): Promise<void> {
@@ -100,8 +104,7 @@ class LocalStorageService implements StorageService {
 
   async getCustomExerciseVideos(): Promise<Record<string, string>> {
     try {
-      const raw = localStorage.getItem(CUSTOM_EXERCISE_VIDEOS_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
+      const parsed = safeGetJSON<unknown>(CUSTOM_EXERCISE_VIDEOS_KEY, {});
       return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
     } catch {
       return {};
@@ -114,8 +117,8 @@ class LocalStorageService implements StorageService {
 
   async getCustomFoods(): Promise<FoodPer100g[]> {
     try {
-      const raw = localStorage.getItem(CUSTOM_FOODS_KEY);
-      return raw ? (JSON.parse(raw) as FoodPer100g[]) : [];
+      const foods = safeGetJSON<unknown>(CUSTOM_FOODS_KEY, []);
+      return Array.isArray(foods) ? (foods as FoodPer100g[]) : [];
     } catch {
       return [];
     }

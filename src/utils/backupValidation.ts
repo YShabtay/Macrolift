@@ -124,7 +124,7 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
 }
 
 /** `{ ...currentProfile, ...backupProfile }` with metrics merged field by field and identity fields type-checked. */
-function mergeProfile(current: UserProfile | undefined, raw: Record<string, unknown>): UserProfile {
+export function mergeProfile(current: UserProfile | undefined, raw: Record<string, unknown>): UserProfile {
   const base: UserProfile = current ?? {
     id: crypto.randomUUID(),
     name: 'משתמש',
@@ -163,7 +163,7 @@ function normalizeFoodEntry(raw: unknown): FoodEntry | null {
   };
 }
 
-function hasValidNutritionPlan(plan: unknown): boolean {
+export function hasValidNutritionPlan(plan: unknown): boolean {
   return (
     isObject(plan) &&
     isFiniteNumber(plan.bmr) &&

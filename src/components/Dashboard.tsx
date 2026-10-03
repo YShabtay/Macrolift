@@ -54,6 +54,7 @@ import RestTimerMiniBar from './RestTimerMiniBar';
 import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
 import PwaInstallModal from './PwaInstallModal';
+import SectionErrorBoundary from './SectionErrorBoundary';
 import PwaInstallBanner from './PwaInstallBanner';
 import { shouldShowInstallBanner, snoozeInstallBanner } from '../utils/pwaInstall';
 import { hasSeenTour, markTourSeen } from '../utils/tourState';
@@ -350,6 +351,8 @@ export default function Dashboard({
       {/* Main content */}
       <main className="flex-1 overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         <div className="mx-auto max-w-5xl">
+          {/* One boundary per screen (keyed by tab): a crash stays on that screen while the navigation and the other tabs keep working. */}
+          <SectionErrorBoundary key={tab} section={tab}>
           {tab === 'dashboard' && (
             <DashboardTab
               appState={appState}
@@ -423,6 +426,7 @@ export default function Dashboard({
               onStartTour={() => setIsTourOpen(true)}
             />
           )}
+          </SectionErrorBoundary>
         </div>
       </main>
 
