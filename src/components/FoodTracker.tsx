@@ -26,6 +26,8 @@ import { FoodSearch, ServingPanel } from './FoodSearch';
 import PhotoSourceSheet from './PhotoSourceSheet';
 import VoiceMealModal from './VoiceMealModal';
 import Toast from './Toast';
+import DecimalInput from './DecimalInput';
+import { parseDecimal } from '../utils/decimalInput';
 import { calculateRemaining, getEntriesForDate, getEntryTitle, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
 import { formatMacro } from '../utils/formatMacro';
@@ -458,17 +460,18 @@ function AddFoodModal({
   }
 
   function handleManualAdd() {
-    const cal = Number(calories);
-    if (!name.trim() || Number.isNaN(cal) || cal < 0) return;
+    // An empty field counts as 0; a lone "." is not a number.
+    const cal = calories.trim() === '' ? 0 : parseDecimal(calories);
+    if (!name.trim() || cal === null) return;
     onAdd({
       date,
       meal,
       name: name.trim(),
       quantity: quantity.trim() || '1 מנה',
       calories: cal,
-      proteinG: Number(proteinG) || 0,
-      fatG: Number(fatG) || 0,
-      carbsG: Number(carbsG) || 0,
+      proteinG: parseDecimal(proteinG) ?? 0,
+      fatG: parseDecimal(fatG) ?? 0,
+      carbsG: parseDecimal(carbsG) ?? 0,
     });
     onClose();
   }
@@ -548,35 +551,27 @@ function AddFoodModal({
                 />
               </div>
               <div className="grid grid-cols-4 gap-2">
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <DecimalInput
                   value={calories}
-                  onChange={(e) => setCalories(e.target.value)}
+                  onValueChange={setCalories}
                   placeholder="קק״ל"
                   className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-lime-400"
                 />
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <DecimalInput
                   value={proteinG}
-                  onChange={(e) => setProteinG(e.target.value)}
+                  onValueChange={setProteinG}
                   placeholder="חלבון"
                   className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-lime-400"
                 />
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <DecimalInput
                   value={fatG}
-                  onChange={(e) => setFatG(e.target.value)}
+                  onValueChange={setFatG}
                   placeholder="שומן"
                   className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-lime-400"
                 />
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <DecimalInput
                   value={carbsG}
-                  onChange={(e) => setCarbsG(e.target.value)}
+                  onValueChange={setCarbsG}
                   placeholder="פחמימה"
                   className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-lime-400"
                 />

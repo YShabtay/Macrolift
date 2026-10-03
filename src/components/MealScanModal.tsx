@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import DecimalInput from './DecimalInput';
 import { AlertTriangle, Check, Loader2, RotateCw, Sparkles, X } from 'lucide-react';
 import type { FoodEntry, Meal } from '../types/fitness';
 import { MEAL_LABELS, MEAL_ORDER } from '../utils/nutritionLog';
@@ -229,11 +230,9 @@ function NumberField({ label, value, onChange }: { label: string; value: string;
   return (
     <div>
       <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">{label}</label>
-      <input
-        type="number"
-        inputMode="decimal"
+      <DecimalInput
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onValueChange={onChange}
         className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
       />
     </div>

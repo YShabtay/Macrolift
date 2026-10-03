@@ -4,6 +4,7 @@ import { AlertTriangle, Check, Loader2, Mic, MicOff, RotateCw, Square, Trash2, X
 import type { FoodEntry, Meal } from '../types/fitness';
 import { MEAL_LABELS, MEAL_ORDER, toUnitLabel } from '../utils/nutritionLog';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import DecimalInput from './DecimalInput';
 import { MissingApiKeyError, parseMealDescription, type VoiceFoodItem } from '../services/voiceMealParser';
 
 type Stage = 'record' | 'analyzing' | 'review' | 'error';
@@ -288,14 +289,10 @@ export default function VoiceMealModal({ meal: initialMeal, date, onClose, onCon
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <input
-                        type="number"
-                        inputMode="decimal"
+                      <DecimalInput
                         aria-label={`משקל ${row.item.name} בגרמים`}
                         value={row.gramsInput}
-                        onChange={(e) =>
-                          setRows((prev) => prev.map((r, i) => (i === index ? { ...r, gramsInput: e.target.value } : r)))
-                        }
+                        onValueChange={(text) => setRows((prev) => prev.map((r, i) => (i === index ? { ...r, gramsInput: text } : r)))}
                         className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-center text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
                       />
                       <span className="text-[11px] text-zinc-600 dark:text-zinc-500">גר׳</span>

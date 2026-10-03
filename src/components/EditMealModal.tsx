@@ -4,6 +4,7 @@ import { Calculator, Save, X } from 'lucide-react';
 import type { FoodEntry, FoodPer100g } from '../types/fitness';
 import { COMMON_FOODS } from '../data/commonFoods';
 import { storageService } from '../services/storageService';
+import DecimalInput from './DecimalInput';
 import { findServingUnitsByName, formatServingQuantity, formatUnitCount, unitsToGrams } from '../utils/servingUnits';
 
 interface EditMealModalProps {
@@ -156,13 +157,9 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
           {selectedUnit ? (
             <div>
               <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">כמות ({selectedUnit.name})</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                step={0.5}
-                min={0.5}
+              <DecimalInput
                 value={unitQtyText}
-                onChange={(e) => handleUnitQtyChange(e.target.value)}
+                onValueChange={handleUnitQtyChange}
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
               />
               {unitQtyValid && (
@@ -174,11 +171,9 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
           ) : (
             <div>
               <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">משקל (גר׳)</label>
-              <input
-                type="number"
-                inputMode="decimal"
+              <DecimalInput
                 value={weightGrams}
-                onChange={(e) => setWeightGrams(e.target.value)}
+                onValueChange={setWeightGrams}
                 placeholder="לא צויין"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
               />
@@ -228,11 +223,9 @@ function NumberField({
   return (
     <div>
       <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">{label}</label>
-      <input
-        type="number"
-        inputMode="decimal"
+      <DecimalInput
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onValueChange={onChange}
         className={`w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2.5 text-center text-sm font-bold outline-none focus:border-lime-400 ${valueClassName}`}
       />
     </div>

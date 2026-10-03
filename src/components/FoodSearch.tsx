@@ -6,6 +6,7 @@ import { hasGeminiApiKey } from '../services/geminiChat';
 import { lookupAndCacheFood } from '../services/foodLookup';
 import { storageService } from '../services/storageService';
 import { normalizeFoodQuery, scaleNutrition, searchFoods } from '../utils/foodSearch';
+import DecimalInput from './DecimalInput';
 import { formatServingQuantity, formatUnitCount, shouldDefaultToUnits, unitsToGrams } from '../utils/servingUnits';
 import { MEAL_LABELS } from '../utils/nutritionLog';
 
@@ -242,14 +243,10 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
           )}
         </div>
         <div className="flex gap-2">
-          <input
-            type="number"
-            inputMode="decimal"
-            min={selectedUnit ? 0.5 : 1}
-            step={selectedUnit ? 0.5 : 1}
+          <DecimalInput
             aria-label={selectedUnit ? `כמות ב${selectedUnit.name}` : 'כמות בגרמים'}
             value={amountText}
-            onChange={(e) => setAmountText(e.target.value)}
+            onValueChange={setAmountText}
             className={`w-28 rounded-xl border bg-white dark:bg-zinc-900 px-3 py-2.5 text-center text-lg font-bold text-zinc-900 dark:text-zinc-100 outline-none transition focus:ring-2 ${
               isValid
                 ? 'border-zinc-300 dark:border-zinc-700 focus:border-lime-400 focus:ring-lime-400/20'
