@@ -4,7 +4,7 @@ import type { StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
-import { getStepBoostBreakdown } from '../utils/weeklyBalance';
+import { getCarriedBonus, getStepBoostBreakdown } from '../utils/weeklyBalance';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
 
@@ -53,8 +53,19 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
   const goalSteps = baseGoalSteps + boost.net;
   const tomorrowBoost = isToday ? getStepBoostBreakdown(baseGoalSteps, weeklyBalance, shiftDate(today, 1), stepLogs) : null;
 
-  const progress = goalSteps > 0 ? Math.min(selectedSteps / goalSteps, 1) : 0;
-  const percent = goalSteps > 0 ? Math.round((selectedSteps / goalSteps) * 100) : 0;
+  // Endowed progress: when bonus steps from earlier days are being credited against a rebalance, the ring shows them as already walked
+  // against the FULL compensated target. The steps still to go are identical to (net goal - steps today); it just doesn't look like zero.
+  const hasCredit = boost.active && boost.credited > 0;
+  const displaySteps = selectedSteps + (hasCredit ? boost.credited : 0);
+  const displayGoal = hasCredit ? baseGoalSteps + boost.gross : goalSteps;
+  const remainingToday = Math.max(0, displayGoal - displaySteps);
+  const progress = displayGoal > 0 ? Math.min(displaySteps / displayGoal, 1) : 0;
+  const percent = displayGoal > 0 ? Math.min(100, Math.round((displaySteps / displayGoal) * 100)) : 0;
+  const creditSource = boost.creditFromYesterdayOnly ? 'אתמול' : 'הימים הקודמים';
+
+  // A past day that beat its goal: celebrate it, and say if its extra steps were carried into a rebalance.
+  const carried = !isToday ? getCarriedBonus(baseGoalSteps, weeklyBalance, selectedDate, stepLogs) : null;
+  const metGoal = !isToday && selectedSteps > 0 && selectedSteps >= goalSteps;
   const caloriesBurned = estimateStepCalories(selectedSteps, weightKg);
 
   const radius = 40;
@@ -106,26 +117,33 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       </div>
 
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
-        <div className="relative flex h-32 w-32 shrink-0 items-center justify-center">
-          <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
-            <circle cx="50" cy="50" r={radius} fill="none" className="stroke-zinc-200 dark:stroke-zinc-800" strokeWidth="8" />
-            <circle
-              cx="50"
-              cy="50"
-              r={radius}
-              fill="none"
-              stroke="#a3e635"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              className="transition-[stroke-dashoffset] duration-500 ease-out"
-            />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="text-2xl font-extrabold tracking-tight text-lime-700 dark:text-lime-400">{selectedSteps.toLocaleString()}</span>
-            <span className="text-[10px] text-zinc-600 dark:text-zinc-500">מתוך {goalSteps.toLocaleString()}</span>
+        <div className="flex shrink-0 flex-col items-center gap-2 sm:max-w-[10rem]">
+          <div className="relative flex h-32 w-32 shrink-0 items-center justify-center">
+            <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
+              <circle cx="50" cy="50" r={radius} fill="none" className="stroke-zinc-200 dark:stroke-zinc-800" strokeWidth="8" />
+              <circle
+                cx="50"
+                cy="50"
+                r={radius}
+                fill="none"
+                stroke="#a3e635"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                className="transition-[stroke-dashoffset] duration-500 ease-out"
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-2xl font-extrabold tracking-tight text-lime-700 dark:text-lime-400">{displaySteps.toLocaleString()}</span>
+              <span className="text-[10px] text-zinc-600 dark:text-zinc-500">מתוך {displayGoal.toLocaleString()}</span>
+            </div>
           </div>
+          {hasCredit && (
+            <p className="rounded-lg bg-lime-400/10 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-lime-800 dark:text-lime-300">
+              🌟 {boost.credited.toLocaleString()} צעדים הועברו כקרדיט מ{creditSource} • נותרו {remainingToday.toLocaleString()} להשלמה {isToday ? 'היום' : dateLabel}
+            </p>
+          )}
         </div>
 
         <div className="flex w-full flex-1 flex-col gap-3">
@@ -139,10 +157,20 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
               aria-label="עריכת יעד צעדים"
               className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50"
             >
-              יעד: {goalSteps.toLocaleString()}
+              יעד: {displayGoal.toLocaleString()}
               <Pencil className="h-3 w-3" />
             </button>
           </div>
+          {metGoal && (
+            <div className="-mt-1 flex flex-col items-start gap-1">
+              <p className="rounded-md bg-lime-400 px-2.5 py-1 text-xs font-extrabold text-zinc-950">יעד הושלם בהצלחה! 🏆</p>
+              {carried && (
+                <p className="text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+                  +{carried.steps.toLocaleString()} צעדי בונוס נזקפו והועברו ל{describeDate(carried.toDate, today)}
+                </p>
+              )}
+            </div>
+          )}
           {boost.active && boost.net === 0 && (
             <p className="-mt-1.5 self-start rounded-md bg-lime-400/20 px-2 py-1 text-[11px] font-bold text-lime-800 dark:text-lime-300">
               החריגה כוסתה ע״י צעדי {boost.creditFromYesterdayOnly ? 'אתמול' : 'הימים הקודמים'}! 🏆

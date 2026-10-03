@@ -114,6 +114,23 @@ export function getStepBoostBreakdown(
   };
 }
 
+/**
+ * Bonus steps a PAST day contributed to an active step boost (the mirror of the credit shown on the boosted day). Null when the day
+ * didn't beat its goal, or no boost that starts after it is active this week.
+ */
+export function getCarriedBonus(
+  baseGoal: number,
+  adjustment: WeeklyBalanceAdjustment | undefined,
+  date: string,
+  stepLogs: StepLog[],
+): { steps: number; toDate: string } | null {
+  const active = getActiveAdjustment(adjustment, date);
+  const steps = active?.steps;
+  if (!active || !steps || date >= steps.fromDate) return null;
+  const bonus = getStepsForDate(stepLogs, date) - baseGoal;
+  return bonus > 0 ? { steps: bonus, toDate: steps.fromDate } : null;
+}
+
 /** The daily step goal for a date: the base goal plus the net (credit-adjusted) rebalance boost that covers it. */
 export function getEffectiveStepGoal(
   baseGoal: number,
