@@ -248,7 +248,7 @@ export default function App() {
     setAppState((prev) => {
       if (!prev) return prev;
       const targetCalories = Math.max(prev.nutritionPlan.targetCalories + deltaKcal, 0);
-      const macros = calculateMacros(targetCalories, prev.profile.metrics.weightKg, prev.profile.metrics.goal);
+      const macros = calculateMacros(targetCalories, prev.profile.metrics.weightKg, prev.profile.metrics.gender);
       return {
         ...prev,
         nutritionPlan: {

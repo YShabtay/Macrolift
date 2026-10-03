@@ -1,36 +1,21 @@
-import type {
-  Goal,
-  GoalIntensity,
-  MacroGrams,
-  NutritionPlan,
-  UserMetrics,
-} from '../types/fitness';
+import type { Gender, Goal, GoalIntensity, MacroGrams, NutritionPlan, UserMetrics } from '../types/fitness';
 
 // ---------------------------------------------------------------------------
-// Activity level (PAL) & TDEE
+// Activity multiplier (PAL)
 // ---------------------------------------------------------------------------
-
-/** Physical-activity-level multipliers applied to BMR: desk job / 1-3 sessions a week / 3-5 sessions / daily intense training. */
-const PAL_TIERS = [
-  { key: 'sedentary', multiplier: 1.2 },
-  { key: 'light', multiplier: 1.35 },
-  { key: 'moderate', multiplier: 1.5 },
-  { key: 'very_active', multiplier: 1.7 },
-] as const;
-
-/** Daily steps at or above this move the user one tier up, below `LOW_STEPS` one tier down - walking matters beyond the gym. */
-const HIGH_STEPS = 10_000;
-const LOW_STEPS = 4_000;
 
 /**
- * Activity multiplier from the declared weekly resistance sessions (the main driver: 0-1 sedentary, 2-3 light, 4-5 moderate,
- * 6+ very active), nudged one tier up for a very high step count or one tier down for a very low one.
+ * Activity multiplier from the daily step level, plus 0.05 for a heavy training week (4+ sessions):
+ * under 4,000 steps 1.20, 4,000-6,499 1.35, 6,500-9,499 1.45, 9,500+ 1.55.
  */
-export function getActivityMultiplier(steps: number, trainingDaysPerWeek: number): number {
-  const fromTraining = trainingDaysPerWeek >= 6 ? 3 : trainingDaysPerWeek >= 4 ? 2 : trainingDaysPerWeek >= 2 ? 1 : 0;
-  const stepShift = steps >= HIGH_STEPS ? 1 : steps < LOW_STEPS ? -1 : 0;
-  const tier = Math.min(Math.max(fromTraining + stepShift, 0), PAL_TIERS.length - 1);
-  return PAL_TIERS[tier].multiplier;
+export function getActivityMultiplier(dailySteps: number, workoutDaysPerWeek: number): number {
+  let pal = 1.2;
+  if (dailySteps >= 4000 && dailySteps < 6500) pal = 1.35;
+  else if (dailySteps >= 6500 && dailySteps < 9500) pal = 1.45;
+  else if (dailySteps >= 9500) pal = 1.55;
+
+  if (workoutDaysPerWeek >= 4) pal += 0.05;
+  return pal;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,115 +26,124 @@ export function getActivityMultiplier(steps: number, trainingDaysPerWeek: number
  * Mifflin-St Jeor equation:
  *  Men:   BMR = 10*weight(kg) + 6.25*height(cm) - 5*age + 5
  *  Women: BMR = 10*weight(kg) + 6.25*height(cm) - 5*age - 161
+ * (a 166 kcal gap between a man and a woman with the same measurements).
  */
+function mifflinStJeor(gender: Gender, weightKg: number, heightCm: number, age: number): number {
+  return 10 * weightKg + 6.25 * heightCm - 5 * age + (gender === 'male' ? 5 : -161);
+}
+
 export function calculateBMR(metrics: UserMetrics): number {
-  const { gender, weightKg, heightCm, age } = metrics;
-  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  return gender === 'male' ? base + 5 : base - 161;
-}
-
-/** TDEE = BMR x activity multiplier, rounded to whole kcal. */
-export function calculateTDEE(metrics: UserMetrics): number {
-  const multiplier = getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek);
-  return Math.round(calculateBMR(metrics) * multiplier);
+  return mifflinStJeor(metrics.gender, metrics.weightKg, metrics.heightCm, metrics.age);
 }
 
 // ---------------------------------------------------------------------------
-// Goal-based calorie target
+// Macros
 // ---------------------------------------------------------------------------
-
-/** Fixed daily deficit for weight loss. The target never drops below BMR. */
-const WEIGHT_LOSS_DEFICIT_KCAL = 450;
-
-/** Recomposition: a slight deficit, as a fraction of TDEE. */
-const RECOMP_DEFICIT_FRACTION = 0.05;
-
-/**
- * 'gain_muscle' daily surplus in kcal. A clean lean bulk needs ~200-250 kcal (about 10% of TDEE) - 120 is lost in NEAT swings and
- * food-label error; the faster 'bulk' pace adds 400.
- */
-const LEAN_BULK_SURPLUS_KCAL: Record<GoalIntensity, number> = {
-  moderate: 220,
-  aggressive: 400,
-};
-
-/** Daily calorie target for a goal: TDEE minus 450 (cut, floored at BMR), TDEE (maintain), TDEE plus 220 (lean bulk) or plus 400 (faster bulk). */
-export function calculateTargetCalories(
-  tdee: number,
-  goal: Goal,
-  goalIntensity: GoalIntensity = 'moderate',
-  bmr = 0,
-): number {
-  switch (goal) {
-    case 'gain_muscle':
-      return Math.round(tdee + LEAN_BULK_SURPLUS_KCAL[goalIntensity]);
-    case 'lose_weight':
-      return Math.round(Math.max(tdee - WEIGHT_LOSS_DEFICIT_KCAL, bmr));
-    case 'recomp':
-      return Math.round(Math.max(tdee * (1 - RECOMP_DEFICIT_FRACTION), bmr));
-    case 'maintain':
-    default:
-      return Math.round(tdee);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Macro split
-// ---------------------------------------------------------------------------
-
-/** Grams of protein per kg of bodyweight, tuned per goal. */
-const PROTEIN_G_PER_KG: Record<Goal, number> = {
-  lose_weight: 2.2,
-  maintain: 1.8,
-  gain_muscle: 2.0,
-  recomp: 2.2,
-};
-
-/** Fraction of total target calories allocated to fat. */
-const FAT_CALORIE_SHARE: Record<Goal, number> = {
-  lose_weight: 0.3,
-  maintain: 0.3,
-  gain_muscle: 0.25,
-  recomp: 0.3,
-};
 
 const KCAL_PER_G_PROTEIN = 4;
 const KCAL_PER_G_FAT = 9;
 const KCAL_PER_G_CARBS = 4;
 
-export function calculateMacros(
-  targetCalories: number,
-  weightKg: number,
-  goal: Goal,
-): MacroGrams {
-  const proteinG = Math.round(PROTEIN_G_PER_KG[goal] * weightKg);
-  const proteinKcal = proteinG * KCAL_PER_G_PROTEIN;
-
-  const fatKcal = targetCalories * FAT_CALORIE_SHARE[goal];
-  const fatG = Math.round(fatKcal / KCAL_PER_G_FAT);
-
-  const remainingKcal = Math.max(targetCalories - proteinKcal - fatG * KCAL_PER_G_FAT, 0);
-  const carbsG = Math.round(remainingKcal / KCAL_PER_G_CARBS);
-
+/**
+ * Gender-aware split: protein 2.0 g/kg for men, 1.8 g/kg for women; fat 0.9 g/kg for men and 1.0 g/kg for women (hormonal
+ * balance matters most for women); carbohydrates take all the remaining calories (never negative).
+ */
+export function calculateMacros(targetCalories: number, weightKg: number, gender: Gender): MacroGrams {
+  const proteinG = Math.round(weightKg * (gender === 'male' ? 2.0 : 1.8));
+  const fatG = Math.round(weightKg * (gender === 'female' ? 1.0 : 0.9));
+  const remainingKcal = targetCalories - proteinG * KCAL_PER_G_PROTEIN - fatG * KCAL_PER_G_FAT;
+  const carbsG = Math.max(0, Math.round(remainingKcal / KCAL_PER_G_CARBS));
   return { proteinG, fatG, carbsG };
 }
 
 // ---------------------------------------------------------------------------
-// Public entry point
+// Unified calculation
 // ---------------------------------------------------------------------------
 
-/** Builds the full nutrition plan (BMR, TDEE, target calories, macros) from raw user metrics. */
-export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
-  const bmr = calculateBMR(metrics);
-  const tdee = calculateTDEE(metrics);
-  const targetCalories = calculateTargetCalories(tdee, metrics.goal, metrics.goalIntensity, bmr);
-  const macros = calculateMacros(targetCalories, metrics.weightKg, metrics.goal);
+export type CalorieGoal = 'lean_bulk' | 'bulk' | 'maintenance' | 'cut' | 'aggressive_cut' | 'recomp';
+
+/** Slight deficit for body recomposition, as a fraction of TDEE (never below BMR). */
+const RECOMP_DEFICIT_FRACTION = 0.05;
+
+/**
+ * BMR (Mifflin-St Jeor, by gender) -> TDEE (activity multiplier) -> goal calories -> gender-aware macros.
+ *  lean_bulk: TDEE + 220 (a stable 200-250 kcal; 120 is lost in NEAT swings and food-label error)
+ *  bulk: TDEE + 400
+ *  maintenance: TDEE
+ *  cut: TDEE - 400, aggressive_cut: TDEE - 550 - both never below BMR
+ *  recomp: TDEE - 5%, never below BMR
+ */
+export function calculatePreciseNutrition(params: {
+  gender: Gender;
+  weightKg: number;
+  heightCm: number;
+  age: number;
+  dailyStepGoal: number;
+  workoutDaysPerWeek: number;
+  goal: CalorieGoal;
+}) {
+  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal } = params;
+
+  const bmr = mifflinStJeor(gender, weightKg, heightCm, age);
+  const tdee = Math.round(bmr * getActivityMultiplier(dailyStepGoal, workoutDaysPerWeek));
+
+  let targetCalories = tdee;
+  if (goal === 'lean_bulk') {
+    targetCalories = Math.round(tdee + 220);
+  } else if (goal === 'bulk') {
+    targetCalories = Math.round(tdee + 400);
+  } else if (goal === 'cut') {
+    targetCalories = Math.max(Math.round(tdee - 400), Math.round(bmr));
+  } else if (goal === 'aggressive_cut') {
+    targetCalories = Math.max(Math.round(tdee - 550), Math.round(bmr));
+  } else if (goal === 'recomp') {
+    targetCalories = Math.max(Math.round(tdee * (1 - RECOMP_DEFICIT_FRACTION)), Math.round(bmr));
+  }
+
+  const { proteinG, fatG, carbsG } = calculateMacros(targetCalories, weightKg, gender);
 
   return {
     bmr: Math.round(bmr),
-    tdee: Math.round(tdee),
+    tdee,
     targetCalories,
-    macros,
-    calorieDeficitOrSurplus: Math.round(targetCalories - tdee),
+    proteinGrams: proteinG,
+    carbGrams: carbsG,
+    fatGrams: fatG,
+  };
+}
+
+/** The app's goal setting expressed as a calorie goal ('gain_muscle' is a lean bulk, or a faster bulk at the aggressive pace). */
+function toCalorieGoal(goal: Goal, intensity: GoalIntensity | undefined): CalorieGoal {
+  switch (goal) {
+    case 'gain_muscle':
+      return intensity === 'aggressive' ? 'bulk' : 'lean_bulk';
+    case 'lose_weight':
+      return 'cut';
+    case 'recomp':
+      return 'recomp';
+    case 'maintain':
+    default:
+      return 'maintenance';
+  }
+}
+
+/** Builds the full nutrition plan (BMR, TDEE, target calories, macros) from raw user metrics. */
+export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
+  const result = calculatePreciseNutrition({
+    gender: metrics.gender,
+    weightKg: metrics.weightKg,
+    heightCm: metrics.heightCm,
+    age: metrics.age,
+    dailyStepGoal: metrics.averageDailySteps,
+    workoutDaysPerWeek: metrics.trainingDaysPerWeek,
+    goal: toCalorieGoal(metrics.goal, metrics.goalIntensity),
+  });
+
+  return {
+    bmr: result.bmr,
+    tdee: result.tdee,
+    targetCalories: result.targetCalories,
+    macros: { proteinG: result.proteinGrams, fatG: result.fatGrams, carbsG: result.carbGrams },
+    calorieDeficitOrSurplus: result.targetCalories - result.tdee,
   };
 }

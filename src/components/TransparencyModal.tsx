@@ -84,7 +84,7 @@ export default function TransparencyModal({ metrics, nutritionPlan, variant = 'b
                 <ExplanationSection
                   icon={Flame}
                   title="חישוב ה-TDEE"
-                  text={`חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. בהתחשב ב-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע ובממוצע של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים (מקדם פעילות של כ-${getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek)}), אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך.`}
+                  text={`חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. בהתחשב ב-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע ובממוצע של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים (מקדם פעילות של כ-${getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek).toFixed(2)}), אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך.`}
                 />
                 <ExplanationSection
                   icon={Target}
