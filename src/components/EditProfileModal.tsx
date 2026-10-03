@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Save, X } from 'lucide-react';
-import type { Goal, GoalIntensity, TrainingDaysPerWeek, UserMetrics } from '../types/fitness';
+import type { Goal, GoalIntensity, TargetFocus, TrainingDaysPerWeek, UserMetrics } from '../types/fitness';
 import BulkingPlanEditor from './BulkingPlanEditor';
+import TargetFocusPicker from './TargetFocusPicker';
 import { draftFromPlan, parseBulkingDraft } from '../utils/bulkingPlan';
 
 const AGE_MIN = 14;
@@ -41,6 +42,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
   const [weightKg, setWeightKg] = useState(String(metrics.weightKg));
   const [averageDailySteps, setAverageDailySteps] = useState(String(metrics.averageDailySteps));
   const [trainingDaysPerWeek, setTrainingDaysPerWeek] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
+  const [targetFocus, setTargetFocus] = useState<TargetFocus>(metrics.targetFocus ?? 'balanced');
   const [goal, setGoal] = useState<Goal>(metrics.goal);
   const [goalIntensity, setGoalIntensity] = useState<GoalIntensity>(metrics.goalIntensity ?? 'moderate');
   const [bulkingDraft, setBulkingDraft] = useState(() => draftFromPlan(metrics.bulkingPlan));
@@ -75,6 +77,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
       weightKg: weightValue,
       averageDailySteps: stepsValue,
       trainingDaysPerWeek,
+      targetFocus,
       goal,
       goalIntensity: goal === 'gain_muscle' ? goalIntensity : undefined,
       bulkingPlan: goal === 'gain_muscle' && bulkingResult.status === 'ok' ? bulkingResult.plan : undefined,
@@ -177,6 +180,13 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
               ))}
             </div>
           </div>
+
+          <TargetFocusPicker value={targetFocus} onChange={setTargetFocus} compact />
+          {targetFocus !== (metrics.targetFocus ?? 'balanced') && (
+            <p className="-mt-2 text-[11px] leading-relaxed text-orange-700 dark:text-orange-400">
+              שינוי המיקוד יבנה מחדש את תוכנית האימונים הנוכחית (אימונים שכבר סימנת כהושלמו יישמרו).
+            </p>
+          )}
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">מטרה ראשית</label>

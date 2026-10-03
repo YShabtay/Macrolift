@@ -16,7 +16,7 @@ import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
 const CORRUPT_SUFFIX = '-corrupt';
@@ -24,6 +24,7 @@ const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isIsoDate = (v: unknown): v is string => typeof v === 'string' && ISO_DATE.test(v);
 const finite = (v: unknown): number | null => (v !== null && v !== '' && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
 const nonNegative = (v: unknown): number => {
@@ -69,12 +70,25 @@ function normalizeFoodLog(raw: unknown): FoodEntry[] {
   }));
 }
 
+/** Old plans labelled sessions by weekday ("יום א׳"); the sessions are now flexible ("אימון A", "דחיפה (Push)"). */
+const LEGACY_WEEKDAY_LABEL = /^יום [א-ו]׳$/;
+
 function normalizeWorkoutPlan(raw: unknown, trainingDays: AppState['profile']['metrics']['trainingDaysPerWeek']): WorkoutPlan {
   if (isObject(raw) && Array.isArray(raw.days)) {
+    const templateLabels = new Map<string, string>();
+    if (typeof raw.splitType === 'string' && isFiniteNumber(raw.daysPerWeek)) {
+      for (const d of getWorkoutTemplate(raw.splitType as WorkoutPlan['splitType'], raw.daysPerWeek as WorkoutPlan['daysPerWeek']).days) {
+        templateLabels.set(d.id, d.dayLabel);
+      }
+    }
     const days = raw.days
       .filter((d): d is Record<string, unknown> => isObject(d) && typeof d.id === 'string')
       .map((day) => ({
         ...day,
+        dayLabel:
+          typeof day.dayLabel === 'string' && LEGACY_WEEKDAY_LABEL.test(day.dayLabel.trim())
+            ? (templateLabels.get(day.id as string) ?? day.dayLabel)
+            : day.dayLabel,
         exercises: keep<Record<string, unknown>>(day.exercises, (e) => typeof e.id === 'string' && typeof e.name === 'string').map((exercise) => ({
           ...exercise,
           nameEn: exercise.nameEn ?? getExerciseNameEn(exercise.name as string),

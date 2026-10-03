@@ -105,6 +105,8 @@ export default function VideoModal({ exercise, onClose }: VideoModalProps) {
                 src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
                 title={exercise.name}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                referrerPolicy="strict-origin-when-cross-origin"
+                loading="lazy"
                 allowFullScreen
               />
             </div>

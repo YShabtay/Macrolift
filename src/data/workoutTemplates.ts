@@ -495,6 +495,11 @@ export function getExerciseNameEn(name: string): string | undefined {
   return undefined;
 }
 
+/** Exercises the personalization engine can add to a plan although no base template contains them. */
+const EXTRA_EXERCISES: Record<string, { muscleGroup: MuscleGroup; equipment: Equipment }> = {
+  'הרמת אגן (Hip Thrust)': { muscleGroup: 'glutes', equipment: 'barbell' },
+};
+
 let exerciseCounter = 0;
 
 function ex(
@@ -533,16 +538,16 @@ function day(id: string, dayLabel: string, focus: string, exercises: Exercise[])
 // ---------------------------------------------------------------------------
 
 /**
- * Day labels are Sunday/Tuesday/Thursday (א/ג/ה), not Sunday/Monday/Tuesday - full-body
- * sessions hit every major muscle group each time, so back-to-back days don't leave
- * enough recovery. The gap also doubles as the suggested rest-day placement.
+ * Sessions are named A/B/C, not by weekday: the user decides which calendar day each one lands on (the calendar screen
+ * schedules them). Full-body sessions hit every major muscle each time, so a rest day between them is recommended
+ * (see getFrequencyRecommendation) but never enforced.
  *
  * Each big muscle is trained all three days but with ONE focused exercise per session (3-4 sets), which lands
  * chest / back at 12 sets a week and legs above that - the hypertrophy range - without piling up junk volume.
  */
 function buildFbwDays(): DayWorkout[] {
   return [
-    day('fbw-a', 'יום א׳', 'גוף מלא - דגש רגליים וחזה', [
+    day('fbw-a', 'אימון A', 'גוף מלא - דגש רגליים וחזה', [
       ex('סקוואט מוט', 'quads', 'barbell', 4, '6-8', 120, 'תרגיל מרכזי, חימום הדרגתי'),
       ex('לחיצת חזה במוט שטוח', 'chest', 'barbell', 4, '6-10', 120),
       ex('חתירה בכבל ישיבה', 'back', 'cable', 4, '10-12', 90),
@@ -550,7 +555,7 @@ function buildFbwDays(): DayWorkout[] {
       ex('כפיפת מרפק בפולי', 'biceps', 'cable', 3, '10-12', 60),
       ex('פלאנק', 'core', 'bodyweight', 3, '30-45 שניות', 45),
     ]),
-    day('fbw-b', 'יום ג׳', 'גוף מלא - דגש גב ורגליים אחוריים', [
+    day('fbw-b', 'אימון B', 'גוף מלא - דגש גב ורגליים אחוריים', [
       ex('דדליפט רומני', 'hamstrings', 'barbell', 4, '8-10', 120, 'שמירה על גב ישר לאורך כל הטווח'),
       ex('מתח באחיזה רחבה (או מכונת עזר)', 'back', 'bodyweight', 4, '8-10', 120),
       ex('לחיצת חזה בשיפוע עם משקולות', 'chest', 'dumbbell', 4, '8-12', 90),
@@ -558,7 +563,7 @@ function buildFbwDays(): DayWorkout[] {
       ex('פשיטת מרפק בפולי', 'triceps', 'cable', 3, '10-12', 60),
       ex('כפיפות בטן עם משקל', 'core', 'bodyweight', 3, '12-15', 45),
     ]),
-    day('fbw-c', 'יום ה׳', 'גוף מלא - דגש כוח כללי', [
+    day('fbw-c', 'אימון C', 'גוף מלא - דגש כוח כללי', [
       ex('לחיצת רגליים במכונה', 'quads', 'machine', 4, '10-12', 90),
       ex('חתירת T או חתירת מוט', 'back', 'barbell', 4, '8-12', 90),
       ex('פרפר בכבלים', 'chest', 'cable', 4, '10-12', 75),
@@ -636,10 +641,10 @@ function lowerSession(id: string, label: string, focus: string, variant: Session
 
 function buildUpperLowerDays(): DayWorkout[] {
   return [
-    upperSession('ul-upper-a', 'יום א׳', 'פלג גוף עליון - כוח', 'a'),
-    lowerSession('ul-lower-a', 'יום ב׳', 'פלג גוף תחתון - כוח', 'a'),
-    upperSession('ul-upper-b', 'יום ג׳', 'פלג גוף עליון - נפח', 'b'),
-    lowerSession('ul-lower-b', 'יום ד׳', 'פלג גוף תחתון - נפח', 'b'),
+    upperSession('ul-upper-a', 'אימון A1 (פלג גוף עליון)', 'פלג גוף עליון - כוח', 'a'),
+    lowerSession('ul-lower-a', 'אימון B1 (פלג גוף תחתון)', 'פלג גוף תחתון - כוח', 'a'),
+    upperSession('ul-upper-b', 'אימון A2 (פלג גוף עליון)', 'פלג גוף עליון - נפח', 'b'),
+    lowerSession('ul-lower-b', 'אימון B2 (פלג גוף תחתון)', 'פלג גוף תחתון - נפח', 'b'),
   ];
 }
 
@@ -686,22 +691,22 @@ function buildUpperDay(id: string, label: string): DayWorkout {
 
 function buildPpl5Days(): DayWorkout[] {
   return [
-    buildPushDay('ppl5-push', 'יום א׳', 'a'),
-    buildPullDay('ppl5-pull', 'יום ב׳', 'a'),
-    buildLegsDay('ppl5-legs', 'יום ג׳', 'a'),
-    buildUpperDay('ppl5-upper', 'יום ד׳'),
-    lowerSession('ppl5-lower', 'יום ה׳', 'פלג גוף תחתון - שילוב', 'b'),
+    buildPushDay('ppl5-push', 'דחיפה (Push)', 'a'),
+    buildPullDay('ppl5-pull', 'משיכה (Pull)', 'a'),
+    buildLegsDay('ppl5-legs', 'רגליים (Legs)', 'a'),
+    buildUpperDay('ppl5-upper', 'פלג גוף עליון'),
+    lowerSession('ppl5-lower', 'פלג גוף תחתון', 'פלג גוף תחתון - שילוב', 'b'),
   ];
 }
 
 function buildPpl6Days(): DayWorkout[] {
   return [
-    buildPushDay('ppl6-push-a', 'יום א׳', 'a'),
-    buildPullDay('ppl6-pull-a', 'יום ב׳', 'a'),
-    buildLegsDay('ppl6-legs-a', 'יום ג׳', 'a'),
-    buildPushDay('ppl6-push-b', 'יום ד׳', 'b'),
-    buildPullDay('ppl6-pull-b', 'יום ה׳', 'b'),
-    buildLegsDay('ppl6-legs-b', 'יום ו׳', 'b'),
+    buildPushDay('ppl6-push-a', 'דחיפה (Push) 1', 'a'),
+    buildPullDay('ppl6-pull-a', 'משיכה (Pull) 1', 'a'),
+    buildLegsDay('ppl6-legs-a', 'רגליים (Legs) 1', 'a'),
+    buildPushDay('ppl6-push-b', 'דחיפה (Push) 2', 'b'),
+    buildPullDay('ppl6-pull-b', 'משיכה (Pull) 2', 'b'),
+    buildLegsDay('ppl6-legs-b', 'רגליים (Legs) 2', 'b'),
   ];
 }
 
@@ -796,6 +801,32 @@ export function findExerciseTemplate(
       }
     }
   }
+  // Library exercises that no base template uses (added by personalization, e.g. Hip Thrust for a glutes emphasis).
+  const extra = EXTRA_EXERCISES[name];
+  if (extra) {
+    return {
+      name,
+      nameEn: EXERCISE_NAMES_EN[name],
+      muscleGroup: extra.muscleGroup,
+      equipment: extra.equipment,
+      youtubeId: EXERCISE_MEDIA[name]?.youtubeId,
+      cues: EXERCISE_MEDIA[name]?.cues,
+    };
+  }
+  // Exercises that only appear as swap alternatives are still valid to add to a plan.
+  for (const list of Object.values(EXERCISE_ALTERNATIVES)) {
+    const alt = list.find((a) => a.name === name);
+    if (alt) {
+      return {
+        name: alt.name,
+        nameEn: alt.nameEn,
+        muscleGroup: alt.muscleGroup,
+        equipment: alt.equipment,
+        youtubeId: EXERCISE_MEDIA[name]?.youtubeId,
+        cues: EXERCISE_MEDIA[name]?.cues,
+      };
+    }
+  }
   return undefined;
 }
 
@@ -805,4 +836,15 @@ export function findExerciseTemplate(
  */
 export function getExerciseAlternatives(name: string): ExerciseAlternative[] | undefined {
   return EXERCISE_ALTERNATIVES[name];
+}
+
+/**
+ * A gentle weekly-frequency suggestion for a program - phrased as a recommendation, never a rule: the user can place
+ * the sessions on any weekdays from the calendar.
+ */
+export function getFrequencyRecommendation(plan: Pick<WorkoutPlan, 'daysPerWeek'>): string {
+  const n = plan.daysPerWeek;
+  if (n <= 3) return `תדירות מומלצת: ${n} אימונים בשבוע עם יום מנוחה בין אימון לאימון 💡`;
+  if (n === 4) return 'תדירות מומלצת: 4 אימונים בשבוע, עם לפחות יום מנוחה אחד באמצע השבוע 💡';
+  return `תדירות מומלצת: ${n} אימונים בשבוע, עם לפחות יום מנוחה אחד ולא יותר משלושה אימונים רצופים 💡`;
 }

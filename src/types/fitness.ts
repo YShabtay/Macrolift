@@ -27,6 +27,9 @@ export type TrainingDaysPerWeek = 2 | 3 | 4 | 5 | 6;
 
 export type WorkoutSplitType = 'fbw' | 'upper_lower' | 'ppl';
 
+/** Which half of the body the generated program gives extra priority and volume to. */
+export type TargetFocus = 'balanced' | 'lower_body' | 'upper_body';
+
 export type MuscleGroup =
   | 'chest'
   | 'back'
@@ -116,6 +119,8 @@ export interface UserMetrics {
   goal: Goal;
   /** Only meaningful when goal === 'gain_muscle'; defaults to 'moderate' when omitted. */
   goalIntensity?: GoalIntensity;
+  /** Training emphasis for the generated program; 'balanced' (the default) keeps the evidence-based even split. */
+  targetFocus?: TargetFocus;
   /** Optional advanced-precision circumference measurements. */
   measurements?: BodyMeasurements;
   /** Optional deep-dive questionnaire for experienced trainees. */
@@ -194,7 +199,7 @@ export interface Exercise {
 
 export interface DayWorkout {
   id: string;
-  dayLabel: string; // e.g. "יום א׳ - פלג גוף עליון"
+  dayLabel: string; // flexible session name, e.g. "אימון A (פלג גוף עליון)" - not tied to a weekday
   focus: string; // e.g. "Upper Body Push"
   exercises: Exercise[];
 }

@@ -55,7 +55,7 @@ function applyProgramToState(
   metricsUpdates: Partial<UserMetrics> = {},
 ): AppState {
   const updatedMetrics: UserMetrics = { ...prev.profile.metrics, ...metricsUpdates, trainingDaysPerWeek: daysPerWeek };
-  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience);
+  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience, updatedMetrics.targetFocus);
 
   // The old plan's day ids/exercises are about to disappear, so completed days are remembered by date.
   const completed = new Set(prev.completedWorkoutDates ?? []);
@@ -420,6 +420,11 @@ export default function App() {
 
       if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
         return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
+      }
+
+      // A new muscle emphasis rebuilds the current program (same split and frequency) with the emphasis applied.
+      if (updates.targetFocus !== undefined && updates.targetFocus !== (prev.profile.metrics.targetFocus ?? 'balanced')) {
+        return applyProgramToState(prev, prev.workoutPlan.splitType, prev.workoutPlan.daysPerWeek, updates);
       }
 
       return {

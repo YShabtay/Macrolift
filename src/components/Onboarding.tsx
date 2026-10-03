@@ -39,7 +39,8 @@ import { adaptWorkoutPlan } from '../utils/workoutAdaptation';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import InfoTooltip from './InfoTooltip';
 import MedicalDisclaimerModal from './MedicalDisclaimerModal';
-import type { NutritionPlan, WorkoutPlan } from '../types/fitness';
+import type { NutritionPlan, TargetFocus, WorkoutPlan } from '../types/fitness';
+import TargetFocusPicker from './TargetFocusPicker';
 
 // ---------------------------------------------------------------------------
 // Static option config
@@ -124,6 +125,7 @@ interface FormState {
   weightKg: string;
   averageDailySteps: string;
   trainingDaysPerWeek: TrainingDaysPerWeek;
+  targetFocus: TargetFocus;
   bodyState: UserMetrics['bodyState'] | null;
   goal: Goal | null;
   goalIntensity: GoalIntensity;
@@ -148,6 +150,7 @@ const INITIAL_FORM: FormState = {
   weightKg: '',
   averageDailySteps: '8000',
   trainingDaysPerWeek: 3,
+  targetFocus: 'balanced',
   bodyState: null,
   goal: null,
   goalIntensity: 'moderate',
@@ -246,6 +249,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       weightKg: Number(form.weightKg),
       averageDailySteps: Number(form.averageDailySteps),
       trainingDaysPerWeek: form.trainingDaysPerWeek,
+      targetFocus: form.targetFocus,
       bodyState: form.bodyState,
       goal: form.goal,
       goalIntensity: form.goalIntensity,
@@ -259,7 +263,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (!metrics) return null;
     const split = suggestSplitType(metrics.trainingDaysPerWeek);
     const baseTemplate = getWorkoutTemplate(split, metrics.trainingDaysPerWeek);
-    return adaptWorkoutPlan(baseTemplate, metrics.experience).plan;
+    return adaptWorkoutPlan(baseTemplate, metrics.experience, metrics.targetFocus).plan;
   }, [metrics]);
 
   function goNext() {
@@ -604,6 +608,8 @@ function StepMetrics({
             ))}
           </div>
         </div>
+
+        <TargetFocusPicker value={form.targetFocus} onChange={(targetFocus) => setForm((f) => ({ ...f, targetFocus }))} />
 
         {/* Optional body measurements accordion */}
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-5">

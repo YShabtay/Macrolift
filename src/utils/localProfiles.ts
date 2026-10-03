@@ -56,7 +56,7 @@ function buildGuestAppState(userId: string): AppState {
   return {
     profile,
     nutritionPlan: calculateNutritionPlan(metrics),
-    workoutPlan: adaptWorkoutPlan(getWorkoutTemplate(split, metrics.trainingDaysPerWeek), metrics.experience).plan,
+    workoutPlan: adaptWorkoutPlan(getWorkoutTemplate(split, metrics.trainingDaysPerWeek), metrics.experience, metrics.targetFocus).plan,
     progress: [],
     weightLogs: [],
     progressPhotos: [],

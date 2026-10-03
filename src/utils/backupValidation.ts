@@ -108,6 +108,7 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
   const days = Number(raw.trainingDaysPerWeek);
   if (Number.isInteger(days) && days >= 2 && days <= 6) merged.trainingDaysPerWeek = days as UserMetrics['trainingDaysPerWeek'];
   if (typeof raw.bodyState === 'string' && BODY_STATES.includes(raw.bodyState)) merged.bodyState = raw.bodyState as UserMetrics['bodyState'];
+  if (raw.targetFocus === 'balanced' || raw.targetFocus === 'lower_body' || raw.targetFocus === 'upper_body') merged.targetFocus = raw.targetFocus;
   if (typeof raw.goal === 'string' && GOALS.includes(raw.goal)) merged.goal = raw.goal as UserMetrics['goal'];
   if (typeof raw.goalIntensity === 'string' && GOAL_INTENSITIES.includes(raw.goalIntensity)) {
     merged.goalIntensity = raw.goalIntensity as UserMetrics['goalIntensity'];

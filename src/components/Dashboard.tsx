@@ -55,6 +55,7 @@ import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
 import PwaInstallModal from './PwaInstallModal';
 import SectionErrorBoundary from './SectionErrorBoundary';
+import { getFrequencyRecommendation } from '../data/workoutTemplates';
 import PwaInstallBanner from './PwaInstallBanner';
 import { shouldShowInstallBanner, snoozeInstallBanner } from '../utils/pwaInstall';
 import { hasSeenTour, markTourSeen } from '../utils/tourState';
@@ -1216,6 +1217,10 @@ function WorkoutPlanTab({
           },
         ]}
       />
+
+      <p className="-mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+        {getFrequencyRecommendation(workoutPlan)} אפשר לשבץ כל אימון ליום שנוח לך דרך לוח השנה.
+      </p>
 
       <div className="inline-flex self-end rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1">
         <button
