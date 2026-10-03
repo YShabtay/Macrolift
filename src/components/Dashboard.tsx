@@ -45,7 +45,7 @@ import FoodTracker from './FoodTracker';
 import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
-import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
+import { DEFAULT_STEP_GOAL, getStepsForDate } from '../utils/stepsCalculations';
 import { formatMacro } from '../utils/formatMacro';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
@@ -500,9 +500,11 @@ function DashboardTab({
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
   const showRebalanceButton = overshootKcal > 0;
+  // Steps walked above today's goal already burned part of the overshoot, so the rebalance credits them first.
+  const extraStepsToday = Math.max(0, getStepsForDate(stepLogs, todayIso()) - effectiveStepGoal);
   const rebalanceOptions = useMemo(
-    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, todayIso()) : null),
-    [isRebalanceOpen, overshootKcal, nutritionPlan],
+    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, todayIso(), extraStepsToday) : null),
+    [isRebalanceOpen, overshootKcal, nutritionPlan, extraStepsToday],
   );
   const weeklyEnergyBalance = useMemo(
     () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, todayIso()) : null),

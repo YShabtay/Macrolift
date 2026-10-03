@@ -116,6 +116,12 @@ export function getWeeklyEnergyBalance(
 export interface RebalanceOptions {
   /** The one-time overshoot to make up for (total, not per day). */
   excessKcal: number;
+  /** Steps walked today above today's goal - already burned, so they are credited against the overshoot. */
+  extraStepsWalkedToday: number;
+  /** The overshoot left to make up after crediting those steps (kcal). */
+  netExcessKcal: number;
+  /** Steps still needed after crediting today's extra steps; 0 means the overshoot is already fully covered. */
+  netStepsNeeded: number;
   /** Days left in the week after today (Saturday = 0). The week is the scope: nothing carries into the next one. */
   daysRemaining: number;
   /** Energy equivalent of the overshoot in grams of fat (9 kcal/g) - for reassurance, not a literal prediction. */
@@ -125,7 +131,7 @@ export interface RebalanceOptions {
   /** Option A: the total surplus split evenly over the remaining days of the week. */
   taper: { available: boolean; perDayKcal: number; days: number; fromDate: string; capped: boolean };
   /** Option B1: all the extra walking on a single day - tomorrow, or today when the week ends today. */
-  stepsOneDay: { steps: number; date: string; isToday: boolean; minutes: number; capped: boolean };
+  stepsOneDay: { steps: number; boost: number; date: string; isToday: boolean; minutes: number; capped: boolean };
   /** Option B2: the extra walking split over the remaining days (only meaningful with 2+ days left). */
   stepsSpread: { available: boolean; perDay: number; days: number; fromDate: string; minutes: number; capped: boolean };
 }
@@ -134,7 +140,17 @@ export interface RebalanceOptions {
  * Splits a ONE-TIME overshoot of `excessKcal` into the rebalance options. The surplus is a single pool: spread over the remaining days
  * it is divided (190 kcal over 2 days = 95 per day), never repeated per day. With no days left, spreading options aren't available.
  */
-export function buildRebalanceOptions(excessKcal: number, plan: NutritionPlan, today: string): RebalanceOptions {
+export function buildRebalanceOptions(
+  surplusKcal: number,
+  plan: NutritionPlan,
+  today: string,
+  extraStepsWalkedToday = 0,
+): RebalanceOptions {
+  // Steps already walked above today's goal burned part of the overshoot: take them off the debt before planning anything.
+  const extraSteps = Math.max(0, Math.round(extraStepsWalkedToday));
+  const totalStepsRequired = Math.round((surplusKcal / KCAL_PER_1000_STEPS) * 1000);
+  const netStepsNeeded = Math.max(0, totalStepsRequired - extraSteps);
+  const excessKcal = Math.max(0, Math.round(surplusKcal - (extraSteps * KCAL_PER_1000_STEPS) / 1000));
   const weekEnd = getWeekEnd(today);
   const daysRemaining = Math.max(daysBetween(today, weekEnd), 0);
   const tomorrow = addDays(today, 1);
@@ -142,7 +158,7 @@ export function buildRebalanceOptions(excessKcal: number, plan: NutritionPlan, t
   // A: gentle daily cut over the remaining days, within a safe limit (a share of the target, never below BMR / the floor).
   let perDayKcal = 0;
   let capped = false;
-  if (daysRemaining > 0) {
+  if (daysRemaining > 0 && excessKcal > 0) {
     const wanted = Math.max(Math.round(excessKcal / daysRemaining), 1);
     const maxPerDay = Math.max(
       Math.min(Math.round(plan.targetCalories * MAX_REDUCTION_SHARE), plan.targetCalories - Math.max(plan.bmr, MIN_SAFE_TARGET_KCAL)),
@@ -153,19 +169,25 @@ export function buildRebalanceOptions(excessKcal: number, plan: NutritionPlan, t
   }
 
   // B: the same energy as walking.
-  const totalStepsToBurn = Math.round((excessKcal / KCAL_PER_1000_STEPS) * 1000);
+  const totalStepsToBurn = netStepsNeeded;
   const oneDaySteps = Math.min(totalStepsToBurn, MAX_ONE_DAY_STEP_BOOST);
   const spreadPerDay = daysRemaining > 0 ? Math.round(totalStepsToBurn / daysRemaining) : totalStepsToBurn;
   const spreadCapped = Math.min(spreadPerDay, MAX_STEP_BOOST);
 
   return {
-    excessKcal,
+    excessKcal: surplusKcal,
+    extraStepsWalkedToday: extraSteps,
+    netExcessKcal: excessKcal,
+    netStepsNeeded,
     daysRemaining,
-    fatEquivalentG: Math.round(excessKcal / 9),
+    fatEquivalentG: Math.round(surplusKcal / 9),
     totalStepsToBurn,
     taper: { available: daysRemaining > 0 && perDayKcal > 0, perDayKcal, days: daysRemaining, fromDate: tomorrow, capped },
     stepsOneDay: {
       steps: oneDaySteps,
+      // Tomorrow's goal rises by exactly the net steps. On the last day of the week the steps already walked count toward today's
+      // goal, so the goal is raised by the full requirement and only the net part is still left to walk.
+      boost: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(totalStepsRequired, MAX_ONE_DAY_STEP_BOOST),
       date: daysRemaining > 0 ? tomorrow : today,
       isToday: daysRemaining === 0,
       minutes: Math.round(oneDaySteps / STEPS_PER_MINUTE),

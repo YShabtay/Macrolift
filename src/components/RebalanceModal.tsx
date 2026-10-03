@@ -18,7 +18,9 @@ interface RebalanceModalProps {
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
 export default function RebalanceModal({ options, balance, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
-  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn } = options;
+  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, netExcessKcal, netStepsNeeded } = options;
+  const isFullyCovered = netStepsNeeded === 0;
+  const creditedKcal = excessKcal - netExcessKcal;
 
   function choose(choice: RebalanceChoice) {
     onChoose(choice);
@@ -61,6 +63,20 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
           </p>
         </div>
 
+        {extraStepsWalkedToday > 0 && (
+          <div
+            className={`rounded-xl border p-3.5 text-sm font-semibold leading-relaxed ${
+              isFullyCovered
+                ? 'border-lime-400/50 bg-lime-400/15 text-lime-800 dark:text-lime-300'
+                : 'border-lime-400/30 bg-lime-400/5 text-zinc-800 dark:text-zinc-200'
+            }`}
+          >
+            {isFullyCovered
+              ? '🏆 צעדי הבונוס שהלכת היום כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.'
+              : `🎉 הלכת היום ${extraStepsWalkedToday.toLocaleString()} צעדים מעל היעד! קיזזנו אותם מחוב הפיצוי.`}
+          </div>
+        )}
+
         {/* Option 1: gentle taper */}
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
           <p className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
@@ -70,7 +86,8 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
           {taper.available ? (
             <>
               <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-                החריגה החד-פעמית של {excessKcal} קק״ל מתחלקת על פני {daysRemaining === 1 ? 'היום שנותר' : `${daysRemaining} הימים שנותרו`} בשבוע:
+                {creditedKcal > 0 ? `החריגה של ${excessKcal} קק״ל קוזזה בכ-${creditedKcal} קק״ל מהצעדים שכבר הלכת, ונותרו ${netExcessKcal} קק״ל` : `החריגה החד-פעמית של ${excessKcal} קק״ל`}{' '}
+                {daysRemaining === 1 ? 'לפיזור על היום שנותר בשבוע' : `מתחלקת על פני ${daysRemaining} הימים שנותרו בשבוע`}.{' '}
                 {daysRemaining === 1 ? (
                   <>
                     הפחתה של <b>{taper.perDayKcal} קק״ל</b> מהיעד של מחר (היום האחרון בשבוע).
@@ -79,8 +96,8 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
                   <>
                     הפחתה מתונה של <b>{taper.perDayKcal} קק״ל ליום</b> ב-{daysRemaining} הימים שנותרו בשבוע.
                   </>
-                )} היעד חוזר
-                לרגיל ביום ראשון.
+                )}{' '}
+                היעד חוזר לרגיל ביום ראשון.
                 {taper.capped && ' ההפחתה הוגבלה כדי לשמור על יעד בטוח, ולכן החריגה תאוזן חלקית.'}
               </p>
               <button
@@ -92,7 +109,9 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
               </button>
             </>
           ) : (
-            <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">השבוע מסתיים היום, ולכן אין ימים לפזר עליהם. אפשר לאזן בתנועה או להמשיך כרגיל.</p>
+            <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
+              {isFullyCovered ? 'הצעדים שהלכת היום כבר כיסו את החריגה - אין צורך בקיזוז קלורי.' : 'השבוע מסתיים היום, ולכן אין ימים לפזר עליהם. אפשר לאזן בתנועה או להמשיך כרגיל.'}
+            </p>
           )}
         </div>
 
@@ -103,33 +122,48 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
             השלמת תנועה (צעדים)
           </p>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-            {excessKcal} קק״ל שווים לכ-<b>{totalStepsToBurn.toLocaleString()} צעדים</b> בסך הכל (כ-40 קק״ל ל-1,000 צעדים).
+            {excessKcal} קק״ל שווים לכ-{Math.round((excessKcal / 40) * 1000).toLocaleString()} צעדים בסך הכל (כ-40 קק״ל ל-1,000 צעדים)
+            {extraStepsWalkedToday > 0 && !isFullyCovered && (
+              <>
+                {' '}
+                ואחרי הקיזוז נותרו <b>{totalStepsToBurn.toLocaleString()}</b>
+              </>
+            )}
+            .
           </p>
-          <button
-            type="button"
-            onClick={() => choose({ kind: 'steps', boost: stepsOneDay.steps, fromDate: stepsOneDay.date, toDate: stepsOneDay.date })}
-            className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
-          >
-            <span>
-              {stepsOneDay.isToday ? 'היום בלבד' : 'מחר בלבד'}: יעד צעדים {(baseStepGoal + stepsOneDay.steps).toLocaleString()} 👟
-            </span>
-            <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
-              הוסף כ-{stepsOneDay.steps.toLocaleString()} צעדים {stepsOneDay.isToday ? 'היום' : 'מחר'} בלבד (הליכה מתונה חד-פעמית, כ-{stepsOneDay.minutes} דקות)
-              {stepsOneDay.capped && ' - הוגבל לתוספת סבירה'}
-            </span>
-          </button>
-          {stepsSpread.available && (
-            <button
-              type="button"
-              onClick={() => choose({ kind: 'steps', boost: stepsSpread.perDay, fromDate: stepsSpread.fromDate })}
-              className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
-            >
-              <span>פיזור: יעד צעדים {(baseStepGoal + stepsSpread.perDay).toLocaleString()} בכל יום 👟</span>
-              <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
-                הוסף {stepsSpread.perDay.toLocaleString()} צעדים בכל יום עד סוף השבוע ({stepsSpread.days} ימים, כ-{stepsSpread.minutes} דקות ביום)
-                {stepsSpread.capped && ' - הוגבל, האיזון יהיה חלקי'}
-              </span>
+          {isFullyCovered ? (
+            <button type="button" onClick={() => choose({ kind: 'keep' })} className="btn-primary text-sm">
+              השאר יעד רגיל למחר ✓
             </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => choose({ kind: 'steps', boost: stepsOneDay.boost, fromDate: stepsOneDay.date, toDate: stepsOneDay.date })}
+                className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
+              >
+                <span>
+                  הוסף {stepsOneDay.steps.toLocaleString()} צעדים {stepsOneDay.isToday ? 'היום' : 'למחר'} בלבד (יעד מעודכן:{' '}
+                  {(baseStepGoal + stepsOneDay.boost).toLocaleString()}) 👟
+                </span>
+                <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
+                  הליכה מתונה חד-פעמית, כ-{stepsOneDay.minutes} דקות{stepsOneDay.capped && ' - הוגבל לתוספת סבירה'}
+                </span>
+              </button>
+              {stepsSpread.available && (
+                <button
+                  type="button"
+                  onClick={() => choose({ kind: 'steps', boost: stepsSpread.perDay, fromDate: stepsSpread.fromDate })}
+                  className="btn-secondary flex-col gap-0.5 py-2.5 text-sm"
+                >
+                  <span>פיזור: יעד צעדים {(baseStepGoal + stepsSpread.perDay).toLocaleString()} בכל יום 👟</span>
+                  <span className="text-[11px] font-normal text-zinc-600 dark:text-zinc-400">
+                    הוסף {stepsSpread.perDay.toLocaleString()} צעדים בכל יום עד סוף השבוע ({stepsSpread.days} ימים, כ-{stepsSpread.minutes} דקות ביום)
+                    {stepsSpread.capped && ' - הוגבל, האיזון יהיה חלקי'}
+                  </span>
+                </button>
+              )}
+            </>
           )}
         </div>
 
