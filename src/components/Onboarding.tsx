@@ -78,8 +78,8 @@ const GOAL_OPTIONS: {
 ];
 
 const GOAL_INTENSITY_OPTIONS: { value: GoalIntensity; label: string; description: string }[] = [
-  { value: 'moderate', label: 'מתונה / מבוקרת', description: '150-200 קק״ל עודף (~8% מה-TDEE)' },
-  { value: 'aggressive', label: 'אגרסיבית', description: '300-400 קק״ל עודף' },
+  { value: 'moderate', label: 'מתונה / מבוקרת', description: '200-250 קק״ל עודף (~10% מה-TDEE)' },
+  { value: 'aggressive', label: 'אגרסיבית', description: 'כ-400 קק״ל עודף' },
 ];
 
 const TRAINING_DAYS_OPTIONS: TrainingDaysPerWeek[] = [2, 3, 4, 5, 6];

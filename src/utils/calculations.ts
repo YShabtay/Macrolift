@@ -59,18 +59,21 @@ export function calculateTDEE(metrics: UserMetrics): number {
 // ---------------------------------------------------------------------------
 
 /** Fixed daily deficit for weight loss. The target never drops below BMR. */
-const WEIGHT_LOSS_DEFICIT_KCAL = 400;
+const WEIGHT_LOSS_DEFICIT_KCAL = 450;
 
 /** Recomposition: a slight deficit, as a fraction of TDEE. */
 const RECOMP_DEFICIT_FRACTION = 0.05;
 
-/** Lean-bulk ('gain_muscle') daily surplus in kcal: +250 for a clean bulk, more for the aggressive pace. */
+/**
+ * 'gain_muscle' daily surplus in kcal. A clean lean bulk needs ~200-250 kcal (about 10% of TDEE) - 120 is lost in NEAT swings and
+ * food-label error; the faster 'bulk' pace adds 400.
+ */
 const LEAN_BULK_SURPLUS_KCAL: Record<GoalIntensity, number> = {
-  moderate: 250,
+  moderate: 220,
   aggressive: 400,
 };
 
-/** Daily calorie target for a goal: TDEE minus 400 (loss, floored at BMR), TDEE (maintain), or TDEE plus 250 (muscle gain). */
+/** Daily calorie target for a goal: TDEE minus 450 (cut, floored at BMR), TDEE (maintain), TDEE plus 220 (lean bulk) or plus 400 (faster bulk). */
 export function calculateTargetCalories(
   tdee: number,
   goal: Goal,

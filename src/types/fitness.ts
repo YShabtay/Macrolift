@@ -12,7 +12,7 @@ export type Goal = 'lose_weight' | 'maintain' | 'gain_muscle' | 'recomp';
 
 /**
  * Surplus aggressiveness for the "gain_muscle" goal (lean bulk).
- * moderate: ~250 kcal above maintenance (clean lean bulk).
+ * moderate: ~220 kcal above maintenance (clean lean bulk, ~10% of TDEE).
  * aggressive: ~400 kcal above maintenance (faster gain, more fat gain risk).
  */
 export type GoalIntensity = 'moderate' | 'aggressive';
