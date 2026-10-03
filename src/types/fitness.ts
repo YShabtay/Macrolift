@@ -261,6 +261,8 @@ export interface FoodEntry {
   quantity: string; // free-text descriptive quantity, e.g. "100 גרם" or "1 יחידה"
   /** Numeric portion weight in grams, when known - powers weight-ratio recalculation when editing. */
   weightGrams?: number;
+  /** The amount as the user said it in natural units, e.g. "3 ביצים" - shown as the entry title when set. */
+  unitLabel?: string;
   /** Local time the entry was logged, "HH:MM" (24h). */
   time?: string;
   calories: number;

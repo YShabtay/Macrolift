@@ -26,7 +26,7 @@ import { FoodSearch, ServingPanel } from './FoodSearch';
 import PhotoSourceSheet from './PhotoSourceSheet';
 import VoiceMealModal from './VoiceMealModal';
 import Toast from './Toast';
-import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
+import { calculateRemaining, getEntriesForDate, getEntryTitle, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
 import { formatMacro } from '../utils/formatMacro';
 
@@ -333,7 +333,9 @@ function MealSection({
   onScan: () => void;
   onDelete: (id: string) => void;
 }) {
-  const mealCalories = entries.reduce((sum, e) => sum + e.calories, 0);
+  // Recomputed from the entries on every add / delete / edit.
+  const mealTotals = useMemo(() => sumTotals(entries), [entries]);
+  const mealCalories = mealTotals.calories;
   const MealIcon = MEAL_ICONS[meal];
 
   return (
@@ -375,9 +377,9 @@ function MealSection({
           {entries.map((entry) => (
             <div key={entry.id} className="flex items-center justify-between rounded-lg bg-white/60 dark:bg-zinc-900/60 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{entry.name}</p>
+                <p className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{getEntryTitle(entry)}</p>
                 <p className="text-[11px] text-zinc-600 dark:text-zinc-500">
-                  {entry.quantity} &middot; {formatMacro(entry.calories)} קק״ל &middot; {formatMacro(entry.proteinG)}ח׳ {formatMacro(entry.fatG)}ש׳{' '}
+                  {entry.quantity} &bull; {formatMacro(entry.calories)} קק״ל &bull; {formatMacro(entry.proteinG)}ח׳ {formatMacro(entry.fatG)}ש׳{' '}
                   {formatMacro(entry.carbsG)}פ׳
                 </p>
               </div>
@@ -393,7 +395,28 @@ function MealSection({
           ))}
         </div>
       )}
+
+      {entries.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-zinc-200 dark:border-zinc-800 pt-2.5 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
+          <span className="font-bold text-zinc-900 dark:text-zinc-100">
+            סה״כ לארוחה: {formatMacro(mealTotals.calories)} קק״ל
+          </span>
+          <MacroTotal dotClass="bg-lime-400" label="חלבון" grams={mealTotals.proteinG} />
+          <MacroTotal dotClass="bg-zinc-400 dark:bg-zinc-200" label="פחמימה" grams={mealTotals.carbsG} />
+          <MacroTotal dotClass="bg-orange-400" label="שומן" grams={mealTotals.fatG} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function MacroTotal({ dotClass, label, grams }: { dotClass: string; label: string; grams: number }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">&bull;</span>
+      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dotClass}`} />
+      {formatMacro(grams)}ג׳ {label}
+    </span>
   );
 }
 

@@ -154,6 +154,7 @@ function normalizeFoodEntry(raw: unknown): FoodEntry | null {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'פריט',
     quantity: typeof raw.quantity === 'string' ? raw.quantity : '',
     weightGrams: isFiniteNumber(raw.weightGrams) ? raw.weightGrams : undefined,
+    unitLabel: typeof raw.unitLabel === 'string' && raw.unitLabel.trim() ? raw.unitLabel.trim().slice(0, 60) : undefined,
     time: typeof raw.time === 'string' ? raw.time : undefined,
     calories,
     proteinG: num(raw.proteinG ?? raw.protein),

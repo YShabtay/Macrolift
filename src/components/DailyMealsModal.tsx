@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pencil, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type { FoodEntry } from '../types/fitness';
-import { MEAL_LABELS, sumTotals } from '../utils/nutritionLog';
+import { getEntryTitle, MEAL_LABELS, sumTotals } from '../utils/nutritionLog';
 import EditMealModal from './EditMealModal';
 import Toast from './Toast';
 
@@ -144,7 +144,7 @@ function MealRow({
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 p-3.5">
       <div className="mb-2.5 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">{entry.name}</p>
+          <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">{getEntryTitle(entry)}</p>
           <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-500">
             {MEAL_LABELS[entry.meal]}
             {entry.time && ` · ${entry.time}`}

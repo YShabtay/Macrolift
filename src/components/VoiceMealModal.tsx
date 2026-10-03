@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, Loader2, Mic, MicOff, RotateCw, Square, Trash2, X } from 'lucide-react';
 import type { FoodEntry, Meal } from '../types/fitness';
-import { MEAL_LABELS, MEAL_ORDER } from '../utils/nutritionLog';
+import { MEAL_LABELS, MEAL_ORDER, toUnitLabel } from '../utils/nutritionLog';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { MissingApiKeyError, parseMealDescription, type VoiceFoodItem } from '../services/voiceMealParser';
 
@@ -27,6 +27,8 @@ function scaled(row: ReviewRow) {
   const factor = Number.isFinite(grams) && grams > 0 ? grams / row.item.grams : 0;
   return {
     grams: factor > 0 ? grams : 0,
+    // The spoken amount ("3 ביצים") only describes the original weight; once the user edits it, fall back to the food name.
+    unitLabel: factor === 1 ? toUnitLabel(row.item.amount) : undefined,
     calories: Math.round(row.item.calories * factor),
     protein: Math.round(row.item.protein * factor * 10) / 10,
     carbs: Math.round(row.item.carbs * factor * 10) / 10,
@@ -117,6 +119,7 @@ export default function VoiceMealModal({ meal: initialMeal, date, onClose, onCon
           date,
           meal: selectedMeal,
           name: row.item.name,
+          ...(s.unitLabel ? { unitLabel: s.unitLabel } : {}),
           quantity: `${s.grams} גרם`,
           weightGrams: s.grams,
           calories: s.calories,
@@ -279,9 +282,9 @@ export default function VoiceMealModal({ meal: initialMeal, date, onClose, onCon
                     className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.item.name}</p>
+                      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{s.unitLabel ?? row.item.name}</p>
                       <p className="text-[11px] text-zinc-600 dark:text-zinc-500">
-                        {s.calories} קק״ל · ח׳ {s.protein} · פ׳ {s.carbs} · ש׳ {s.fat}
+                        {s.grams > 0 ? `${s.grams} גרם • ` : ''}{s.calories} קק״ל • {s.protein}ח׳ {s.fat}ש׳ {s.carbs}פ׳
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

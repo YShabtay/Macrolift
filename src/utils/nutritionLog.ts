@@ -41,6 +41,21 @@ export function sumTotals(entries: FoodEntry[]): DailyTotals {
   );
 }
 
+/** What an entry is called in lists: the natural amount the user said ("3 ביצים") when known, otherwise the food name. */
+export function getEntryTitle(entry: FoodEntry): string {
+  return entry.unitLabel ?? entry.name;
+}
+
+const WEIGHT_OR_VOLUME_AMOUNT = /גרם|גר[׳'’]|ג[׳'’]|ק״ג|קילו|מ״ל|מיליליטר|ליטר|\bg\b|\bml\b/i;
+
+/** Natural-unit amounts start with a count and are not a plain weight/volume: "3 ביצים", "2 פרוסות לחם" (not "200 גרם"). */
+export function toUnitLabel(amount: string): string | undefined {
+  const text = amount.trim();
+  if (text.length === 0 || text.length > 40) return undefined;
+  if (!/^\d+(\.\d+)?\s*\S/.test(text) || WEIGHT_OR_VOLUME_AMOUNT.test(text)) return undefined;
+  return text;
+}
+
 export function calculateRemaining(
   targetCalories: number,
   targetMacros: MacroGrams,

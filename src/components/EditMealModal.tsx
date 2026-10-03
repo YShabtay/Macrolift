@@ -87,6 +87,11 @@ export default function EditMealModal({ entry, onSave, onClose }: EditMealModalP
             ? `${weightGrams.trim()} גרם`
             : entry.quantity,
       weightGrams: weightGrams.trim() ? Number(weightGrams) : undefined,
+      // The spoken amount ("3 ביצים") only stays valid while the name and weight it described are untouched.
+      unitLabel:
+        name.trim() === entry.name && !(selectedUnit && unitQtyValid) && weightGrams.trim() !== '' && Number(weightGrams) === entry.weightGrams
+          ? entry.unitLabel
+          : undefined,
       calories: cal,
       proteinG: Number(proteinG) || 0,
       carbsG: Number(carbsG) || 0,

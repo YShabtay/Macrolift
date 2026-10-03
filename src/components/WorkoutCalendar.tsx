@@ -82,31 +82,33 @@ export default function WorkoutCalendar({
       </div>
 
       <div className="glass-card p-4 sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => shiftAnchor(1)}
-              aria-label="הבא"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+        <div className="mb-4 flex flex-col gap-3">
+          {/* RTL: the first child sits on the right. Right arrow = back in time, left arrow = forward. */}
+          <div dir="rtl" className="flex items-center justify-between">
             <button
               type="button"
               onClick={() => shiftAnchor(-1)}
-              aria-label="הקודם"
+              aria-label={viewMode === 'month' ? 'החודש הקודם' : 'השבוע הקודם'}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
+
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {HEBREW_MONTHS[anchorDate.getMonth()]} {anchorDate.getFullYear()}
+            </h2>
+
+            <button
+              type="button"
+              onClick={() => shiftAnchor(1)}
+              aria-label={viewMode === 'month' ? 'החודש הבא' : 'השבוע הבא'}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50 hover:text-lime-700 dark:hover:text-lime-400"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
           </div>
 
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-            {HEBREW_MONTHS[anchorDate.getMonth()]} {anchorDate.getFullYear()}
-          </h2>
-
-          <div className="flex gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1">
+          <div className="flex gap-1 self-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1">
             <button
               type="button"
               onClick={() => setViewMode('month')}
