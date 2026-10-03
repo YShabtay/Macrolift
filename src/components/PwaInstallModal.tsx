@@ -1,6 +1,8 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, CheckCircle2, Compass, Download, MoreVertical, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Compass, Download, MoreVertical, Save, X } from 'lucide-react';
+import type { AppState } from '../types/fitness';
+import { downloadBackup, hasTrackedData } from '../utils/backupExport';
 import {
   detectPlatform,
   getInstallPrompt,
@@ -84,17 +86,28 @@ const ANDROID_STEPS: GuideStep[] = [
 ];
 
 interface PwaInstallModalProps {
+  /** When given, a backup card is shown first if the user already has data in this browser. */
+  appState?: AppState;
   onClose: () => void;
 }
 
 /** Step-by-step guide for adding MacroLift to the home screen on iPhone (Safari) and Android (Chrome / Samsung). */
-export default function PwaInstallModal({ onClose }: PwaInstallModalProps) {
+export default function PwaInstallModal({ appState, onClose }: PwaInstallModalProps) {
   // Opens on the tab matching the detected device; desktop visitors get the iPhone guide first.
   const [tab, setTab] = useState<GuideTab>(() => (detectPlatform() === 'android' ? 'android' : 'ios'));
   const platform: InstallPlatform = detectPlatform();
   const installPrompt = useSyncExternalStore(subscribeInstallPrompt, getInstallPrompt, () => null);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
   const alreadyInstalled = isStandalone();
+  // Browser storage and the home-screen app's storage are separate on iPhone, so existing data has to travel in a backup file.
+  const hasExistingData = !alreadyInstalled && !!appState && hasTrackedData(appState);
+  const [isBackupDone, setIsBackupDone] = useState(false);
+
+  async function handleDownloadBackup() {
+    if (!appState) return;
+    await downloadBackup(appState);
+    setIsBackupDone(true);
+  }
 
   const steps = tab === 'ios' ? IOS_STEPS : ANDROID_STEPS;
 
@@ -151,6 +164,22 @@ export default function PwaInstallModal({ onClose }: PwaInstallModalProps) {
         </div>
 
         <div className="overflow-y-auto p-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
+          {hasExistingData && (
+            <div className="mb-4 rounded-xl border border-orange-400/50 bg-orange-400/10 p-3.5">
+              <p className="flex items-start gap-2 text-sm font-extrabold leading-snug text-orange-700 dark:text-orange-300">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                ⚠️ יש לך נתונים שמורים בדפדפן! כדי שהם לא ייעלמו במעבר למסך הבית, הורד גיבוי עכשיו:
+              </p>
+              <button type="button" onClick={() => void handleDownloadBackup()} className="btn-primary mt-3 w-full">
+                <Save className="h-4 w-4" />
+                הורד קובץ גיבוי של הנתונים שלך 💾
+              </button>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                {isBackupDone ? '✅ הקובץ ירד. ' : ''}לאחר פתיחת האפליקציה במסך הבית, תוכל לטעון את הקובץ בלחיצה אחת.
+              </p>
+            </div>
+          )}
+
           {alreadyInstalled && (
             <p className="mb-3 flex items-center gap-2 rounded-xl border border-lime-400/30 bg-lime-400/5 px-3 py-2.5 text-xs font-semibold text-lime-700 dark:text-lime-400">
               <CheckCircle2 className="h-4 w-4 shrink-0" />

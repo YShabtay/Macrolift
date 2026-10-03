@@ -1,8 +1,8 @@
 import { Smartphone, X } from 'lucide-react';
 
 interface PwaInstallBannerProps {
-  /** 'first-install' is the beginner tip for a profile with no data yet; 'default' is the regular nudge. */
-  variant?: 'default' | 'first-install';
+  /** 'first-install': beginner tip for a profile with no data yet. 'has-data': a meal or workout is already logged in the browser. 'default': the regular nudge. */
+  variant?: 'default' | 'first-install' | 'has-data';
   onOpen: () => void;
   onDismiss: () => void;
 }
@@ -16,7 +16,12 @@ export default function PwaInstallBanner({ variant = 'default', onOpen, onDismis
         <Smartphone className="h-5 w-5" />
       </span>
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-right">
-        {isFirstInstall ? (
+        {variant === 'has-data' ? (
+          <>
+            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">מתכנן להוסיף למסך הבית? 💾</p>
+            <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-400">לחץ כאן להסבר ושמירת הנתונים</p>
+          </>
+        ) : isFirstInstall ? (
           <>
             <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">טיפ למתחילים 📲</p>
             <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-400">התקן קודם את האפליקציה למסך הבית כדי שהמעקב יישמר ישירות בתוכה</p>

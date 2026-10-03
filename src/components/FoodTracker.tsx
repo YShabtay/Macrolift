@@ -27,6 +27,8 @@ import PhotoSourceSheet from './PhotoSourceSheet';
 import VoiceMealModal from './VoiceMealModal';
 import Toast from './Toast';
 import DecimalInput from './DecimalInput';
+import PwaInstallBanner from './PwaInstallBanner';
+import { useInstallBanner } from '../hooks/useInstallBanner';
 import { parseDecimal } from '../utils/decimalInput';
 import { calculateRemaining, getEntriesForDate, getEntryTitle, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
 import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
@@ -49,6 +51,8 @@ interface FoodTrackerProps {
   weeklyBalance?: WeeklyBalanceAdjustment;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   onDeleteFood: (id: string) => void;
+  /** Opens the add-to-home-screen guide (shown from the "keep your data" banner). */
+  onOpenInstallGuide: () => void;
 }
 
 function shiftDate(dateStr: string, days: number): string {
@@ -60,7 +64,8 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, onDeleteFood }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, onDeleteFood, onOpenInstallGuide }: FoodTrackerProps) {
+  const installBanner = useInstallBanner();
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
@@ -76,6 +81,10 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
 
   return (
     <div className="flex flex-col gap-5">
+      {installBanner.isVisible && foodLog.length > 0 && (
+        <PwaInstallBanner variant="has-data" onOpen={onOpenInstallGuide} onDismiss={installBanner.dismiss} />
+      )}
+
       <HeroCarousel
         compact
         slides={[

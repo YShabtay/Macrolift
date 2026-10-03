@@ -54,6 +54,25 @@ export function snoozeInstallBanner(now: number = Date.now()): void {
   }
 }
 
+const STANDALONE_WELCOME_SEEN_KEY = 'macrolift-has-seen-standalone-welcome';
+
+/** Whether the first-launch welcome (restore a backup or start fresh) already showed in the installed app. */
+export function hasSeenStandaloneWelcome(): boolean {
+  try {
+    return localStorage.getItem(STANDALONE_WELCOME_SEEN_KEY) === 'true';
+  } catch {
+    return true; // Can't remember the choice, so don't risk showing it on every launch.
+  }
+}
+
+export function markStandaloneWelcomeSeen(): void {
+  try {
+    localStorage.setItem(STANDALONE_WELCOME_SEEN_KEY, 'true');
+  } catch {
+    // Storage blocked: nothing to persist.
+  }
+}
+
 // --- Install prompt capture ------------------------------------------------------------------------------------
 // Chrome fires `beforeinstallprompt` once, early, so it's captured here (imported from main.tsx) and handed to
 // whichever component asks for it later.

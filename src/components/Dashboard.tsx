@@ -58,7 +58,8 @@ import SectionErrorBoundary from './SectionErrorBoundary';
 import { storageService } from '../services/storageService';
 import { getFrequencyRecommendation } from '../data/workoutTemplates';
 import PwaInstallBanner from './PwaInstallBanner';
-import { shouldShowInstallBanner, snoozeInstallBanner } from '../utils/pwaInstall';
+import { useInstallBanner } from '../hooks/useInstallBanner';
+import { downloadBackup, hasLoggedMealOrWorkout } from '../utils/backupExport';
 import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
@@ -276,6 +277,7 @@ export default function Dashboard({
     setTab('workout');
   };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const restTimerStatus = useRestTimer().status;
   const [isTourOpen, setIsTourOpen] = useState(false);
   const profileId = appState.profile.id;
@@ -382,6 +384,7 @@ export default function Dashboard({
               onUpdateFood={onUpdateFood}
               onNavigate={selectTab}
               onOpenWorkoutCalendar={openWorkoutCalendar}
+              onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
             />
           )}
           {tab === 'workout' && (
@@ -407,6 +410,7 @@ export default function Dashboard({
               weeklyBalance={appState.weeklyBalance}
               onAddFood={onAddFood}
               onDeleteFood={onDeleteFood}
+              onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
             />
           )}
           {tab === 'progress' && (
@@ -440,6 +444,7 @@ export default function Dashboard({
               onRequestReset={() => setIsResetConfirmOpen(true)}
               onLogout={onLogout}
               onStartTour={() => setIsTourOpen(true)}
+              onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
             />
           )}
           </SectionErrorBoundary>
@@ -468,6 +473,8 @@ export default function Dashboard({
         })}
       </nav>
 
+      {isInstallGuideOpen && <PwaInstallModal appState={appState} onClose={() => setIsInstallGuideOpen(false)} />}
+
       {isResetConfirmOpen && (
         <ResetConfirmModal onConfirm={onReset} onClose={() => setIsResetConfirmOpen(false)} />
       )}
@@ -493,6 +500,7 @@ function DashboardTab({
   onUpdateFood,
   onNavigate,
   onOpenWorkoutCalendar,
+  onOpenInstallGuide,
 }: {
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
@@ -508,6 +516,8 @@ function DashboardTab({
   onNavigate: (tab: Tab) => void;
   /** Opens the workout screen directly on its calendar view. */
   onOpenWorkoutCalendar: () => void;
+  /** Opens the add-to-home-screen guide. */
+  onOpenInstallGuide: () => void;
 }) {
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
@@ -517,7 +527,7 @@ function DashboardTab({
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
   const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
-  const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(() => shouldShowInstallBanner());
+  const installBanner = useInstallBanner();
   // A brand-new, still-empty profile in a browser tab: the moment to suggest installing first, so tracking starts inside the installed app.
   const isStorageFresh =
     appState.weightLogs.length === 0 &&
@@ -525,7 +535,6 @@ function DashboardTab({
     appState.progress.length === 0 &&
     appState.progressPhotos.length === 0 &&
     appState.stepLogs.length === 0;
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
@@ -635,18 +644,13 @@ function DashboardTab({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">הנה סיכום היעדים והאימון שלך להיום</p>
       </div>
 
-      {isInstallBannerVisible && (
+      {installBanner.isVisible && (
         <PwaInstallBanner
-          variant={isStorageFresh ? 'first-install' : 'default'}
-          onOpen={() => setIsInstallGuideOpen(true)}
-          onDismiss={() => {
-            snoozeInstallBanner();
-            setIsInstallBannerVisible(false);
-          }}
+          variant={hasLoggedMealOrWorkout(appState) ? 'has-data' : isStorageFresh ? 'first-install' : 'default'}
+          onOpen={onOpenInstallGuide}
+          onDismiss={installBanner.dismiss}
         />
       )}
-
-      {isInstallGuideOpen && <PwaInstallModal onClose={() => setIsInstallGuideOpen(false)} />}
 
       {showWorkoutBanner && plannedToday && (
         <WorkoutDayBanner
@@ -1682,6 +1686,7 @@ function ProfileTab({
   onRequestReset,
   onLogout,
   onStartTour,
+  onOpenInstallGuide,
 }: {
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
@@ -1695,12 +1700,12 @@ function ProfileTab({
   onRequestReset: () => void;
   onLogout: () => void;
   onStartTour: () => void;
+  onOpenInstallGuide: () => void;
 }) {
   const { profile, nutritionPlan } = appState;
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
@@ -1717,19 +1722,7 @@ function ProfileTab({
   }
 
   async function handleExportData() {
-    // Everything the app keeps on this device: the whole app state (profile, nutrition, workouts, photos, steps...) plus the
-    // user's own foods and exercise-video links, which live outside the app state.
-    const [customFoods, customExerciseVideos] = await Promise.all([storageService.getCustomFoods(), storageService.getCustomExerciseVideos()]);
-    const payload = { version: 2, exportedAt: new Date().toISOString(), appState, customFoods, customExerciseVideos };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `macrolift-backup-${todayIso()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await downloadBackup(appState);
     setToastMessage('הנתונים יוצאו בהצלחה');
   }
 
@@ -1982,7 +1975,7 @@ function ProfileTab({
 
       <button
         type="button"
-        onClick={() => setIsInstallGuideOpen(true)}
+        onClick={onOpenInstallGuide}
         className="glass-card flex w-full items-center gap-3 border-lime-400/30 p-4 text-right transition hover:border-lime-400/60 sm:p-5"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-400 text-zinc-950">
@@ -2079,8 +2072,6 @@ function ProfileTab({
       )}
 
       {isHelpOpen && <HelpCenterModal onClose={() => setIsHelpOpen(false)} />}
-      {isInstallGuideOpen && <PwaInstallModal onClose={() => setIsInstallGuideOpen(false)} />}
-
       {restoreResult && <RestoreResultModal result={restoreResult} onClose={() => setRestoreResult(null)} />}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
