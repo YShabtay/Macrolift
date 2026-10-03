@@ -2,18 +2,44 @@ import { createPortal } from 'react-dom';
 import { Rocket, X } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+/** Focus, visibility and reconnect events often fire together; one check per window is enough. */
+const MIN_CHECK_GAP_MS = 10_000;
 
 // The component can mount more than once (auth -> app, StrictMode); the update checks must be set up only once.
 let isUpdateCheckScheduled = false;
 
 /**
- * Surfaces a new app version as an explicit choice instead of the service worker silently reloading the page
- * (registerType: 'prompt' in vite.config.ts) - a reload in the middle of a set or a form would feel like data loss even
- * though localStorage itself is untouched by an update. The update only applies once the user taps the toast.
+ * Asks the browser to re-fetch the service worker file whenever the app could have been away: it comes back to the foreground
+ * (visibilitychange / focus), the connection returns (online), and every 15 minutes while it stays open. An installed iPhone app
+ * can sit in memory for days, and the browser's own update check only runs on a full navigation - without these triggers a new
+ * version would only be noticed after a manual pull-to-refresh. A found update surfaces through `needRefresh` below.
+ */
+function startBackgroundUpdateChecks(registration: ServiceWorkerRegistration) {
+  let lastCheck = 0;
+  const check = () => {
+    const now = Date.now();
+    if (now - lastCheck < MIN_CHECK_GAP_MS) return;
+    lastCheck = now;
+    registration.update().catch(() => {});
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check();
+  });
+  window.addEventListener('focus', check);
+  window.addEventListener('online', check);
+  setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+  check(); // right after the app opens
+}
+
+/**
+ * Surfaces a new app version as an explicit choice instead of silently reloading the page (registerType: 'prompt' in
+ * vite.config.ts) - a reload in the middle of a set or a form would feel like data loss even though localStorage itself is
+ * untouched by an update.
  *
- * A gentle toast above the bottom navigation (not a blocking dialog). The worker is also asked for updates every hour and
- * whenever the app returns to the foreground, because an installed iPhone app can stay open for days without a reload.
+ * Tapping "עדכן עכשיו" sends SKIP_WAITING to the waiting worker and reloads once it takes control (controllerchange), which
+ * is what `updateServiceWorker(true)` does. A gentle toast above the bottom navigation, not a blocking dialog.
  */
 export default function UpdatePrompt() {
   const {
@@ -23,13 +49,7 @@ export default function UpdatePrompt() {
     onRegisteredSW(_url, registration) {
       if (!registration || isUpdateCheckScheduled) return;
       isUpdateCheckScheduled = true;
-      const check = () => {
-        registration.update().catch(() => undefined);
-      };
-      setInterval(check, UPDATE_CHECK_INTERVAL_MS);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') check();
-      });
+      startBackgroundUpdateChecks(registration);
     },
   });
 
@@ -46,7 +66,8 @@ export default function UpdatePrompt() {
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400 text-zinc-950">
             <Rocket className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold leading-snug text-zinc-100">גרסה חדשה של MacroLift זמינה! לחץ לרענון 🚀</span>
+          <span className="min-w-0 flex-1 text-sm font-semibold leading-snug text-zinc-100">🚀 גרסה חדשה של MacroLift זמינה!</span>
+          <span className="shrink-0 rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-extrabold text-zinc-950">עדכן עכשיו 🔄</span>
         </button>
         <button
           type="button"
