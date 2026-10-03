@@ -1,5 +1,4 @@
 import type {
-  ActivityLevel,
   Goal,
   GoalIntensity,
   MacroGrams,
@@ -8,38 +7,30 @@ import type {
 } from '../types/fitness';
 
 // ---------------------------------------------------------------------------
-// Activity level & TDEE multipliers
+// Activity level (PAL) & TDEE
 // ---------------------------------------------------------------------------
 
-/** Derives a NEAT-based activity level from average daily step count. */
-export function getActivityLevelFromSteps(steps: number): ActivityLevel {
-  if (steps < 5_000) return 'sedentary';
-  if (steps < 8_000) return 'light';
-  return 'active';
-}
+/** Physical-activity-level multipliers applied to BMR: desk job / 1-3 sessions a week / 3-5 sessions / daily intense training. */
+const PAL_TIERS = [
+  { key: 'sedentary', multiplier: 1.2 },
+  { key: 'light', multiplier: 1.35 },
+  { key: 'moderate', multiplier: 1.5 },
+  { key: 'very_active', multiplier: 1.7 },
+] as const;
 
-const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
-  sedentary: 1.15, // under 5,000 steps
-  light: 1.25, // 5,000 - 8,000 steps
-  active: 1.35, // over 8,000 steps
-};
-
-/** Extra thermic bonus per weekly resistance-training session, on top of NEAT. */
-const TRAINING_DAY_BONUS = 0.05;
+/** Daily steps at or above this move the user one tier up, below `LOW_STEPS` one tier down - walking matters beyond the gym. */
+const HIGH_STEPS = 10_000;
+const LOW_STEPS = 4_000;
 
 /**
- * Combined activity multiplier: NEAT (from steps) plus a bonus for the
- * declared weekly resistance-training frequency, so a low step count doesn't
- * drown out several weekly training sessions (e.g. 4,800 steps + 3 sessions
- * should land around 1.3-1.4, not be flattened to a plain "sedentary" 1.15).
+ * Activity multiplier from the declared weekly resistance sessions (the main driver: 0-1 sedentary, 2-3 light, 4-5 moderate,
+ * 6+ very active), nudged one tier up for a very high step count or one tier down for a very low one.
  */
-export function getActivityMultiplier(
-  steps: number,
-  trainingDaysPerWeek: number,
-): number {
-  const base = ACTIVITY_MULTIPLIERS[getActivityLevelFromSteps(steps)];
-  const trainingBonus = trainingDaysPerWeek * TRAINING_DAY_BONUS;
-  return base + trainingBonus;
+export function getActivityMultiplier(steps: number, trainingDaysPerWeek: number): number {
+  const fromTraining = trainingDaysPerWeek >= 6 ? 3 : trainingDaysPerWeek >= 4 ? 2 : trainingDaysPerWeek >= 2 ? 1 : 0;
+  const stepShift = steps >= HIGH_STEPS ? 1 : steps < LOW_STEPS ? -1 : 0;
+  const tier = Math.min(Math.max(fromTraining + stepShift, 0), PAL_TIERS.length - 1);
+  return PAL_TIERS[tier].multiplier;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,46 +48,46 @@ export function calculateBMR(metrics: UserMetrics): number {
   return gender === 'male' ? base + 5 : base - 161;
 }
 
+/** TDEE = BMR x activity multiplier, rounded to whole kcal. */
 export function calculateTDEE(metrics: UserMetrics): number {
-  const bmr = calculateBMR(metrics);
-  const multiplier = getActivityMultiplier(
-    metrics.averageDailySteps,
-    metrics.trainingDaysPerWeek,
-  );
-  return bmr * multiplier;
+  const multiplier = getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek);
+  return Math.round(calculateBMR(metrics) * multiplier);
 }
 
 // ---------------------------------------------------------------------------
 // Goal-based calorie target
 // ---------------------------------------------------------------------------
 
-/** Fractional calorie adjustment applied to TDEE, for every goal except the lean-bulk ('gain_muscle'). */
-const GOAL_CALORIE_ADJUSTMENT: Record<Exclude<Goal, 'gain_muscle'>, number> = {
-  lose_weight: -0.2, // ~20% deficit
-  maintain: 0,
-  recomp: -0.05, // slight deficit, body recomposition
+/** Fixed daily deficit for weight loss. The target never drops below BMR. */
+const WEIGHT_LOSS_DEFICIT_KCAL = 400;
+
+/** Recomposition: a slight deficit, as a fraction of TDEE. */
+const RECOMP_DEFICIT_FRACTION = 0.05;
+
+/** Lean-bulk ('gain_muscle') daily surplus in kcal: +250 for a clean bulk, more for the aggressive pace. */
+const LEAN_BULK_SURPLUS_KCAL: Record<GoalIntensity, number> = {
+  moderate: 250,
+  aggressive: 400,
 };
 
-/** Lean-bulk ('gain_muscle') calorie surplus, as a fraction of TDEE. */
-const LEAN_BULK_SURPLUS_FRACTION: Record<GoalIntensity, number> = {
-  moderate: 0.1,
-  aggressive: 0.12,
-};
-
-function calculateLeanBulkSurplus(tdee: number, intensity: GoalIntensity): number {
-  return tdee * LEAN_BULK_SURPLUS_FRACTION[intensity];
-}
-
+/** Daily calorie target for a goal: TDEE minus 400 (loss, floored at BMR), TDEE (maintain), or TDEE plus 250 (muscle gain). */
 export function calculateTargetCalories(
   tdee: number,
   goal: Goal,
   goalIntensity: GoalIntensity = 'moderate',
+  bmr = 0,
 ): number {
-  if (goal === 'gain_muscle') {
-    return Math.round(tdee + calculateLeanBulkSurplus(tdee, goalIntensity));
+  switch (goal) {
+    case 'gain_muscle':
+      return Math.round(tdee + LEAN_BULK_SURPLUS_KCAL[goalIntensity]);
+    case 'lose_weight':
+      return Math.round(Math.max(tdee - WEIGHT_LOSS_DEFICIT_KCAL, bmr));
+    case 'recomp':
+      return Math.round(Math.max(tdee * (1 - RECOMP_DEFICIT_FRACTION), bmr));
+    case 'maintain':
+    default:
+      return Math.round(tdee);
   }
-  const adjustment = GOAL_CALORIE_ADJUSTMENT[goal];
-  return Math.round(tdee * (1 + adjustment));
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +139,7 @@ export function calculateMacros(
 export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
   const bmr = calculateBMR(metrics);
   const tdee = calculateTDEE(metrics);
-  const targetCalories = calculateTargetCalories(tdee, metrics.goal, metrics.goalIntensity);
+  const targetCalories = calculateTargetCalories(tdee, metrics.goal, metrics.goalIntensity, bmr);
   const macros = calculateMacros(targetCalories, metrics.weightKg, metrics.goal);
 
   return {

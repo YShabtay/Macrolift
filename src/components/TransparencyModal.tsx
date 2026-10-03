@@ -1,4 +1,5 @@
 import { formatMacro } from '../utils/formatMacro';
+import { getActivityMultiplier } from '../utils/calculations';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Flame, GraduationCap, PieChart, Target, X } from 'lucide-react';
@@ -21,7 +22,7 @@ function getGoalExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan):
       return `בחרת במסה מבוקרת (Lean Bulk) בעצימות ${intensityLabel} – הוספנו כ-${delta} קק״ל בלבד מעל התחזוקה (TDEE) כדי למקסם בניית שריר ולמנוע צבירת שומן מיותרת.`;
     }
     case 'lose_weight':
-      return `בחרת בירידה במשקל – יצרנו גירעון של כ-${delta} קק״ל ביום (כ-20% מתחת לתחזוקה), קצב שנחשב בטוח ובר-קיימא לירידה בשומן תוך שמירה מרבית על מסת השריר.`;
+      return `בחרת בירידה במשקל – יצרנו גירעון של כ-${delta} קק״ל ביום מתחת לתחזוקה (ולא מתחת לחילוף החומרים הבסיסי שלך), קצב שנחשב בטוח ובר-קיימא לירידה בשומן תוך שמירה מרבית על מסת השריר.`;
     case 'recomp':
       return `בחרת בשיפור הרכב גוף – גירעון קל של כ-${delta} קק״ל (כ-5% מתחת לתחזוקה) מאפשר ירידה הדרגתית בשומן תוך שמירה על מסת השריר, בשילוב אימוני כוח וחלבון גבוה.`;
     case 'maintain':
@@ -83,7 +84,7 @@ export default function TransparencyModal({ metrics, nutritionPlan, variant = 'b
                 <ExplanationSection
                   icon={Flame}
                   title="חישוב ה-TDEE"
-                  text={`חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. בהתחשב בממוצע של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים ו-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע, אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך.`}
+                  text={`חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. בהתחשב ב-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע ובממוצע של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים (מקדם פעילות של כ-${getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek)}), אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך.`}
                 />
                 <ExplanationSection
                   icon={Target}

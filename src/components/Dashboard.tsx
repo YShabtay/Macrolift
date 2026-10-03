@@ -55,6 +55,7 @@ import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
 import PwaInstallModal from './PwaInstallModal';
 import SectionErrorBoundary from './SectionErrorBoundary';
+import { storageService } from '../services/storageService';
 import { getFrequencyRecommendation } from '../data/workoutTemplates';
 import PwaInstallBanner from './PwaInstallBanner';
 import { shouldShowInstallBanner, snoozeInstallBanner } from '../utils/pwaInstall';
@@ -107,6 +108,7 @@ import type {
   Exercise,
   ExerciseAlternative,
   FoodEntry,
+  FoodPer100g,
   ProgressPhoto,
   SetProgressEntry,
   TrainingDaysPerWeek,
@@ -516,6 +518,13 @@ function DashboardTab({
   const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
   const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(() => shouldShowInstallBanner());
+  // A brand-new, still-empty profile in a browser tab: the moment to suggest installing first, so tracking starts inside the installed app.
+  const isStorageFresh =
+    appState.weightLogs.length === 0 &&
+    appState.foodLog.length === 0 &&
+    appState.progress.length === 0 &&
+    appState.progressPhotos.length === 0 &&
+    appState.stepLogs.length === 0;
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
@@ -628,6 +637,7 @@ function DashboardTab({
 
       {isInstallBannerVisible && (
         <PwaInstallBanner
+          variant={isStorageFresh ? 'first-install' : 'default'}
           onOpen={() => setIsInstallGuideOpen(true)}
           onDismiss={() => {
             snoozeInstallBanner();
@@ -1618,6 +1628,47 @@ const INJURY_DISPLAY_LABELS: Record<string, string> = {
   knees: 'ברכיים',
 };
 
+/** The parts of a backup file that live outside the app state: the user's own foods and exercise-video links. */
+interface BackupExtras {
+  customFoods: FoodPer100g[];
+  customExerciseVideos: Record<string, string>;
+}
+
+/** Reads the optional extras from a backup file's text; anything missing or malformed is ignored. */
+function readBackupExtras(text: string): BackupExtras {
+  const extras: BackupExtras = { customFoods: [], customExerciseVideos: {} };
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed !== 'object' || parsed === null) return extras;
+    const { customFoods, customExerciseVideos } = parsed as { customFoods?: unknown; customExerciseVideos?: unknown };
+    if (Array.isArray(customFoods)) {
+      extras.customFoods = customFoods.filter(
+        (f): f is FoodPer100g => typeof f === 'object' && f !== null && typeof (f as FoodPer100g).id === 'string' && typeof (f as FoodPer100g).name === 'string',
+      );
+    }
+    if (typeof customExerciseVideos === 'object' && customExerciseVideos !== null && !Array.isArray(customExerciseVideos)) {
+      for (const [name, value] of Object.entries(customExerciseVideos)) {
+        if (typeof value === 'string') extras.customExerciseVideos[name] = value;
+      }
+    }
+  } catch {
+    // Not JSON: parseBackupFile already reported that.
+  }
+  return extras;
+}
+
+/** Merges restored custom foods / video links into what's already on the device (the backup wins on a clash). */
+async function restoreBackupExtras(extras: BackupExtras): Promise<void> {
+  if (extras.customFoods.length > 0) {
+    const current = await storageService.getCustomFoods();
+    const restoredIds = new Set(extras.customFoods.map((f) => f.id));
+    await storageService.saveCustomFoods([...current.filter((f) => !restoredIds.has(f.id)), ...extras.customFoods]);
+  }
+  if (Object.keys(extras.customExerciseVideos).length > 0) {
+    await storageService.saveCustomExerciseVideos({ ...(await storageService.getCustomExerciseVideos()), ...extras.customExerciseVideos });
+  }
+}
+
 function ProfileTab({
   appState,
   onApplyProgram,
@@ -1653,7 +1704,7 @@ function ProfileTab({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
-    | { kind: 'full'; state: AppState; skipped: number; summary: RestoreSummary }
+    | { kind: 'full'; state: AppState; skipped: number; summary: RestoreSummary; extras: BackupExtras }
     | { kind: 'weights'; entries: BulkWeightEntry[]; skipped: number; summary: RestoreSummary }
     | null
   >(null);
@@ -1665,8 +1716,11 @@ function ProfileTab({
     setToastMessage('הפרופיל והיעדים עודכנו בהצלחה');
   }
 
-  function handleExportData() {
-    const payload = { version: 1, exportedAt: new Date().toISOString(), appState };
+  async function handleExportData() {
+    // Everything the app keeps on this device: the whole app state (profile, nutrition, workouts, photos, steps...) plus the
+    // user's own foods and exercise-video links, which live outside the app state.
+    const [customFoods, customExerciseVideos] = await Promise.all([storageService.getCustomFoods(), storageService.getCustomExerciseVideos()]);
+    const payload = { version: 2, exportedAt: new Date().toISOString(), appState, customFoods, customExerciseVideos };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1699,14 +1753,15 @@ function ProfileTab({
     if (!file) return;
 
     try {
-      const result = parseBackupFile(await file.text(), appState);
+      const text = await file.text();
+      const result = parseBackupFile(text, appState);
       if (!result.ok) {
         setRestoreResult({ kind: 'error', message: result.error });
         return;
       }
       setPendingImport(
         result.kind === 'full'
-          ? { kind: 'full', state: result.state, skipped: result.skippedEntries, summary: result.summary }
+          ? { kind: 'full', state: result.state, skipped: result.skippedEntries, summary: result.summary, extras: readBackupExtras(text) }
           : { kind: 'weights', entries: result.entries, skipped: result.skippedEntries, summary: result.summary },
       );
     } catch {
@@ -1720,7 +1775,10 @@ function ProfileTab({
     setPendingImport(null);
     try {
       if (pending.kind === 'weights') onBulkImportWeightLogs(pending.entries);
-      else await onImportAppState(pending.state);
+      else {
+        await onImportAppState(pending.state);
+        await restoreBackupExtras(pending.extras);
+      }
       setRestoreResult({ kind: 'success', summary: pending.summary, skipped: pending.skipped });
     } catch {
       setRestoreResult({ kind: 'error', message: 'האחסון המקומי במכשיר מלא, ולכן השחזור לא הושלם.' });
@@ -1960,20 +2018,20 @@ function ProfileTab({
       <div data-tour="backup" className="glass-card p-5 sm:p-6">
         <div className="mb-2 flex items-center gap-2">
           <Database className="h-4 w-4 text-lime-700 dark:text-lime-400" />
-          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">ניהול וגיבוי נתונים</h2>
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">גיבוי ושחזור נתונים 💾</h2>
         </div>
         <p className="mb-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-          ייצוא גיבוי מלא של הנתונים שלך לקובץ JSON, שחזור נתונים ממכשיר אחר או מגיבוי קודם, או ייצוא
-          היסטוריית שקילות/תזונה/אימונים לקובץ CSV לניתוח באקסל.
+          הגיבוי הוא קובץ אחד שמכיל הכול: פרופיל, תזונה, אימונים, שקילות, תמונות התקדמות וצעדים. אפשר לשחזר אותו במכשיר או בדפדפן אחר.
+          לניתוח באקסל אפשר גם לייצא היסטוריה לקובץ CSV.
         </p>
         <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={handleExportData} className="btn-secondary">
+          <button type="button" onClick={() => void handleExportData()} className="btn-primary">
             <Download className="h-4 w-4" />
-            גיבוי נתונים (JSON)
+            ייצוא גיבוי נתונים לקובץ 📤
           </button>
           <button type="button" onClick={() => importInputRef.current?.click()} className="btn-secondary">
             <Upload className="h-4 w-4" />
-            שחזור מגיבוי
+            שחזור נתונים מגיבוי 📥
           </button>
           <button type="button" onClick={handleExportCsv} className="btn-secondary">
             <FileSpreadsheet className="h-4 w-4" />
@@ -1987,6 +2045,10 @@ function ProfileTab({
             className="hidden"
           />
         </div>
+        <p className="mt-4 rounded-xl border border-lime-400/25 bg-lime-400/5 p-3.5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+          💡 שים לב: המידע נשמר באופן פרטי ומקומי על המכשיר שלך. אם התחלת להשתמש בדפדפן (ספארי) ואתה עובר לאפליקציה במסך הבית, ייצא גיבוי מכאן ושחזר אותו
+          במסך הבית בלחיצה אחת.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-3">

@@ -119,7 +119,8 @@ interface OnboardingProps {
 
 interface FormState {
   name: string;
-  gender: 'male' | 'female';
+  /** Null until chosen: the BMR formula differs by sex (-161 vs +5 kcal), so there is deliberately no silent default. */
+  gender: 'male' | 'female' | null;
   age: string;
   heightCm: string;
   weightKg: string;
@@ -144,7 +145,7 @@ interface FormState {
 
 const INITIAL_FORM: FormState = {
   name: '',
-  gender: 'male',
+  gender: null,
   age: '',
   heightCm: '',
   weightKg: '',
@@ -219,6 +220,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return form.goal !== null;
       case 3:
         return (
+          form.gender !== null &&
           Number(form.age) >= 14 &&
           Number(form.age) <= 99 &&
           Number(form.heightCm) >= 120 &&
@@ -240,7 +242,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   }, [step, form]);
 
   const metrics: UserMetrics | null = useMemo(() => {
-    if (!form.bodyState || !form.goal) return null;
+    if (!form.bodyState || !form.goal || !form.gender) return null;
     if (step < 3) return null;
     return {
       gender: form.gender,
@@ -525,7 +527,7 @@ function StepMetrics({
       <div className="glass-card flex flex-col gap-6 p-5 sm:p-6">
         {/* Gender toggle */}
         <div>
-          <FieldLabel icon={User} text="מין" />
+          <FieldLabel icon={User} text="מין (חובה)" />
           <div className="grid grid-cols-2 gap-3">
             {(['male', 'female'] as const).map((g) => (
               <button

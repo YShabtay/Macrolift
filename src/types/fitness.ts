@@ -10,16 +10,10 @@ export type BodyState = 'lean' | 'athletic' | 'higher_fat';
 /** The user's primary goal, drives calorie target math. */
 export type Goal = 'lose_weight' | 'maintain' | 'gain_muscle' | 'recomp';
 
-/** Self-reported daily activity outside of training (NEAT proxy via steps). */
-export type ActivityLevel =
-  | 'sedentary' // under 5,000 steps
-  | 'light' // 5,000 - 8,000
-  | 'active'; // over 8,000
-
 /**
- * Surplus aggressiveness for the "gain_muscle" (lean bulk) goal.
- * moderate: ~150-200 kcal surplus (clean lean bulk).
- * aggressive: ~300-400 kcal surplus (faster gain, more fat gain risk).
+ * Surplus aggressiveness for the "gain_muscle" goal (lean bulk).
+ * moderate: ~250 kcal above maintenance (clean lean bulk).
+ * aggressive: ~400 kcal above maintenance (faster gain, more fat gain risk).
  */
 export type GoalIntensity = 'moderate' | 'aggressive';
 
