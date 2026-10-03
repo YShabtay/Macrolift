@@ -60,7 +60,7 @@ function buildExerciseByName(
   return {
     id: `boost-${name.replace(/\s+/g, '-')}-${Math.random().toString(36).slice(2, 7)}`,
     ...template,
-    alternatives: getExerciseAlternatives(name),
+    alternatives: getExerciseAlternatives(name, template.muscleGroup),
     ...config,
   };
 }

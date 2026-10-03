@@ -1405,30 +1405,26 @@ function WorkoutCard({
                 <ExerciseThumbnail exercise={exercise} onClick={() => setActiveExercise(exercise)} />
               </div>
 
-              {(exercise.alternatives?.length || exercise.replacedFrom) && (
-                <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                  {exercise.alternatives && exercise.alternatives.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSwapExercise(exercise)}
-                      className="flex items-center gap-1 rounded-lg border border-lime-400/40 bg-lime-400/10 px-2.5 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400 transition hover:border-lime-400/70 hover:bg-lime-400/20"
-                    >
-                      <ArrowLeftRight className="h-3 w-3" />
-                      החלף תרגיל
-                    </button>
-                  )}
-                  {exercise.replacedFrom && (
-                    <button
-                      type="button"
-                      onClick={() => onRevertExercise(selectedDay.id, exercise.id)}
-                      className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 transition hover:border-zinc-400 dark:hover:border-zinc-600"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      חזרה לתרגיל המקורי
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSwapExercise(exercise)}
+                  className="flex items-center gap-1 rounded-lg border border-lime-400/40 bg-lime-400/10 px-2.5 py-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400 transition hover:border-lime-400/70 hover:bg-lime-400/20"
+                >
+                  <ArrowLeftRight className="h-3 w-3" />
+                  החלף תרגיל
+                </button>
+                {exercise.replacedFrom && (
+                  <button
+                    type="button"
+                    onClick={() => onRevertExercise(selectedDay.id, exercise.id)}
+                    className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 transition hover:border-zinc-400 dark:hover:border-zinc-600"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    חזרה לתרגיל המקורי
+                  </button>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: exercise.sets }).map((_, i) => {

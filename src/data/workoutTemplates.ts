@@ -28,6 +28,7 @@ import type {
   Equipment,
   Exercise,
   ExerciseAlternative,
+  ExerciseDifficulty,
   MuscleGroup,
   TrainingDaysPerWeek,
   WorkoutPlan,
@@ -180,7 +181,7 @@ const EXERCISE_MEDIA: Record<string, { youtubeId?: string; cues: string[] }> = {
  * its real YouTube demo via `findExerciseTemplate` at swap time (see `utils/exerciseSwap.ts`) -
  * brand-new exercises below intentionally omit youtubeId/cues rather than guess a video id.
  */
-const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
+const BASE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
   'פרפר בכבלים': [
     {
       id: 'alt-pec-deck',
@@ -444,6 +445,157 @@ const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = {
     },
   ],
 };
+
+type CompactAlternative = [
+  name: string,
+  nameEn: string,
+  muscleGroup: MuscleGroup,
+  equipment: Equipment,
+  difficulty: ExerciseDifficulty,
+  reason: string,
+];
+
+/**
+ * Alternatives for every remaining template exercise, in a compact tuple form. Each entry shares the source exercise's
+ * primary muscle and a similar movement pattern. Names that already exist as template exercises reuse their real demo
+ * video at swap time; new ones deliberately carry no video id (the player falls back to a YouTube search).
+ */
+const COMPACT_ALTERNATIVES: Record<string, CompactAlternative[]> = {
+  'לחיצת חזה בשיפוע עם משקולות': [
+    ['לחיצת חזה בשיפוע במכונה', 'Incline Machine Chest Press', 'chest', 'machine', 'beginner', 'מסלול יציב שמאפשר להתמקד בחזה העליון בלי לאזן משקולות'],
+    ['לחיצת חזה בשיפוע עם מוט', 'Incline Barbell Bench Press', 'chest', 'barbell', 'intermediate', 'מאפשר להעמיס יותר משקל על החזה העליון והכתפיים הקדמיות'],
+    ['שכיבות סמיכה בשיפוע חיובי', 'Incline Push-Up', 'chest', 'bodyweight', 'beginner', 'אפשרות ללא ציוד שמדגישה את החזה התחתון והאמצעי'],
+  ],
+  'מכרעים הליכה': [
+    ['מכרעים בולגריים', 'Bulgarian Split Squat', 'glutes', 'dumbbell', 'intermediate', 'בונה יציבות חד-רגלית עם דגש חזק על הישבן והארבע-ראשי'],
+    ['מכרעים במקום', 'Reverse Lunge', 'glutes', 'dumbbell', 'beginner', 'יציב יותר מהליכה ועדין יותר לברכיים'],
+    ['פשיטת ברך במכונה', 'Leg Extension', 'quads', 'machine', 'beginner', 'בידוד של הארבע-ראשי בלי דרישת שיווי משקל'],
+  ],
+  'מכרעים בולגריים': [
+    ['מכרעים הליכה', 'Walking Lunges', 'glutes', 'dumbbell', 'intermediate', 'עבודה דינמית על כל הרגל עם עומס מטבולי גבוה'],
+    ['מכרעים במקום', 'Reverse Lunge', 'quads', 'dumbbell', 'beginner', 'קל לשליטה וקל יותר לברכיים'],
+    ['גובלט סקוואט', 'Goblet Squat', 'quads', 'dumbbell', 'beginner', 'סקוואט דו-רגלי יציב שקל ללמוד'],
+  ],
+  'לחיצת כתפיים בשיפוע (מכונה)': [
+    ['לחיצת כתפיים עם משקולות', 'Dumbbell Shoulder Press', 'shoulders', 'dumbbell', 'intermediate', 'טווח תנועה חופשי ועבודה שווה על שתי הכתפיים'],
+    ['לחיצה ארנולד', 'Arnold Press', 'shoulders', 'dumbbell', 'intermediate', 'סיבוב שמפעיל את כל ראשי הכתף לאורך התנועה'],
+    ['לחיצת כתפיים בעמידה', 'Standing Barbell Overhead Press', 'shoulders', 'barbell', 'advanced', 'תרגיל בסיס כבד שמחזק גם את הליבה'],
+  ],
+  'חתירה בכבל ישיבה': [
+    ['חתירת דאמבל חד-יד', 'One-Arm Dumbbell Row', 'back', 'dumbbell', 'beginner', 'טווח תנועה גדול ותיקון פערי כוח בין הצדדים'],
+    ['חתירת T או חתירת מוט', 'T-Bar Row', 'back', 'barbell', 'intermediate', 'מאפשר להעמיס משקל כבד על אמצע הגב'],
+    ['חתירה במכונה בישיבה', 'Seated Machine Row', 'back', 'machine', 'beginner', 'תמיכה בחזה מורידה עומס מהגב התחתון'],
+  ],
+  'חתירת T או חתירת מוט': [
+    ['חתירה בכבל ישיבה', 'Seated Cable Row', 'back', 'cable', 'beginner', 'מתח קבוע על הגב ועומס מינימלי על הגב התחתון'],
+    ['חתירת דאמבל חד-יד', 'One-Arm Dumbbell Row', 'back', 'dumbbell', 'beginner', 'ליבה יציבה יותר וטווח תנועה גדול'],
+    ['חתירת מוט חבוק', 'Bent Over Barbell Row', 'back', 'barbell', 'intermediate', 'תרגיל בסיס קלאסי לעובי הגב'],
+  ],
+  'חתירת דאמבל חד-יד': [
+    ['חתירה בכבל ישיבה', 'Seated Cable Row', 'back', 'cable', 'beginner', 'מתח קבוע על הגב לאורך כל התנועה'],
+    ['חתירת T או חתירת מוט', 'T-Bar Row', 'back', 'barbell', 'intermediate', 'עומס כבד יותר על אמצע הגב'],
+    ['חתירה במכונה בישיבה', 'Seated Machine Row', 'back', 'machine', 'beginner', 'מסלול קבוע ללא צורך בשיווי משקל'],
+  ],
+  'מתח באחיזה צרה': [
+    ['פולי עליון לגב רחב', 'Lat Pulldown', 'back', 'cable', 'beginner', 'אותה תנועת משיכה אנכית עם עומס שאפשר להתאים בדיוק'],
+    ['מתח בגומייה או בגרביטון', 'Assisted Pull-Up', 'back', 'bodyweight', 'beginner', 'מאפשר לבצע מתח עם עזרה עד שהכוח משתפר'],
+    ['פולי עליון באחיזה צרה', 'Close Grip Lat Pulldown', 'back', 'cable', 'beginner', 'מדגיש את החלק התחתון של הגב הרחב'],
+  ],
+  'פולי עליון לגב רחב': [
+    ['מתח באחיזה רחבה (או מכונת עזר)', 'Wide Grip Pull-up', 'back', 'bodyweight', 'advanced', 'תרגיל משקל גוף שמפתח כוח משיכה פונקציונלי'],
+    ['מתח בגומייה או בגרביטון', 'Assisted Pull-Up', 'back', 'bodyweight', 'beginner', 'גרסה מסייעת לאותה תנועה'],
+    ['פולי עליון באחיזה צרה', 'Close Grip Lat Pulldown', 'back', 'cable', 'beginner', 'שינוי זווית שמדגיש את החלק התחתון של הגב הרחב'],
+  ],
+  'כפיפת מרפק במוט': [
+    ['כפיפת מרפק בפולי', 'Cable Bicep Curl', 'biceps', 'cable', 'beginner', 'מתח קבוע על הדו-ראשי לאורך כל הטווח'],
+    ['כפיפת מרפק עם משקולות', 'Dumbbell Bicep Curl', 'biceps', 'dumbbell', 'beginner', 'כל יד עובדת בנפרד ומתקנת פערי כוח'],
+    ['כפיפת מרפק פטיש', 'Dumbbell Hammer Curl', 'biceps', 'dumbbell', 'beginner', 'מדגיש גם את שריר הזרוע הקדמית'],
+  ],
+  'כפיפת מרפק בפולי': [
+    ['כפיפת מרפק במוט', 'Barbell Curl', 'biceps', 'barbell', 'intermediate', 'מאפשר להעמיס יותר משקל על הדו-ראשי'],
+    ['כפיפת מרפק עם משקולות', 'Dumbbell Bicep Curl', 'biceps', 'dumbbell', 'beginner', 'סיבוב מפרק כף היד לכיווץ מלא יותר'],
+    ['כפיפת מרפק פטיש', 'Dumbbell Hammer Curl', 'biceps', 'dumbbell', 'beginner', 'מדגיש את הזרוע הקדמית ואת הברכיאליס'],
+  ],
+  'כפיפת מרפק פטיש': [
+    ['כפיפת מרפק עם משקולות', 'Dumbbell Bicep Curl', 'biceps', 'dumbbell', 'beginner', 'ריכוז על הדו-ראשי עם סיבוב כף היד'],
+    ['כפיפת מרפק בפולי', 'Cable Bicep Curl', 'biceps', 'cable', 'beginner', 'מתח קבוע לכל אורך התנועה'],
+    ['כפיפת מרפק במוט', 'Barbell Curl', 'biceps', 'barbell', 'intermediate', 'עומס כבד יותר על הדו-ראשי'],
+  ],
+  'פשיטת מרפק בפולי': [
+    ['פשיטת מרפק מעל הראש', 'Overhead Triceps Extension', 'triceps', 'dumbbell', 'intermediate', 'מתיחה מלאה של הראש הארוך של הטריצפס'],
+    ['פשיטת מרפק בכבל בחבל', 'Rope Triceps Pushdown', 'triceps', 'cable', 'beginner', 'החבל מאפשר פשיטה מלאה והפרדה בסוף התנועה'],
+    ['שכיבות סמיכה צרות', 'Close Grip Push-Up', 'triceps', 'bodyweight', 'beginner', 'אפשרות ללא ציוד שמעמיסה על הטריצפס'],
+  ],
+  'פשיטת מרפק מעל הראש': [
+    ['פשיטת מרפק בפולי', 'Cable Triceps Pushdown', 'triceps', 'cable', 'beginner', 'מתח קבוע על הטריצפס ועומס קל על המרפקים'],
+    ['פשיטת מרפק בכבל מעל הראש', 'Cable Overhead Triceps Extension', 'triceps', 'cable', 'intermediate', 'אותה מתיחה מלאה עם מתח קבוע בכל הטווח'],
+    ['שכיבות סמיכה צרות', 'Close Grip Push-Up', 'triceps', 'bodyweight', 'beginner', 'אפשרות ללא ציוד שמעמיסה על הטריצפס'],
+  ],
+  'הרחקת כתפיים לצד': [
+    ['הרחקת כתפיים בכבל', 'Cable Lateral Raise', 'shoulders', 'cable', 'intermediate', 'מתח קבוע על הכתף האמצעית גם בתחתית התנועה'],
+    ['הרחקת כתפיים במכונה', 'Machine Lateral Raise', 'shoulders', 'machine', 'beginner', 'מסלול קבוע שמתמקד בכתף האמצעית'],
+    ['משיכת מוט לסנטר', 'Upright Row', 'shoulders', 'barbell', 'intermediate', 'מפעיל את הכתף האמצעית והטרפז העליון'],
+  ],
+  'כפיפת ברך שכיבה': [
+    ['כפיפת ברך בישיבה במכונה', 'Seated Leg Curl', 'hamstrings', 'machine', 'beginner', 'מתיחה גדולה יותר של הירך האחורית בטווח התנועה'],
+    ['דדליפט רומני עם משקולות', 'Dumbbell Romanian Deadlift', 'hamstrings', 'dumbbell', 'intermediate', 'מדגיש את הירך האחורית בתנועת ציר אגן'],
+    ['כפיפת ברך בעמידה בכבל', 'Standing Cable Leg Curl', 'hamstrings', 'cable', 'beginner', 'עבודה חד-רגלית לבידוד הירך האחורית'],
+  ],
+  'פשיטת ברך במכונה': [
+    ['גובלט סקוואט', 'Goblet Squat', 'quads', 'dumbbell', 'beginner', 'עבודה על הארבע-ראשי בתנועה מורכבת'],
+    ['מכרעים במקום', 'Reverse Lunge', 'quads', 'dumbbell', 'beginner', 'הארבע-ראשי עובד בתנועה חד-רגלית'],
+    ['לחיצת רגליים במכונה', 'Leg Press', 'quads', 'machine', 'beginner', 'עומס כבד על הארבע-ראשי עם תמיכה בגב'],
+  ],
+  'הרמת אגן (Hip Thrust)': [
+    ['גשר ישבן', 'Glute Bridge', 'glutes', 'bodyweight', 'beginner', 'אותה תנועה בעומס קל יותר וללא ציוד'],
+    ['הרמת אגן במכונה', 'Machine Hip Thrust', 'glutes', 'machine', 'beginner', 'הציוד מייצב את התנועה ומקל על ההעמסה'],
+    ['הרמת אגן עם משקולת', 'Dumbbell Hip Thrust', 'glutes', 'dumbbell', 'beginner', 'גרסה נגישה כשאין מוט'],
+  ],
+  'הרמת שוקיים בעמידה': [
+    ['הרמת שוקיים בישיבה', 'Seated Calf Raise', 'calves', 'machine', 'beginner', 'מדגיש את שריר הסוליאוס'],
+    ['הרמת שוקיים בלחיצת רגליים', 'Leg Press Calf Raise', 'calves', 'machine', 'beginner', 'עומס כבד ויציב על השוקיים'],
+    ['הרמת שוקיים חד-רגלית', 'Single-Leg Calf Raise', 'calves', 'bodyweight', 'beginner', 'אפשרות ללא ציוד עם טווח תנועה מלא'],
+  ],
+  'הרמת שוקיים בישיבה': [
+    ['הרמת שוקיים בעמידה', 'Standing Calf Raise', 'calves', 'machine', 'beginner', 'מדגיש את שריר התאומים'],
+    ['הרמת שוקיים בלחיצת רגליים', 'Leg Press Calf Raise', 'calves', 'machine', 'beginner', 'עומס כבד ויציב על השוקיים'],
+    ['הרמת שוקיים חד-רגלית', 'Single-Leg Calf Raise', 'calves', 'bodyweight', 'beginner', 'אפשרות ללא ציוד עם טווח תנועה מלא'],
+  ],
+  'פלאנק': [
+    ['פלאנק צידי', 'Side Plank', 'core', 'bodyweight', 'beginner', 'מדגיש את שרירי הבטן הצידיים'],
+    ['הרמת ברכיים תלויה', 'Hanging Knee Raise', 'core', 'bodyweight', 'intermediate', 'מחזק את הבטן התחתונה ואת מכופפי הירך'],
+    ['כפיפות בטן עם משקל', 'Weighted Crunch', 'core', 'bodyweight', 'beginner', 'מעמיס ישירות על שריר הבטן הישר'],
+  ],
+  'פלאנק צידי': [
+    ['פלאנק', 'Plank', 'core', 'bodyweight', 'beginner', 'מייצב את כל הליבה'],
+    ['הרמת ברכיים תלויה', 'Hanging Knee Raise', 'core', 'bodyweight', 'intermediate', 'מחזק את הבטן התחתונה'],
+    ['כפיפות בטן עם משקל', 'Weighted Crunch', 'core', 'bodyweight', 'beginner', 'מעמיס ישירות על שריר הבטן הישר'],
+  ],
+  'כפיפות בטן עם משקל': [
+    ['הרמת ברכיים תלויה', 'Hanging Knee Raise', 'core', 'bodyweight', 'intermediate', 'מחזק את הבטן התחתונה'],
+    ['פלאנק', 'Plank', 'core', 'bodyweight', 'beginner', 'מייצב את כל הליבה'],
+    ['כפיפות בטן בכבל', 'Cable Crunch', 'core', 'cable', 'intermediate', 'מאפשר עומס מתקדם על שריר הבטן'],
+  ],
+  'הרמת ברכיים תלויה': [
+    ['הרמת רגליים בשכיבה', 'Lying Leg Raise', 'core', 'bodyweight', 'beginner', 'גרסה קלה יותר בלי תלייה'],
+    ['כפיפות בטן עם משקל', 'Weighted Crunch', 'core', 'bodyweight', 'beginner', 'מעמיס ישירות על שריר הבטן הישר'],
+    ['פלאנק', 'Plank', 'core', 'bodyweight', 'beginner', 'מייצב את כל הליבה'],
+  ],
+};
+
+/** Builds the full alternatives map: the hand-written base entries plus the compact entries above for exercises that lacked any. */
+const EXERCISE_ALTERNATIVES: Record<string, ExerciseAlternative[]> = (() => {
+  const merged: Record<string, ExerciseAlternative[]> = { ...BASE_ALTERNATIVES };
+  let counter = 0;
+  for (const [exerciseName, list] of Object.entries(COMPACT_ALTERNATIVES)) {
+    if (merged[exerciseName] || list.length === 0) continue;
+    merged[exerciseName] = list.map(([name, nameEn, muscleGroup, equipment, difficulty, reason]) => {
+      counter += 1;
+      return { id: `alt-bank-${counter}`, name, nameEn, muscleGroup, equipment, difficulty, reason };
+    });
+  }
+  return merged;
+})();
 
 // ---------------------------------------------------------------------------
 // Exercise factory
@@ -830,12 +982,42 @@ export function findExerciseTemplate(
   return undefined;
 }
 
+const FALLBACK_ALTERNATIVE_COUNT = 3;
+
 /**
- * Looks up the swap-in alternatives defined for an exercise name. Used to backfill
- * `alternatives` onto exercises from a plan that was persisted before this data existed.
+ * Swap-in alternatives for an exercise. Returns the specific list defined for the name when there is one; otherwise,
+ * when `muscleGroup` is given, falls back to up to three other exercises from the library that train the same muscle
+ * (template exercises first, then bank-only ones), never including the exercise itself. Without a muscle group and
+ * without a specific list the result is undefined (the legacy "backfill" behaviour).
  */
-export function getExerciseAlternatives(name: string): ExerciseAlternative[] | undefined {
-  return EXERCISE_ALTERNATIVES[name];
+export function getExerciseAlternatives(name: string, muscleGroup?: MuscleGroup): ExerciseAlternative[] | undefined {
+  const specific = EXERCISE_ALTERNATIVES[name];
+  if (specific?.length) return specific;
+  if (!muscleGroup) return undefined;
+
+  const picked = new Map<string, ExerciseAlternative>();
+  const consider = (candidate: ExerciseAlternative) => {
+    if (candidate.name !== name && candidate.muscleGroup === muscleGroup && !picked.has(candidate.name)) {
+      picked.set(candidate.name, candidate);
+    }
+  };
+  for (const plan of WORKOUT_TEMPLATES) {
+    for (const d of plan.days) {
+      for (const e of d.exercises) {
+        consider({
+          id: `alt-fallback-${e.name.replace(/\s+/g, '-')}`,
+          name: e.name,
+          nameEn: e.nameEn ?? e.name,
+          muscleGroup: e.muscleGroup,
+          equipment: e.equipment,
+          difficulty: 'intermediate',
+          reason: 'תרגיל נוסף שמאמן את אותה קבוצת שריר',
+        });
+      }
+    }
+  }
+  for (const list of Object.values(EXERCISE_ALTERNATIVES)) list.forEach(consider);
+  return [...picked.values()].slice(0, FALLBACK_ALTERNATIVE_COUNT);
 }
 
 /**

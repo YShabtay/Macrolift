@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeftRight, Info, X } from 'lucide-react';
+import { getExerciseAlternatives } from '../data/workoutTemplates';
 import type { Equipment, Exercise, ExerciseAlternative, ExerciseDifficulty } from '../types/fitness';
 
 const EQUIPMENT_LABELS: Record<Equipment, string> = {
@@ -42,7 +43,11 @@ export default function ExerciseSwapModal({ exercise, onClose, onSwap }: Exercis
 
   if (!exercise) return null;
 
-  const alternatives = exercise.alternatives ?? [];
+  const alternatives = (
+    exercise.alternatives?.length
+      ? exercise.alternatives
+      : (getExerciseAlternatives(exercise.name, exercise.muscleGroup) ?? [])
+  ).filter((alt) => alt.name !== exercise.name);
 
   return createPortal(
     <div
