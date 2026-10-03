@@ -16,7 +16,6 @@ import type {
   FoodEntry,
   ProgressPhoto,
   SetProgressEntry,
-  StepLog,
   TrainingDaysPerWeek,
   UserMetrics,
   UserProfile,
@@ -31,6 +30,7 @@ import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
+import { saveStepsForDate } from './utils/stepsCalculations';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
 import PullToRefresh from './components/PullToRefresh';
@@ -363,9 +363,7 @@ export default function App() {
   function handleSaveSteps(date: string, steps: number) {
     setAppState((prev) => {
       if (!prev) return prev;
-      const withoutDate = prev.stepLogs.filter((s) => s.date !== date);
-      const entry: StepLog = { date, steps };
-      return { ...prev, stepLogs: [...withoutDate, entry] };
+      return { ...prev, stepLogs: saveStepsForDate(prev.stepLogs, date, steps) };
     });
   }
 

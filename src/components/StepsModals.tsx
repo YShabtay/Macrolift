@@ -48,20 +48,22 @@ function Chip({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 interface QuickStepsModalProps {
+  /** Which day is being logged, e.g. "אתמול"; omitted/"היום" for today. */
+  dateLabel?: string;
   currentSteps: number;
   onSave: (steps: number) => void;
   onClose: () => void;
 }
 
 /** Quick manual log of today's steps (typically copied from Apple Health / Google Fit). */
-export function QuickStepsModal({ currentSteps, onSave, onClose }: QuickStepsModalProps) {
+export function QuickStepsModal({ dateLabel = 'היום', currentSteps, onSave, onClose }: QuickStepsModalProps) {
   const [value, setValue] = useState(currentSteps > 0 ? String(currentSteps) : '');
   const parsed = parseCount(value, 0);
   const typed = Number(value.replace(/,/g, '')) || 0;
   const isInvalid = value.trim() !== '' && parsed === null;
 
   return (
-    <ModalShell title="עדכון צעדים להיום" icon={Footprints} onClose={onClose}>
+    <ModalShell title={`עדכון צעדים - ${dateLabel}`} icon={Footprints} onClose={onClose}>
       <div>
         <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">הזן את מספר הצעדים מ-Apple Health</label>
         <input

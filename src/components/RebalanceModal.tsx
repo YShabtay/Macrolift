@@ -18,7 +18,7 @@ interface RebalanceModalProps {
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
 export default function RebalanceModal({ options, balance, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
-  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, netExcessKcal, netStepsNeeded } = options;
+  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, extraStepsEarlier, earlierWasYesterday, netExcessKcal, netStepsNeeded } = options;
   const isFullyCovered = netStepsNeeded === 0;
   const creditedKcal = excessKcal - netExcessKcal;
 
@@ -63,7 +63,12 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
           </p>
         </div>
 
-        {extraStepsWalkedToday > 0 && (
+        {extraStepsEarlier > 0 && (
+          <div className="rounded-xl border border-lime-400/30 bg-lime-400/5 p-3.5 text-sm font-semibold leading-relaxed text-zinc-800 dark:text-zinc-200">
+            🎉 עודכנו {extraStepsEarlier.toLocaleString()} צעדי בונוס {earlierWasYesterday ? 'מאתמול' : 'מהימים הקודמים השבוע'} שקוזזו מהחריגה!
+          </div>
+        )}
+        {extraStepsWalkedToday - extraStepsEarlier > 0 && (
           <div
             className={`rounded-xl border p-3.5 text-sm font-semibold leading-relaxed ${
               isFullyCovered
@@ -72,8 +77,13 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
             }`}
           >
             {isFullyCovered
-              ? '🏆 צעדי הבונוס שהלכת היום כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.'
-              : `🎉 הלכת היום ${extraStepsWalkedToday.toLocaleString()} צעדים מעל היעד! קיזזנו אותם מחוב הפיצוי.`}
+              ? '🏆 צעדי הבונוס שהלכת כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.'
+              : `🎉 הלכת היום ${(extraStepsWalkedToday - extraStepsEarlier).toLocaleString()} צעדים מעל היעד! קיזזנו אותם מחוב הפיצוי.`}
+          </div>
+        )}
+        {extraStepsEarlier > 0 && extraStepsWalkedToday - extraStepsEarlier === 0 && isFullyCovered && (
+          <div className="rounded-xl border border-lime-400/50 bg-lime-400/15 p-3.5 text-sm font-semibold leading-relaxed text-lime-800 dark:text-lime-300">
+            🏆 צעדי הבונוס כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.
           </div>
         )}
 

@@ -1,4 +1,5 @@
-import type { FoodEntry, MacroGrams, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { FoodEntry, MacroGrams, NutritionPlan, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
+import { getStepsForDate } from './stepsCalculations';
 import { daysBetween, formatIsoDate, getWeekEnd, getWeekStart, parseIsoDate } from './weightCalculations';
 import { sumTotals } from './nutritionLog';
 
@@ -76,6 +77,32 @@ export function getTomorrowAdjustments(
   };
 }
 
+export interface BonusStepDay {
+  date: string;
+  /** Steps walked above that day's goal. */
+  steps: number;
+}
+
+/**
+ * Days this week (Sunday through today) on which more steps were logged than that day's goal. Reads the saved per-day history, so a day
+ * filled in or corrected afterwards counts immediately. These steps are already burned energy: they offset the day's calorie overshoot.
+ */
+export function getBonusStepDays(
+  stepLogs: StepLog[],
+  baseGoal: number,
+  adjustment: WeeklyBalanceAdjustment | undefined,
+  today: string,
+): BonusStepDay[] {
+  const weekStart = getWeekStart(today);
+  const days: BonusStepDay[] = [];
+  for (let i = 0; i <= daysBetween(weekStart, today); i++) {
+    const date = addDays(weekStart, i);
+    const bonus = getStepsForDate(stepLogs, date) - getEffectiveStepGoal(baseGoal, adjustment, date);
+    if (bonus > 0) days.push({ date, steps: bonus });
+  }
+  return days;
+}
+
 export interface WeeklyEnergyBalance {
   /** Days from Sunday through today on which something was logged (today always counts). */
   daysCounted: number;
@@ -118,6 +145,10 @@ export interface RebalanceOptions {
   excessKcal: number;
   /** Steps walked today above today's goal - already burned, so they are credited against the overshoot. */
   extraStepsWalkedToday: number;
+  /** Of those, the steps walked on earlier days of this week (e.g. yesterday, possibly entered afterwards). */
+  extraStepsEarlier: number;
+  /** True when the earlier bonus steps all come from yesterday alone. */
+  earlierWasYesterday: boolean;
   /** The overshoot left to make up after crediting those steps (kcal). */
   netExcessKcal: number;
   /** Steps still needed after crediting today's extra steps; 0 means the overshoot is already fully covered. */
@@ -144,10 +175,13 @@ export function buildRebalanceOptions(
   surplusKcal: number,
   plan: NutritionPlan,
   today: string,
-  extraStepsWalkedToday = 0,
+  bonusDays: BonusStepDay[] = [],
 ): RebalanceOptions {
-  // Steps already walked above today's goal burned part of the overshoot: take them off the debt before planning anything.
-  const extraSteps = Math.max(0, Math.round(extraStepsWalkedToday));
+  // Steps walked above the daily goal (today or earlier this week) already burned part of the overshoot: take them off the debt first.
+  const extraStepsToday = bonusDays.filter((d) => d.date === today).reduce((sum, d) => sum + d.steps, 0);
+  const extraStepsEarlier = bonusDays.filter((d) => d.date !== today).reduce((sum, d) => sum + d.steps, 0);
+  const extraSteps = Math.max(0, Math.round(extraStepsToday + extraStepsEarlier));
+  const earlierWasYesterday = bonusDays.filter((d) => d.date !== today).every((d) => d.date === addDays(today, -1));
   const totalStepsRequired = Math.round((surplusKcal / KCAL_PER_1000_STEPS) * 1000);
   const netStepsNeeded = Math.max(0, totalStepsRequired - extraSteps);
   const excessKcal = Math.max(0, Math.round(surplusKcal - (extraSteps * KCAL_PER_1000_STEPS) / 1000));
@@ -177,6 +211,8 @@ export function buildRebalanceOptions(
   return {
     excessKcal: surplusKcal,
     extraStepsWalkedToday: extraSteps,
+    extraStepsEarlier: Math.round(extraStepsEarlier),
+    earlierWasYesterday,
     netExcessKcal: excessKcal,
     netStepsNeeded,
     daysRemaining,
@@ -185,9 +221,9 @@ export function buildRebalanceOptions(
     taper: { available: daysRemaining > 0 && perDayKcal > 0, perDayKcal, days: daysRemaining, fromDate: tomorrow, capped },
     stepsOneDay: {
       steps: oneDaySteps,
-      // Tomorrow's goal rises by exactly the net steps. On the last day of the week the steps already walked count toward today's
-      // goal, so the goal is raised by the full requirement and only the net part is still left to walk.
-      boost: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(totalStepsRequired, MAX_ONE_DAY_STEP_BOOST),
+      // Tomorrow's goal rises by exactly the net steps. On the last day of the week the bonus steps walked *today* are already in today's
+      // count, so the goal rises by the net steps plus those; bonus from earlier days is not in today's count and is not added back.
+      boost: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(netStepsNeeded + Math.round(extraStepsToday), MAX_ONE_DAY_STEP_BOOST),
       date: daysRemaining > 0 ? tomorrow : today,
       isToday: daysRemaining === 0,
       minutes: Math.round(oneDaySteps / STEPS_PER_MINUTE),
