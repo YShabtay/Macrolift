@@ -38,8 +38,8 @@ function startBackgroundUpdateChecks(registration: ServiceWorkerRegistration) {
  * vite.config.ts) - a reload in the middle of a set or a form would feel like data loss even though localStorage itself is
  * untouched by an update.
  *
- * Tapping "עדכן עכשיו" sends SKIP_WAITING to the waiting worker and reloads once it takes control (controllerchange), which
- * is what `updateServiceWorker(true)` does. A gentle toast above the bottom navigation, not a blocking dialog.
+ * Tapping "עדכן עכשיו" sends SKIP_WAITING to the waiting worker; the page reloads once the worker takes control (controllerchange),
+ * with a short delay and a single-reload guard (utils/swReload.ts). A gentle toast above the bottom navigation, not a blocking dialog.
  */
 export default function UpdatePrompt() {
   const {
@@ -60,7 +60,8 @@ export default function UpdatePrompt() {
       <div role="status" className="pointer-events-auto flex w-full max-w-sm items-center gap-2 rounded-2xl border border-lime-400/50 bg-zinc-900 p-1.5 pe-2 shadow-glow animate-slide-up">
         <button
           type="button"
-          onClick={() => void updateServiceWorker(true)}
+          // Activates the waiting worker only; the page reloads from the controllerchange handler (utils/swReload.ts), with its guard and delay.
+          onClick={() => void updateServiceWorker(false)}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2.5 py-2 text-right"
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400 text-zinc-950">

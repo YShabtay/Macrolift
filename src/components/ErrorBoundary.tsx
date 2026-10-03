@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { refreshApp, resetLocalData } from '../utils/appRecovery';
+import { isChunkLoadError, tryRecoverFromChunkError } from '../utils/chunkRecovery';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   error: Error | null;
   componentStack: string;
+  /** A stale-chunk error started a silent reload; show a calm placeholder instead of the error screen. */
+  isRecovering: boolean;
 }
 
 /**
@@ -16,15 +19,16 @@ interface ErrorBoundaryState {
  * The error message and component stack are printed so a crash on a phone can be traced to the exact component.
  */
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { error: null, componentStack: '' };
+  state: ErrorBoundaryState = { error: null, componentStack: '', isRecovering: false };
 
   static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
-    return { error: error instanceof Error ? error : new Error(String(error)) };
+    // Optimistically calm for a stale-chunk error so the error screen never flashes; componentDidCatch decides if a reload really started.
+    return { error: error instanceof Error ? error : new Error(String(error)), isRecovering: isChunkLoadError(error) };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('MacroLift crashed:', error, info.componentStack);
-    this.setState({ componentStack: info.componentStack ?? '' });
+    this.setState({ componentStack: info.componentStack ?? '', isRecovering: isChunkLoadError(error) && tryRecoverFromChunkError() });
   }
 
   handleReset = () => {
@@ -35,8 +39,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   };
 
   render() {
-    const { error, componentStack } = this.state;
+    const { error, componentStack, isRecovering } = this.state;
     if (!error) return this.props.children;
+    if (isRecovering) return <UpdatingScreen />;
 
     return (
       <div
@@ -75,4 +80,16 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       </div>
     );
   }
+}
+
+/** Shown for the instant between a stale-chunk error and the automatic reload onto the new version. */
+function UpdatingScreen() {
+  return (
+    <div dir="rtl" className="flex min-h-svh flex-col items-center justify-center gap-3 bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400">
+      <div className="h-1 w-24 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div className="h-full w-1/2 animate-pulse rounded-full bg-lime-400" />
+      </div>
+      <p className="text-sm">מעדכן לגרסה החדשה...</p>
+    </div>
+  );
 }
