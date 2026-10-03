@@ -261,6 +261,17 @@ export default function Dashboard({
   onLogout,
 }: DashboardProps) {
   const [tab, setTab] = useState<Tab>('dashboard');
+  // Which workout sub-view the workout screen opens on. Plain navigation always lands on "today's workout"; only the
+  // dashboard's "full calendar" link asks for the calendar.
+  const [workoutEntryView, setWorkoutEntryView] = useState<WorkoutView>('today');
+  const selectTab = (next: Tab) => {
+    setWorkoutEntryView('today');
+    setTab(next);
+  };
+  const openWorkoutCalendar = () => {
+    setWorkoutEntryView('calendar');
+    setTab('workout');
+  };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const restTimerStatus = useRestTimer().status;
   const [isTourOpen, setIsTourOpen] = useState(false);
@@ -284,11 +295,11 @@ export default function Dashboard({
 
       <RestFinishedAlert />
 
-      {isTourOpen && <GuidedTour steps={TOUR_STEPS} onNavigate={(t) => setTab(t as Tab)} onClose={() => setIsTourOpen(false)} />}
+      {isTourOpen && <GuidedTour steps={TOUR_STEPS} onNavigate={(t) => selectTab(t as Tab)} onClose={() => setIsTourOpen(false)} />}
 
       {/* App-wide rest timer: the full card on the workout screen, a compact bar above the nav everywhere else */}
       {restTimerStatus !== 'idle' &&
-        (tab === 'workout' ? <RestTimer /> : <RestTimerMiniBar onOpenWorkout={() => setTab('workout')} />)}
+        (tab === 'workout' ? <RestTimer /> : <RestTimerMiniBar onOpenWorkout={() => selectTab('workout')} />)}
 
       {/* Opaque strip behind the iPhone status bar / camera cutout so scrolled content never shows through it */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:hidden" />
@@ -315,7 +326,7 @@ export default function Dashboard({
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
               className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-medium transition ${
                 tab === id
                   ? 'bg-lime-400/10 text-lime-700 dark:text-lime-400'
@@ -366,11 +377,13 @@ export default function Dashboard({
               onSaveStepGoal={onSaveStepGoal}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
-              onNavigate={setTab}
+              onNavigate={selectTab}
+              onOpenWorkoutCalendar={openWorkoutCalendar}
             />
           )}
           {tab === 'workout' && (
             <WorkoutPlanTab
+              initialView={workoutEntryView}
               workoutPlan={appState.workoutPlan}
               schedule={appState.schedule}
               progress={appState.progress}
@@ -420,7 +433,7 @@ export default function Dashboard({
               onSaveCircumferenceGoals={onSaveCircumferenceGoals}
               onImportAppState={onImportAppState}
               onBulkImportWeightLogs={onBulkImportWeightLogs}
-              onNavigate={setTab}
+              onNavigate={selectTab}
               onRequestReset={() => setIsResetConfirmOpen(true)}
               onLogout={onLogout}
               onStartTour={() => setIsTourOpen(true)}
@@ -438,7 +451,7 @@ export default function Dashboard({
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
               className={`flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition ${
                 isActive ? 'text-lime-700 dark:text-lime-400' : 'text-zinc-500'
               }`}
@@ -476,6 +489,7 @@ function DashboardTab({
   onDeleteFood,
   onUpdateFood,
   onNavigate,
+  onOpenWorkoutCalendar,
 }: {
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
@@ -489,6 +503,8 @@ function DashboardTab({
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onNavigate: (tab: Tab) => void;
+  /** Opens the workout screen directly on its calendar view. */
+  onOpenWorkoutCalendar: () => void;
 }) {
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
@@ -674,7 +690,7 @@ function DashboardTab({
         schedule={schedule}
         completedDates={completedDates}
         onSelectDay={setEditingDay}
-        onNavigate={() => onNavigate('workout')}
+        onNavigate={onOpenWorkoutCalendar}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1150,6 +1166,7 @@ function MacroStat({
 type WorkoutView = 'today' | 'calendar';
 
 function WorkoutPlanTab({
+  initialView,
   workoutPlan,
   schedule,
   progress,
@@ -1162,6 +1179,8 @@ function WorkoutPlanTab({
   onSetSchedule,
   onClearSchedule,
 }: {
+  /** The sub-view to open on; the screen remounts on each visit, so this only matters on arrival. */
+  initialView: WorkoutView;
   workoutPlan: WorkoutPlan;
   schedule: WorkoutScheduleEntry[];
   progress: SetProgressEntry[];
@@ -1174,7 +1193,7 @@ function WorkoutPlanTab({
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onClearSchedule: (date: string) => void;
 }) {
-  const [view, setView] = useState<WorkoutView>('today');
+  const [view, setView] = useState<WorkoutView>(initialView);
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
   const [selectedDayId, setSelectedDayId] = useState<string>(todaysDay.id);
   const selectedDay = workoutPlan.days.find((d) => d.id === selectedDayId) ?? workoutPlan.days[0];
