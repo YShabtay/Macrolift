@@ -16,6 +16,7 @@ import type {
   FoodEntry,
   ProgressPhoto,
   SetProgressEntry,
+  StepLog,
   TrainingDaysPerWeek,
   UserMetrics,
   UserProfile,
@@ -37,22 +38,47 @@ import PullToRefresh from './components/PullToRefresh';
 import type { RebalanceChoice } from './components/RebalanceModal';
 import { getActiveAdjustment } from './utils/weeklyBalance';
 
-/** Backfills fields added after a user's data was first saved, so components can assume they exist. */
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const asList = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+const finiteOrZero = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+/**
+ * Backfills fields added after a user's data was first saved, and drops malformed entries, so components can assume
+ * every list exists and every numeric field is a number. Stored data comes from many app versions - never trust its shape.
+ */
 function normalizeState(state: AppState): AppState {
+  const metrics = state.profile.metrics;
+  const days = Array.isArray(state.workoutPlan?.days)
+    ? state.workoutPlan.days
+    : getWorkoutTemplate(suggestSplitType(metrics.trainingDaysPerWeek), metrics.trainingDaysPerWeek).days;
+  const workoutPlan = Array.isArray(state.workoutPlan?.days) ? state.workoutPlan : getWorkoutTemplate(suggestSplitType(metrics.trainingDaysPerWeek), metrics.trainingDaysPerWeek);
+
   return {
     ...state,
-    weightLogs: state.weightLogs ?? [],
-    progressPhotos: state.progressPhotos ?? [],
-    schedule: state.schedule ?? [],
-    foodLog: state.foodLog ?? [],
-    stepLogs: state.stepLogs ?? [],
-    circumferenceLogs: state.circumferenceLogs ?? [],
-    circumferenceGoals: state.circumferenceGoals ?? {},
+    nutritionPlan: state.nutritionPlan ?? calculateNutritionPlan(metrics),
+    progress: asList<SetProgressEntry>(state.progress).filter(isRecord),
+    weightLogs: asList<WeightLog>(state.weightLogs).filter((w) => isRecord(w) && typeof w.date === 'string' && Number.isFinite(Number(w.weightKg))),
+    progressPhotos: asList<ProgressPhoto>(state.progressPhotos).filter((p) => isRecord(p) && typeof p.date === 'string' && typeof p.photoUrl === 'string'),
+    schedule: asList<WorkoutScheduleEntry>(state.schedule).filter(isRecord),
+    foodLog: asList<FoodEntry>(state.foodLog)
+      .filter((f) => isRecord(f) && typeof f.date === 'string')
+      .map((f) => ({
+        ...f,
+        name: typeof f.name === 'string' ? f.name : 'פריט',
+        quantity: typeof f.quantity === 'string' ? f.quantity : '',
+        calories: finiteOrZero(f.calories),
+        proteinG: finiteOrZero(f.proteinG),
+        fatG: finiteOrZero(f.fatG),
+        carbsG: finiteOrZero(f.carbsG),
+      })),
+    stepLogs: asList<StepLog>(state.stepLogs).filter(isRecord),
+    circumferenceLogs: asList<CircumferenceEntry>(state.circumferenceLogs).filter(isRecord),
+    circumferenceGoals: isRecord(state.circumferenceGoals) ? state.circumferenceGoals : {},
     workoutPlan: {
-      ...state.workoutPlan,
-      days: state.workoutPlan.days.map((day) => ({
+      ...workoutPlan,
+      days: days.map((day) => ({
         ...day,
-        exercises: day.exercises.map((exercise) => ({
+        exercises: asList<(typeof day.exercises)[number]>(day.exercises).map((exercise) => ({
           ...exercise,
           nameEn: exercise.nameEn ?? getExerciseNameEn(exercise.name),
           alternatives: exercise.alternatives ?? getExerciseAlternatives(exercise.name),
@@ -105,12 +131,21 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState | null>(null);
 
+  // Stored data that can't be read must reach the error screen (with its reset button), not leave the boot spinner up forever.
+  const [bootError, setBootError] = useState<Error | null>(null);
+  if (bootError) throw bootError;
+
   useEffect(() => {
     (async () => {
-      const sessionUserId = await getSessionUserId();
-      setUserId(sessionUserId);
-      if (sessionUserId) setAppState(await loadState(sessionUserId));
-      setIsBooting(false);
+      try {
+        const sessionUserId = await getSessionUserId();
+        setUserId(sessionUserId);
+        if (sessionUserId) setAppState(await loadState(sessionUserId));
+      } catch (err) {
+        setBootError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setIsBooting(false);
+      }
     })();
   }, []);
 

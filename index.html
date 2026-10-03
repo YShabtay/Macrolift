@@ -43,6 +43,70 @@
     />
     <title>MacroLift | כושר ותזונה אישית</title>
     <script>
+      // Last line of defence: if the app fails before React can mount (a script that won't load or parse, an error while
+      // the modules evaluate), #root stays empty and the page is white. This shows a plain recovery screen instead.
+      (function () {
+        var lastError = '';
+        function note(e) {
+          var err = e && (e.error || e.reason || e);
+          lastError = (err && err.message) || (e && e.message) || String(err || 'script failed to load');
+          if (e && e.target && e.target.src) lastError = 'Failed to load ' + e.target.src;
+        }
+        window.addEventListener('error', note, true);
+        window.addEventListener('unhandledrejection', note);
+
+        function cleanup(thenReload, wipe) {
+          if (wipe) {
+            try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+          }
+          var jobs = [];
+          try {
+            if (navigator.serviceWorker) {
+              jobs.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }));
+            }
+            if (window.caches) {
+              jobs.push(caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }));
+            }
+          } catch (e) {}
+          Promise.all(jobs).then(thenReload, thenReload);
+        }
+
+        function show() {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+          var box = document.createElement('div');
+          box.setAttribute('dir', 'rtl');
+          box.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:#09090b;color:#fafafa;font-family:Assistant,system-ui,sans-serif';
+          function add(tag, text, css) {
+            var el = document.createElement(tag);
+            el.textContent = text;
+            el.style.cssText = css || '';
+            box.appendChild(el);
+            return el;
+          }
+          function button(text, css, onclick) {
+            var b = add('button', text, 'width:100%;max-width:280px;padding:14px;border-radius:12px;font-size:15px;font-weight:700;border:0;' + css);
+            b.onclick = onclick;
+          }
+          add('h1', 'האפליקציה לא עלתה', 'font-size:20px;margin:0');
+          add('p', 'קרתה תקלה בטעינה. נסו לרענן; אם זה חוזר, איפוס הנתונים המקומיים יחזיר את האפליקציה לעבוד (ומוחק את המידע במכשיר).', 'max-width:320px;margin:0;font-size:14px;line-height:1.6;color:#a1a1aa');
+          button('רענן אפליקציה 🔄', 'background:#a3e635;color:#09090b', function () { cleanup(function () { location.reload(); }, false); });
+          button('איפוס נתונים מקומיים ⚠️', 'background:transparent;color:#f87171;border:1px solid #f8717166', function () {
+            if (confirm('פעולה זו תמחק את כל הנתונים השמורים במכשיר הזה ולא ניתן לשחזר אותם, אלא אם יש לכם קובץ גיבוי. להמשיך?')) cleanup(function () { location.reload(); }, true);
+          });
+          add('p', lastError || 'unknown error', 'direction:ltr;max-width:340px;margin:0;font-size:11px;color:#f87171;word-break:break-word');
+          root.appendChild(box);
+        }
+
+        window.addEventListener('load', function () { setTimeout(show, 6000); });
+        window.addEventListener('error', function () { setTimeout(show, 2500); }, true);
+      })();
+    </script>
+    <script>
       (function () {
         try {
           var stored = localStorage.getItem('theme');

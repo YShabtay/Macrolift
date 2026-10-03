@@ -11,14 +11,18 @@ const BANNER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** True when the app already runs from the home screen (installed PWA) instead of inside a browser tab. */
 export function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  const iosStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) || iosStandalone;
+  if (typeof window === 'undefined' || !window.navigator) return false;
+  try {
+    const iosStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    return (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) || iosStandalone;
+  } catch {
+    return false;
+  }
 }
 
 export function detectPlatform(): InstallPlatform {
   if (typeof navigator === 'undefined') return 'other';
-  const ua = navigator.userAgent;
+  const ua = navigator.userAgent || '';
   if (/Android/i.test(ua)) return 'android';
   // iPadOS 13+ reports itself as a Mac; a touch screen gives it away.
   const isIPadOs = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
@@ -27,7 +31,7 @@ export function detectPlatform(): InstallPlatform {
 
 /** On iOS only Safari can add to the home screen; Chrome / Firefox / in-app browsers announce themselves in the UA. */
 export function isIosNonSafari(): boolean {
-  return /CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
+  return typeof navigator !== 'undefined' && /CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram/i.test(navigator.userAgent || '');
 }
 
 /** The install banner is for phones/tablets that haven't installed the app and weren't asked to hold off. */

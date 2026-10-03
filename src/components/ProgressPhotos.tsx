@@ -77,7 +77,7 @@ export default function ProgressPhotos({
   const [deletingPhoto, setDeletingPhoto] = useState<ProgressPhoto | null>(null);
 
   const sortedPhotos = useMemo(
-    () => [...photos].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    () => [...(photos || []).filter((p) => p && typeof p.photoUrl === 'string' && typeof p.date === 'string')].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
     [photos],
   );
 
@@ -400,6 +400,8 @@ function BeforeAfterComparison({
 
   const before = photos.find((p) => p.id === beforeId) ?? photos[0];
   const after = photos.find((p) => p.id === afterId) ?? photos[photos.length - 1];
+  // Nothing to compare (e.g. the photos were deleted while this was open): render nothing instead of crashing.
+  if (photos.length < 2 || !before || !after) return null;
 
   const beforeInfo = getPhotoWeight(before, weightLogs);
   const afterInfo = getPhotoWeight(after, weightLogs);

@@ -26,16 +26,17 @@ export function getMealForCurrentTime(): Meal {
 }
 
 export function getEntriesForDate(foodLog: FoodEntry[], date: string): FoodEntry[] {
-  return foodLog.filter((f) => f.date === date);
+  return (foodLog || []).filter((f) => f && f.date === date);
 }
 
 export function sumTotals(entries: FoodEntry[]): DailyTotals {
-  return entries.reduce(
+  // Tolerates a missing list and missing / non-numeric values in entries saved by older versions.
+  return (entries || []).reduce(
     (acc, e) => ({
-      calories: acc.calories + e.calories,
-      proteinG: acc.proteinG + e.proteinG,
-      fatG: acc.fatG + e.fatG,
-      carbsG: acc.carbsG + e.carbsG,
+      calories: acc.calories + (Number(e?.calories) || 0),
+      proteinG: acc.proteinG + (Number(e?.proteinG) || 0),
+      fatG: acc.fatG + (Number(e?.fatG) || 0),
+      carbsG: acc.carbsG + (Number(e?.carbsG) || 0),
     }),
     { calories: 0, proteinG: 0, fatG: 0, carbsG: 0 },
   );
