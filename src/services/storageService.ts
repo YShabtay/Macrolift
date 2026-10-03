@@ -1,5 +1,6 @@
 import type { AppState, FoodPer100g } from '../types/fitness';
 import { safeGetJSON } from '../utils/safeStorage';
+import { syncGuestFlag } from '../utils/guestSession';
 
 export interface AuthUser {
   id: string;
@@ -96,10 +97,12 @@ class LocalStorageService implements StorageService {
 
   async setSessionUserId(userId: string): Promise<void> {
     localStorage.setItem(SESSION_KEY, userId);
+    syncGuestFlag(userId);
   }
 
   async clearSession(): Promise<void> {
     localStorage.removeItem(SESSION_KEY);
+    syncGuestFlag(null);
   }
 
   async getCustomExerciseVideos(): Promise<Record<string, string>> {

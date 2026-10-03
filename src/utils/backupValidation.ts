@@ -138,6 +138,7 @@ export function mergeProfile(current: UserProfile | undefined, raw: Record<strin
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : base.name,
     createdAt: typeof raw.createdAt === 'string' && raw.createdAt ? raw.createdAt : base.createdAt,
     metrics: mergeMetrics(base.metrics, raw.metrics),
+    ...(raw.isGuest === true || base.isGuest === true ? { isGuest: true } : {}),
   };
 }
 

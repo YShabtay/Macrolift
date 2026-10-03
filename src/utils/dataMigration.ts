@@ -19,6 +19,8 @@ import { safeGetJSON } from './safeStorage';
 export const SCHEMA_VERSION = 3;
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
+/** Records the schema version storage was last fully repaired to, so a normal launch skips parsing every saved state (photos make them large). */
+const MIGRATED_VERSION_KEY = 'macrolift-migrated-schema';
 const CORRUPT_SUFFIX = '-corrupt';
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -165,6 +167,7 @@ export function sanitizeAndMigrateStorage(): MigrationReport {
   const report: MigrationReport = { checked: 0, rewritten: 0, unreadable: 0 };
   try {
     if (typeof localStorage === 'undefined') return report;
+    if (localStorage.getItem(MIGRATED_VERSION_KEY) === String(SCHEMA_VERSION)) return report;
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -198,6 +201,8 @@ export function sanitizeAndMigrateStorage(): MigrationReport {
         // One user's data failing (e.g. storage full on write) must not block the others - the original stays untouched.
       }
     }
+    // Every state was repaired (or deliberately left alone); later launches skip the pass until the schema version changes.
+    localStorage.setItem(MIGRATED_VERSION_KEY, String(SCHEMA_VERSION));
   } catch {
     // Storage unavailable entirely.
   }

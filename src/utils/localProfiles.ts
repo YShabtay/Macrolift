@@ -4,6 +4,7 @@ import { calculateNutritionPlan } from './calculations';
 import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
 import { adaptWorkoutPlan } from './workoutAdaptation';
 import { parseBackupFile, type RestoreSummary } from './backupValidation';
+import { GUEST_USER_ID } from './guestSession';
 
 /**
  * Local-first profiles: a profile that lives only on this device, with no password and no server.
@@ -16,43 +17,30 @@ export function isLocalProfile(user: AuthUser): boolean {
   return user.passwordHash === '';
 }
 
-async function createLocalUser(fullName: string): Promise<AuthUser> {
-  const id = crypto.randomUUID();
-  const user: AuthUser = {
-    id,
-    fullName,
-    username: `local-${id.slice(0, 8)}`,
-    email: '',
-    passwordHash: '',
-    createdAt: new Date().toISOString(),
-  };
-  const users = await storageService.getUsers();
-  await storageService.saveUsers([...users, user]);
-  return user;
-}
-
 /** Signs in to a passwordless on-device profile. */
 export async function openLocalProfile(userId: string): Promise<string> {
   await storageService.setSessionUserId(userId);
   return userId;
 }
 
+/** A complete set of defaults, so the nutrition and workout engines always have valid numbers to work with. */
 const GUEST_METRICS: UserMetrics = {
   gender: 'male',
-  age: 30,
+  age: 25,
   heightCm: 175,
-  weightKg: 75,
-  averageDailySteps: 8000,
+  weightKg: 70,
+  averageDailySteps: 6000,
   trainingDaysPerWeek: 3,
   bodyState: 'athletic',
   goal: 'maintain',
   goalIntensity: 'moderate',
+  targetFocus: 'balanced',
 };
 
 function buildGuestAppState(userId: string): AppState {
   const metrics = GUEST_METRICS;
   const split = suggestSplitType(metrics.trainingDaysPerWeek);
-  const profile: UserProfile = { id: userId, name: 'אורח', createdAt: new Date().toISOString(), metrics };
+  const profile: UserProfile = { id: userId, name: 'אורח', createdAt: new Date().toISOString(), metrics, isGuest: true };
   return {
     profile,
     nutritionPlan: calculateNutritionPlan(metrics),
@@ -68,12 +56,34 @@ function buildGuestAppState(userId: string): AppState {
   };
 }
 
-/** One-tap entry: creates a basic on-device profile with sensible defaults (editable later) and opens it. */
-export async function startGuestSession(): Promise<string> {
-  const user = await createLocalUser('אורח');
-  await storageService.saveAppState(user.id, buildGuestAppState(user.id));
-  await storageService.setSessionUserId(user.id);
-  return user.id;
+/**
+ * Opens the device's guest profile, creating whatever is missing: the user record, a full default profile, or both. Safe to call
+ * on every launch - existing guest data is never replaced, but a guest whose record or data went missing (cleared storage, a lost
+ * session pointer) comes back as a working guest instead of leaving the app stuck.
+ */
+export async function ensureGuestSession(): Promise<string> {
+  const users = await storageService.getUsers();
+  if (!users.some((u) => u.id === GUEST_USER_ID)) {
+    const guest: AuthUser = {
+      id: GUEST_USER_ID,
+      fullName: 'אורח',
+      username: 'local-guest',
+      email: '',
+      passwordHash: '',
+      createdAt: new Date().toISOString(),
+    };
+    await storageService.saveUsers([...users, guest]);
+  }
+  if (!(await storageService.getAppState(GUEST_USER_ID))) {
+    await storageService.saveAppState(GUEST_USER_ID, buildGuestAppState(GUEST_USER_ID));
+  }
+  await storageService.setSessionUserId(GUEST_USER_ID); // also sets the macrolift_is_guest flag
+  return GUEST_USER_ID;
+}
+
+/** One-tap entry: opens the guest profile (creating it the first time). */
+export function startGuestSession(): Promise<string> {
+  return ensureGuestSession();
 }
 
 export type RestoreOnboardingResult =

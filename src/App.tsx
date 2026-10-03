@@ -6,6 +6,8 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import AICoachDrawer from './components/AICoachDrawer';
 import { sanitizeAppState } from './utils/dataMigration';
+import { ensureGuestSession } from './utils/localProfiles';
+import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { storageService } from './services/storageService';
 import type {
@@ -78,6 +80,8 @@ function applyProgramToState(
   };
 }
 
+const BOOT_TIMEOUT_MS = 1500;
+
 export default function App() {
   const [isBooting, setIsBooting] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -91,9 +95,19 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const sessionUserId = await getSessionUserId();
+        let sessionUserId = await getSessionUserId();
+        // A guest never lands on the sign-in screen after a refresh: if the session pointer is gone but the guest flag is set, reopen the guest.
+        if (!sessionUserId && isGuestFlagSet()) sessionUserId = await ensureGuestSession();
         setUserId(sessionUserId);
-        if (sessionUserId) setAppState(await loadState(sessionUserId));
+        if (sessionUserId) {
+          let loaded = await loadState(sessionUserId);
+          // A guest whose data is missing or unreadable is recreated with defaults rather than sent through onboarding.
+          if (!loaded && sessionUserId === GUEST_USER_ID) {
+            await ensureGuestSession();
+            loaded = await loadState(sessionUserId);
+          }
+          setAppState(loaded);
+        }
         // First launch of the installed app on a device with no profile yet: offer to load a backup instead of showing an empty app.
         else if (isStandalone() && !hasSeenStandaloneWelcome() && (await storageService.getUsers()).length === 0) setIsStandaloneWelcomeOpen(true);
       } catch (err) {
@@ -102,6 +116,13 @@ export default function App() {
         setIsBooting(false);
       }
     })();
+  }, []);
+
+  // Safety net: whatever happens to the storage reads above, the boot screen never stays up longer than this. A load that finishes
+  // later still updates the app when it completes.
+  useEffect(() => {
+    const timer = setTimeout(() => setIsBooting(false), BOOT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

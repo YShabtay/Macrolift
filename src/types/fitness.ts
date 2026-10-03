@@ -128,6 +128,8 @@ export interface UserProfile {
   name: string;
   createdAt: string; // ISO date
   metrics: UserMetrics;
+  /** True for the on-device guest profile created by "continue as guest". */
+  isGuest?: boolean;
 }
 
 // ---------------------------------------------------------------------------
