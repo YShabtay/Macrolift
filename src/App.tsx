@@ -378,8 +378,8 @@ export default function App() {
     });
   }
 
-  function handleSaveStepGoal(goal: number) {
-    setAppState((prev) => (prev ? { ...prev, stepGoal: goal } : prev));
+  function handleSaveStepGoal(goal: number, mode: 'weekly' | 'daily') {
+    setAppState((prev) => (prev ? { ...prev, stepGoal: goal, stepGoalMode: mode } : prev));
   }
 
   /** Upserts a circumference check-in for one date (replaces any existing entry for that date). */

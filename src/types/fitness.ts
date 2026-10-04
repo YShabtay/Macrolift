@@ -315,6 +315,8 @@ export interface AppState {
   circumferenceGoals: CircumferenceGoals;
   /** Daily step target set from the steps card; the app falls back to 10,000 when unset. */
   stepGoal?: number;
+  /** 'weekly' (default): stepGoal is a per-day AVERAGE for the week and surplus/shortfall carries across days; 'daily': a fixed goal for every day. */
+  stepGoalMode?: 'weekly' | 'daily';
   /**
    * Dates the user marked a workout as done (quick-complete from the home screen). Kept in addition to the per-set `progress`
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).

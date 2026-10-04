@@ -10,6 +10,7 @@ import {
   Droplet,
   Mic,
   Moon,
+  Pencil,
   Plus,
   Sun,
   Trash2,
@@ -27,6 +28,7 @@ import PhotoSourceSheet from './PhotoSourceSheet';
 import VoiceMealModal from './VoiceMealModal';
 import Toast from './Toast';
 import DecimalInput from './DecimalInput';
+import EditMealModal from './EditMealModal';
 import PwaInstallBanner from './PwaInstallBanner';
 import { useInstallBanner } from '../hooks/useInstallBanner';
 import { parseDecimal } from '../utils/decimalInput';
@@ -51,6 +53,8 @@ interface FoodTrackerProps {
   weeklyBalance?: WeeklyBalanceAdjustment;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   onDeleteFood: (id: string) => void;
+  /** Saves changes to an already logged item (weight / amount, macros, name). */
+  onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   /** Opens the add-to-home-screen guide (shown from the "keep your data" banner). */
   onOpenInstallGuide: () => void;
 }
@@ -64,8 +68,9 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, onDeleteFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
@@ -156,9 +161,21 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
             onAdd={() => setAddingMeal(meal)}
             onScan={() => setScanSourceMeal(meal)}
             onDelete={onDeleteFood}
+            onEdit={setEditingEntry}
           />
         ))}
       </div>
+
+      {editingEntry && (
+        <EditMealModal
+          entry={editingEntry}
+          onSave={(id, updates) => {
+            onUpdateFood(id, updates);
+            setToastMessage('הפריט עודכן בהצלחה ✓');
+          }}
+          onClose={() => setEditingEntry(null)}
+        />
+      )}
 
       {isVoiceOpen && (
         <VoiceMealModal
@@ -337,12 +354,14 @@ function MealSection({
   onAdd,
   onScan,
   onDelete,
+  onEdit,
 }: {
   meal: Meal;
   entries: FoodEntry[];
   onAdd: () => void;
   onScan: () => void;
   onDelete: (id: string) => void;
+  onEdit: (entry: FoodEntry) => void;
 }) {
   // Recomputed from the entries on every add / delete / edit.
   const mealTotals = useMemo(() => sumTotals(entries), [entries]);
@@ -394,14 +413,24 @@ function MealSection({
                   {formatMacro(entry.carbsG)}פ׳
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => onDelete(entry.id)}
-                aria-label="מחיקה"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-600 dark:text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex shrink-0 items-center">
+                <button
+                  type="button"
+                  onClick={() => onEdit(entry)}
+                  aria-label={`עריכת ${getEntryTitle(entry)}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 dark:text-zinc-500 transition hover:bg-lime-400/10 hover:text-lime-600 dark:hover:text-lime-400"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(entry.id)}
+                  aria-label="מחיקה"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 dark:text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

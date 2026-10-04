@@ -4,7 +4,8 @@ import type { StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
-import { getCarriedBonus, getStepBoostBreakdown } from '../utils/weeklyBalance';
+import { getCarriedBonus, getStepBoostBreakdown, type StepBoostBreakdown } from '../utils/weeklyBalance';
+import { getWeeklyStepsPlan, type StepGoalMode } from '../utils/weeklySteps';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
 
@@ -12,13 +13,18 @@ interface StepsTrackerProps {
   stepLogs: StepLog[];
   /** The user's own daily goal, without any temporary weekly-rebalance boost - what the goal editor changes. */
   baseGoalSteps: number;
+  /** 'weekly': baseGoalSteps is a per-day average and each day's goal is what remains of the week; 'daily': a fixed goal for every day. */
+  goalMode: StepGoalMode;
   /** Temporary weekly rebalance; adds extra steps to the goal on the days it covers. */
   weeklyBalance?: WeeklyBalanceAdjustment;
   weightKg: number;
   /** Saves (or overwrites) the step count of one date - works for today and for past days alike. */
   onSaveSteps: (date: string, steps: number) => void;
-  onSaveGoal: (goal: number) => void;
+  onSaveGoal: (goal: number, mode: StepGoalMode) => void;
 }
+
+/** Weekly mode folds a rebalance's extra walking into the week's total, so the per-day boost breakdown doesn't apply. */
+const NO_BOOST: StepBoostBreakdown = { active: false, gross: 0, credited: 0, net: 0, creditFromYesterdayOnly: false };
 
 const WEEKDAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 const WEEKDAY_NAMES = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת'];
@@ -36,7 +42,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -49,21 +55,25 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
 
   // The goal that applies to the viewed day, including any temporary weekly-rebalance boost on that day.
   // The boost is stored gross; bonus steps from earlier days are subtracted live from the history, so editing yesterday updates this at once.
-  const boost = getStepBoostBreakdown(baseGoalSteps, weeklyBalance, selectedDate, stepLogs);
-  const goalSteps = baseGoalSteps + boost.net;
-  const tomorrowBoost = isToday ? getStepBoostBreakdown(baseGoalSteps, weeklyBalance, shiftDate(today, 1), stepLogs) : null;
+  const isWeekly = goalMode === 'weekly';
+  const weekly = useMemo(() => getWeeklyStepsPlan(baseGoalSteps, weeklyBalance, stepLogs, selectedDate), [baseGoalSteps, weeklyBalance, stepLogs, selectedDate]);
+  const boost = isWeekly ? NO_BOOST : getStepBoostBreakdown(baseGoalSteps, weeklyBalance, selectedDate, stepLogs);
+  // Weekly mode: the day's goal is what remains of the week's total spread over the days left (so surplus and shortfall carry over).
+  const goalSteps = isWeekly ? weekly.paceToday : baseGoalSteps + boost.net;
+  const tomorrowBoost = isToday && !isWeekly ? getStepBoostBreakdown(baseGoalSteps, weeklyBalance, shiftDate(today, 1), stepLogs) : null;
 
   // Endowed progress: when bonus steps from earlier days are being credited against a rebalance, the ring shows them as already walked
   // against the FULL compensated target. The steps still to go are identical to (net goal - steps today); it just doesn't look like zero.
   const hasCredit = boost.active && boost.credited > 0;
   const displaySteps = selectedSteps + (hasCredit ? boost.credited : 0);
   const displayGoal = hasCredit ? baseGoalSteps + boost.gross : goalSteps;
-  const progress = displayGoal > 0 ? Math.min(displaySteps / displayGoal, 1) : 0;
-  const percent = displayGoal > 0 ? Math.min(100, Math.round((displaySteps / displayGoal) * 100)) : 0;
+  // A goal of 0 (weekly mode, when earlier days already covered the whole week) counts as met.
+  const progress = displayGoal > 0 ? Math.min(displaySteps / displayGoal, 1) : 1;
+  const percent = displayGoal > 0 ? Math.min(100, Math.round((displaySteps / displayGoal) * 100)) : 100;
   const creditSource = boost.creditFromYesterdayOnly ? 'אתמול' : 'הימים הקודמים';
 
   // A past day that beat its goal: celebrate it, and say if its extra steps were carried into a rebalance.
-  const carried = !isToday ? getCarriedBonus(baseGoalSteps, weeklyBalance, selectedDate, stepLogs) : null;
+  const carried = !isToday && !isWeekly ? getCarriedBonus(baseGoalSteps, weeklyBalance, selectedDate, stepLogs) : null;
   const metGoal = !isToday && selectedSteps > 0 && selectedSteps >= goalSteps;
   const caloriesBurned = estimateStepCalories(selectedSteps, weightKg);
 
@@ -80,12 +90,12 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       days.push({
         date: key,
         steps: getStepsForDate(stepLogs, key),
-        goal: baseGoalSteps + getStepBoostBreakdown(baseGoalSteps, weeklyBalance, key, stepLogs).net,
+        goal: isWeekly ? baseGoalSteps : baseGoalSteps + getStepBoostBreakdown(baseGoalSteps, weeklyBalance, key, stepLogs).net,
         weekday: parseIsoDate(key).getDay(),
       });
     }
     return days;
-  }, [stepLogs, today, baseGoalSteps, weeklyBalance]);
+  }, [stepLogs, today, baseGoalSteps, weeklyBalance, isWeekly]);
   const historyMax = Math.max(...last7Days.map((d) => d.steps), goalSteps, 1);
 
   return (
@@ -93,7 +103,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Footprints className="h-4 w-4 text-lime-700 dark:text-lime-400" />
-          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">צעדים יומיים</h2>
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">{isWeekly ? 'צעדים - ממוצע שבועי' : 'צעדים יומיים'}</h2>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -155,7 +165,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
             <div className="absolute flex flex-col items-center">
               {/* One number: everything counted toward the target (walked today + any credit carried in). */}
               <span className="text-2xl font-extrabold tracking-tight text-lime-700 dark:text-lime-400">{displaySteps.toLocaleString()}</span>
-              <span className="text-[10px] text-zinc-600 dark:text-zinc-500">מתוך {displayGoal.toLocaleString()}</span>
+              <span className="text-[10px] text-zinc-600 dark:text-zinc-500">{displayGoal > 0 ? `מתוך ${displayGoal.toLocaleString()}` : 'השבוע כבר הושלם'}</span>
             </div>
           </div>
           {hasCredit && (
@@ -168,7 +178,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
         <div className="flex w-full flex-1 flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-              {percent >= 100 ? 'היעד הושג! 🎉' : `${percent}% מהיעד היומי`}
+              {percent >= 100 ? 'היעד הושג! 🎉' : `${percent}% מהיעד ${isWeekly ? 'להיום' : 'היומי'}`}
             </p>
             <button
               type="button"
@@ -176,7 +186,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
               aria-label="עריכת יעד צעדים"
               className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 transition hover:border-lime-400/50"
             >
-              יעד: {displayGoal.toLocaleString()}
+              {isWeekly ? `ממוצע: ${baseGoalSteps.toLocaleString()} ליום` : `יעד: ${displayGoal.toLocaleString()}`}
               <Pencil className="h-3 w-3" />
             </button>
           </div>
@@ -211,6 +221,8 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
           <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
+
+          {isWeekly && <WeeklySummary weekly={weekly} baseGoal={baseGoalSteps} />}
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -268,8 +280,9 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       {isEditingGoal && (
         <StepGoalModal
           goal={baseGoalSteps}
-          onSave={(goal) => {
-            onSaveGoal(goal);
+          mode={goalMode}
+          onSave={(goal, mode) => {
+            onSaveGoal(goal, mode);
             setIsEditingGoal(false);
             setToastMessage('יעד הצעדים עודכן');
           }}
@@ -278,6 +291,36 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, weeklyBalance, w
       )}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+    </div>
+  );
+}
+
+/** This week's total against its target, and how earlier days change what today asks for. */
+function WeeklySummary({ weekly, baseGoal }: { weekly: ReturnType<typeof getWeeklyStepsPlan>; baseGoal: number }) {
+  const percent = weekly.weeklyTarget > 0 ? Math.min(100, Math.round((weekly.walkedThisWeek / weekly.weeklyTarget) * 100)) : 0;
+  const done = weekly.walkedThisWeek >= weekly.weeklyTarget;
+  const ahead = weekly.balanceBefore > 0;
+  const behind = weekly.balanceBefore < 0;
+
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+        <span className="font-bold text-zinc-900 dark:text-zinc-100">השבוע: {weekly.walkedThisWeek.toLocaleString()} / {weekly.weeklyTarget.toLocaleString()}</span>
+        <span className="font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">ממוצע {weekly.averageSoFar.toLocaleString()} ליום</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+        {done
+          ? 'יעד השבוע הושג! 🎉 כל צעד נוסף הוא בונוס.'
+          : ahead
+            ? `עודף של ${weekly.balanceBefore.toLocaleString()} צעדים מהימים הקודמים מקזז את היעד של היום 💪`
+            : behind
+              ? `חסרים ${Math.abs(weekly.balanceBefore).toLocaleString()} צעדים מהימים הקודמים - הם מתחלקים על שאר השבוע (${weekly.daysLeft} ימים).`
+              : `היעד להיום הוא הממוצע שלך (${baseGoal.toLocaleString()}).`}
+        {weekly.capped && ' היעד מוגבל ל-150% מהממוצע, ולכן חלק מהפער לא יושלם השבוע.'}
+      </p>
     </div>
   );
 }

@@ -147,7 +147,7 @@ interface DashboardProps {
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onSaveSteps: (date: string, steps: number) => void;
-  onSaveStepGoal: (goal: number) => void;
+  onSaveStepGoal: (goal: number, mode: 'weekly' | 'daily') => void;
   onSaveCircumferenceEntry: (date: string, measurements: BodyMeasurements) => void;
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
@@ -410,6 +410,7 @@ export default function Dashboard({
               weeklyBalance={appState.weeklyBalance}
               onAddFood={onAddFood}
               onDeleteFood={onDeleteFood}
+              onUpdateFood={onUpdateFood}
               onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
             />
           )}
@@ -510,7 +511,7 @@ function DashboardTab({
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onSaveWeightLog: (date: string, weightKg: number, notes?: string) => void;
   onSaveSteps: (date: string, steps: number) => void;
-  onSaveStepGoal: (goal: number) => void;
+  onSaveStepGoal: (goal: number, mode: 'weekly' | 'daily') => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onNavigate: (tab: Tab) => void;
@@ -732,6 +733,7 @@ function DashboardTab({
       <StepsTracker
         stepLogs={stepLogs}
         baseGoalSteps={baseStepGoal}
+        goalMode={appState.stepGoalMode ?? 'weekly'}
         weeklyBalance={weeklyBalance}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}

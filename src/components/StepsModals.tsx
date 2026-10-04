@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Footprints, Target, X } from 'lucide-react';
 import { MAX_STEPS_PER_DAY } from '../utils/stepsCalculations';
+import type { StepGoalMode } from '../utils/weeklySteps';
 
 function parseCount(text: string, min: number): number | null {
   const n = Number(text.replace(/,/g, ''));
@@ -101,29 +102,64 @@ export function QuickStepsModal({ dateLabel = 'היום', currentSteps, onSave, 
 
 interface StepGoalModalProps {
   goal: number;
-  onSave: (goal: number) => void;
+  mode: StepGoalMode;
+  onSave: (goal: number, mode: StepGoalMode) => void;
   onClose: () => void;
 }
 
-export function StepGoalModal({ goal, onSave, onClose }: StepGoalModalProps) {
+const MODE_OPTIONS: { value: StepGoalMode; label: string }[] = [
+  { value: 'weekly', label: 'ממוצע שבועי (מומלץ)' },
+  { value: 'daily', label: 'יעד קבוע לכל יום' },
+];
+
+export function StepGoalModal({ goal, mode: initialMode, onSave, onClose }: StepGoalModalProps) {
   const [value, setValue] = useState(String(goal));
+  const [mode, setMode] = useState<StepGoalMode>(initialMode);
   const parsed = parseCount(value, 1000);
+  const isWeekly = mode === 'weekly';
 
   return (
-    <ModalShell title="יעד צעדים יומי" icon={Target} onClose={onClose}>
+    <ModalShell title="יעד צעדים" icon={Target} onClose={onClose}>
+      <div role="radiogroup" aria-label="סוג יעד" className="grid grid-cols-2 gap-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
+        {MODE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={mode === option.value}
+            onClick={() => setMode(option.value)}
+            className={`rounded-lg px-2 py-2 text-xs font-bold transition ${
+              mode === option.value ? 'bg-lime-400 text-zinc-950' : 'text-zinc-600 dark:text-zinc-400'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">כמה צעדים ביום תרצו להגיע?</label>
+        <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">
+          {isWeekly ? 'ממוצע צעדים ליום (בשבוע)' : 'כמה צעדים ביום תרצו להגיע?'}
+        </label>
         <input
           type="number"
           inputMode="numeric"
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && parsed !== null && onSave(parsed)}
-          aria-label="יעד צעדים יומי"
+          onKeyDown={(e) => e.key === 'Enter' && parsed !== null && onSave(parsed, mode)}
+          aria-label={isWeekly ? 'ממוצע צעדים יומי' : 'יעד צעדים יומי'}
           className="w-full rounded-xl border-2 border-lime-400/50 bg-white dark:bg-zinc-900 px-4 py-3 text-center text-2xl font-extrabold tabular-nums text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
         />
-        {parsed === null && <p className="mt-1.5 text-[11px] font-medium text-red-400">יעד תקין: בין 1,000 ל-{MAX_STEPS_PER_DAY.toLocaleString()} צעדים</p>}
+        {parsed === null ? (
+          <p className="mt-1.5 text-[11px] font-medium text-red-400">יעד תקין: בין 1,000 ל-{MAX_STEPS_PER_DAY.toLocaleString()} צעדים</p>
+        ) : (
+          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
+            {isWeekly
+              ? `זה ${(parsed * 7).toLocaleString()} צעדים בשבוע. יום עם יותר צעדים מקזז ימים עם פחות, והיעד של כל יום מתעדכן לפי מה שנשאר מהשבוע.`
+              : 'אותו יעד בדיוק בכל יום, בלי קיזוז בין ימים.'}
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-4 gap-2" dir="ltr">
         {[6000, 8000, 10000, 12000].map((g) => (
@@ -131,7 +167,7 @@ export function StepGoalModal({ goal, onSave, onClose }: StepGoalModalProps) {
         ))}
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={() => parsed !== null && onSave(parsed)} disabled={parsed === null} className="btn-primary flex-1 disabled:opacity-40">
+        <button type="button" onClick={() => parsed !== null && onSave(parsed, mode)} disabled={parsed === null} className="btn-primary flex-1 disabled:opacity-40">
           שמירת יעד
         </button>
         <button type="button" onClick={onClose} className="btn-secondary">

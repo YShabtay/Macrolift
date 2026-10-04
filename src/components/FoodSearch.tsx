@@ -164,7 +164,8 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
   const startsInUnits = shouldDefaultToUnits(units);
   // '' = grams; otherwise the name of the selected serving unit.
   const [unitName, setUnitName] = useState(startsInUnits && units ? units[0].name : '');
-  const [amountText, setAmountText] = useState(startsInUnits ? '1' : '100');
+  // Starts empty (shown as 0): a pre-filled 100 / 1 looked like an amount the user had already chosen and was easy to add by mistake.
+  const [amountText, setAmountText] = useState('');
   const selectedUnit = units?.find((u) => u.name === unitName);
 
   const amount = Number(amountText);
@@ -176,7 +177,7 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
   function selectUnit(next: string) {
     if (next === unitName) return;
     setUnitName(next);
-    setAmountText(next === '' ? '100' : '1');
+    setAmountText('');
   }
 
   function handleAdd() {
@@ -247,8 +248,9 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
             aria-label={selectedUnit ? `כמות ב${selectedUnit.name}` : 'כמות בגרמים'}
             value={amountText}
             onValueChange={setAmountText}
+            placeholder="0"
             className={`w-28 rounded-xl border bg-white dark:bg-zinc-900 px-3 py-2.5 text-center text-lg font-bold text-zinc-900 dark:text-zinc-100 outline-none transition focus:ring-2 ${
-              isValid
+              isValid || amountText.trim() === ''
                 ? 'border-zinc-300 dark:border-zinc-700 focus:border-lime-400 focus:ring-lime-400/20'
                 : 'border-orange-400/60 focus:border-orange-400 focus:ring-orange-400/20'
             }`}
@@ -275,7 +277,7 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
             {formatUnitCount(amount, selectedUnit)} (~{grams} גרם)
           </p>
         )}
-        {!isValid && (
+        {!isValid && amountText.trim() !== '' && (
           <p className="mt-1 text-[11px] text-orange-700 dark:text-orange-400">
             {selectedUnit ? 'יש להזין כמות חיובית (עד 5000 גרם בסך הכל)' : 'יש להזין כמות בין 1 ל-5000 גרם'}
           </p>
