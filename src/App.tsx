@@ -37,7 +37,8 @@ import { saveStepsForDate } from './utils/stepsCalculations';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
 import StandaloneRestorePrompt from './components/StandaloneRestorePrompt';
-import { hasSeenStandaloneWelcome, isStandalone, markStandaloneWelcomeSeen } from './utils/pwaInstall';
+import { hasSeenStandaloneWelcome, hasSeenWelcomeGuide, isStandalone, markStandaloneWelcomeSeen, markWelcomeGuideSeen } from './utils/pwaInstall';
+import WelcomeGuide from './components/WelcomeGuide';
 import PullToRefresh from './components/PullToRefresh';
 import type { RebalanceChoice } from './components/RebalanceModal';
 import { getActiveAdjustment } from './utils/weeklyBalance';
@@ -87,6 +88,7 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState | null>(null);
   const [isStandaloneWelcomeOpen, setIsStandaloneWelcomeOpen] = useState(false);
+  const [isWelcomeGuideOpen, setIsWelcomeGuideOpen] = useState(false);
 
   // Stored data that can't be read must reach the error screen (with its reset button), not leave the boot spinner up forever.
   const [bootError, setBootError] = useState<Error | null>(null);
@@ -108,8 +110,12 @@ export default function App() {
           }
           setAppState(loaded);
         }
-        // First launch of the installed app on a device with no profile yet: offer to load a backup instead of showing an empty app.
-        else if (isStandalone() && !hasSeenStandaloneWelcome() && (await storageService.getUsers()).length === 0) setIsStandaloneWelcomeOpen(true);
+        else if ((await storageService.getUsers()).length === 0) {
+          // First launch of the installed app on a device with no profile yet: offer to load a backup instead of showing an empty app.
+          if (isStandalone() && !hasSeenStandaloneWelcome()) setIsStandaloneWelcomeOpen(true);
+          // A brand-new device in a browser: the short introduction (data stays on the device, install first, how to back up).
+          else if (!hasSeenWelcomeGuide()) setIsWelcomeGuideOpen(true);
+        }
       } catch (err) {
         setBootError(err instanceof Error ? err : new Error(String(err)));
       } finally {
@@ -500,6 +506,14 @@ export default function App() {
       <>
         <UpdatePrompt />
         <Auth onAuthenticated={handleAuthenticated} />
+        {isWelcomeGuideOpen && (
+          <WelcomeGuide
+            onClose={() => {
+              markWelcomeGuideSeen();
+              setIsWelcomeGuideOpen(false);
+            }}
+          />
+        )}
         {isStandaloneWelcomeOpen && (
           <StandaloneRestorePrompt
             onRestored={(restoredUserId) => {

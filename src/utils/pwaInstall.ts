@@ -73,6 +73,25 @@ export function markStandaloneWelcomeSeen(): void {
   }
 }
 
+const WELCOME_GUIDE_SEEN_KEY = 'macrolift-welcome-guide-seen';
+
+/** Whether the short new-user introduction (data lives on the device, install, backup) already ran on this device. */
+export function hasSeenWelcomeGuide(): boolean {
+  try {
+    return localStorage.getItem(WELCOME_GUIDE_SEEN_KEY) === 'true';
+  } catch {
+    return true; // Can't remember the choice, so don't risk showing it on every launch.
+  }
+}
+
+export function markWelcomeGuideSeen(): void {
+  try {
+    localStorage.setItem(WELCOME_GUIDE_SEEN_KEY, 'true');
+  } catch {
+    // Storage blocked: nothing to persist.
+  }
+}
+
 // --- Install prompt capture ------------------------------------------------------------------------------------
 // Chrome fires `beforeinstallprompt` once, early, so it's captured here (imported from main.tsx) and handed to
 // whichever component asks for it later.

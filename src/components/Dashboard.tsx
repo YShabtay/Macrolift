@@ -55,6 +55,7 @@ import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
 import PwaInstallModal from './PwaInstallModal';
 import SectionErrorBoundary from './SectionErrorBoundary';
+import WelcomeGuide from './WelcomeGuide';
 import { storageService } from '../services/storageService';
 import { getFrequencyRecommendation } from '../data/workoutTemplates';
 import PwaInstallBanner from './PwaInstallBanner';
@@ -1704,6 +1705,7 @@ function ProfileTab({
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isWelcomeGuideOpen, setIsWelcomeGuideOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
@@ -1999,6 +2001,10 @@ function ProfileTab({
             <Rocket className="h-4 w-4" />
             סיור מודרך באפליקציה 🚀
           </button>
+          <button type="button" onClick={() => setIsWelcomeGuideOpen(true)} className="btn-secondary">
+            <Sparkles className="h-4 w-4" />
+            הכרות קצרה: איפה המידע נשמר וגיבוי
+          </button>
           <button type="button" onClick={() => setIsHelpOpen(true)} className="btn-secondary">
             <HelpCircle className="h-4 w-4" />
             מרכז עזרה ומדריך מכשירים
@@ -2070,6 +2076,7 @@ function ProfileTab({
       )}
 
       {isHelpOpen && <HelpCenterModal onClose={() => setIsHelpOpen(false)} />}
+      {isWelcomeGuideOpen && <WelcomeGuide onClose={() => setIsWelcomeGuideOpen(false)} />}
       {restoreResult && <RestoreResultModal result={restoreResult} onClose={() => setRestoreResult(null)} />}
 
       {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
