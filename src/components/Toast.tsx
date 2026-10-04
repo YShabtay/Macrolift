@@ -26,7 +26,7 @@ export default function Toast({ message, onDismiss }: ToastProps) {
 
   return createPortal(
     <div
-      className={`pointer-events-none fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),0.5rem)+0.5rem)] z-[60] flex justify-center px-4 ${isLeaving ? 'animate-toast-out' : 'animate-toast-in'}`}
+      className={`pointer-events-none fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),0.5rem)+0.5rem)] z-[90] flex justify-center px-4 ${isLeaving ? 'animate-toast-out' : 'animate-toast-in'}`}
     >
       <div className="pointer-events-auto flex items-center gap-2.5 rounded-2xl border border-lime-400/40 bg-zinc-900 px-4 py-3 shadow-glow">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-lime-400 text-zinc-950">

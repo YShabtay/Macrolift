@@ -42,6 +42,8 @@ interface ProgramSwitcherModalProps {
   currentDays: TrainingDaysPerWeek;
   /** When set (after the user changed their weekly days), the matching program is highlighted as the recommended one. */
   recommendation?: ProgramRecommendation;
+  /** True when the current plan was built by the user: switching replaces it, so the modal says so. */
+  isCustomPlan?: boolean;
   /** Label for the dismiss button; defaults to plain cancel. */
   dismissLabel?: string;
   onApply: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
@@ -52,6 +54,7 @@ export default function ProgramSwitcherModal({
   currentSplit,
   currentDays,
   recommendation,
+  isCustomPlan = false,
   dismissLabel = 'ביטול',
   onApply,
   onClose,
@@ -90,6 +93,12 @@ export default function ProgramSwitcherModal({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {isCustomPlan && (
+          <p className="rounded-xl border border-orange-400/40 bg-orange-400/10 p-3 text-xs font-semibold leading-relaxed text-orange-700 dark:text-orange-300">
+            התוכנית הנוכחית נבנתה על ידך. החלפת תוכנית תחליף אותה בתוכנית אוטומטית (אפשר לבנות אותה מחדש ממסך האימון).
+          </p>
+        )}
 
         {recommendation && (
           <div className="flex items-start gap-2.5 rounded-xl border border-lime-400/30 bg-lime-400/5 p-3.5">

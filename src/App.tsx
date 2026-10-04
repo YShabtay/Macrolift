@@ -15,9 +15,12 @@ import type {
   BodyMeasurements,
   CircumferenceEntry,
   CircumferenceGoals,
+  Exercise,
   ExerciseAlternative,
   FoodEntry,
+  FoodTemplate,
   ProgressPhoto,
+  SetLog,
   SetProgressEntry,
   TrainingDaysPerWeek,
   UserMetrics,
@@ -33,6 +36,9 @@ import { adaptWorkoutPlan } from './utils/workoutAdaptation';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
+import { toggleSetEntry, updateSetLogEntry } from './utils/setLogs';
+import { addSavedMeal, toggleFavoriteFood } from './utils/foodShortcuts';
+import { addWaterForDate } from './utils/water';
 import { saveStepsForDate } from './utils/stepsCalculations';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -82,6 +88,26 @@ function applyProgramToState(
 }
 
 const BOOT_TIMEOUT_MS = 1500;
+
+/**
+ * Saves a hand-built plan: it replaces the current one, the calendar is re-spread around the new sessions (workouts already marked done
+ * keep their credit), and the weekly training frequency - which feeds the calorie estimate - follows the number of sessions.
+ */
+function applyCustomPlanToState(prev: AppState, plan: WorkoutPlan): AppState {
+  const completed = new Set(prev.completedWorkoutDates ?? []);
+  for (const date of new Set(prev.progress.map((p) => p.date))) {
+    if (isDayCompleted(prev.workoutPlan, prev.progress, date)) completed.add(date);
+  }
+  const metrics: UserMetrics = { ...prev.profile.metrics, trainingDaysPerWeek: plan.daysPerWeek };
+  return {
+    ...prev,
+    profile: { ...prev.profile, metrics },
+    workoutPlan: plan,
+    schedule: distributeProgramSchedule(plan, pruneStaleSchedule(prev.schedule, plan), undefined, undefined, [...completed]),
+    nutritionPlan: calculateNutritionPlan(metrics),
+    completedWorkoutDates: [...completed].sort(),
+  };
+}
 
 export default function App() {
   const [isBooting, setIsBooting] = useState(true);
@@ -195,23 +221,22 @@ export default function App() {
     setAppState(null);
   }
 
-  function toggleSet(dayId: string, exerciseId: string, setIndex: number) {
-    setAppState((prev) => {
-      if (!prev) return prev;
-      const date = todayIso();
-      const existing = prev.progress.find(
-        (p) => p.dayId === dayId && p.exerciseId === exerciseId && p.date === date,
-      );
-      const currentCount = existing?.completedSets ?? 0;
-      const nextCount = currentCount === setIndex + 1 ? setIndex : setIndex + 1;
+  /** Ticks (or un-ticks) a set, storing the weight / reps typed for it. Logs to today unless a date is given. */
+  function toggleSet(dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log?: SetLog, date: string = todayIso()) {
+    setAppState((prev) =>
+      prev
+        ? { ...prev, progress: toggleSetEntry(prev.progress, { dayId, exerciseId: exercise.id, exerciseName: exercise.name, date, setIndex, log }) }
+        : prev,
+    );
+  }
 
-      const withoutEntry = prev.progress.filter(
-        (p) => !(p.dayId === dayId && p.exerciseId === exerciseId && p.date === date),
-      );
-
-      const newEntry: SetProgressEntry = { dayId, exerciseId, date, completedSets: nextCount };
-      return { ...prev, progress: [...withoutEntry, newEntry] };
-    });
+  /** Corrects the weight / reps of a set that was already ticked (today, or on the date being logged). */
+  function updateSetLog(dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log: SetLog, date: string = todayIso()) {
+    setAppState((prev) =>
+      prev
+        ? { ...prev, progress: updateSetLogEntry(prev.progress, { dayId, exerciseId: exercise.id, exerciseName: exercise.name, date, setIndex, log }) }
+        : prev,
+    );
   }
 
   function handleSaveWeightLog(date: string, weightKg: number, notes?: string) {
@@ -363,6 +388,23 @@ export default function App() {
     });
   }
 
+  /** Stars a logged food (or un-stars it) so it can be added again in one tap. */
+  function handleToggleFavorite(entry: FoodEntry | FoodTemplate) {
+    setAppState((prev) => (prev ? { ...prev, favoriteFoods: toggleFavoriteFood(prev.favoriteFoods ?? [], entry) } : prev));
+  }
+
+  function handleSaveMeal(name: string, entries: FoodEntry[]) {
+    setAppState((prev) => (prev ? { ...prev, savedMeals: addSavedMeal(prev.savedMeals ?? [], name, entries) } : prev));
+  }
+
+  function handleDeleteSavedMeal(id: string) {
+    setAppState((prev) => (prev ? { ...prev, savedMeals: (prev.savedMeals ?? []).filter((m) => m.id !== id) } : prev));
+  }
+
+  function handleAddWater(date: string, deltaMl: number) {
+    setAppState((prev) => (prev ? { ...prev, waterLogs: addWaterForDate(prev.waterLogs ?? [], date, deltaMl) } : prev));
+  }
+
   function handleDeleteFood(id: string) {
     setAppState((prev) => (prev ? { ...prev, foodLog: prev.foodLog.filter((f) => f.id !== id) } : prev));
   }
@@ -450,6 +492,11 @@ export default function App() {
       const updatedMetrics = { ...prev.profile.metrics, ...updates };
       const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
 
+      // A plan the user built by hand is never regenerated behind their back: only the profile and the calorie targets change.
+      if (prev.workoutPlan.isCustom) {
+        return { ...prev, profile: { ...prev.profile, metrics: updatedMetrics }, nutritionPlan: newNutritionPlan };
+      }
+
       if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
         return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
       }
@@ -491,6 +538,10 @@ export default function App() {
       if (choice.kind === 'steps') next.steps = { boost: choice.boost, days: choice.days, fromDate: choice.fromDate, toDate: choice.toDate };
       return { ...prev, weeklyBalance: next };
     });
+  }
+
+  function handleSaveCustomPlan(plan: WorkoutPlan) {
+    setAppState((prev) => (prev ? applyCustomPlanToState(prev, plan) : prev));
   }
 
   function handleApplyProgram(splitType: WorkoutSplitType, daysPerWeek: TrainingDaysPerWeek) {
@@ -546,6 +597,7 @@ export default function App() {
       <Dashboard
         appState={appState}
         onToggleSet={toggleSet}
+        onUpdateSetLog={updateSetLog}
         onSwapExercise={handleSwapExercise}
         onRevertExercise={handleRevertExercise}
         onSaveWeightLog={handleSaveWeightLog}
@@ -560,6 +612,10 @@ export default function App() {
         onSetSchedule={handleSetSchedule}
         onClearSchedule={handleClearSchedule}
         onAddFood={handleAddFood}
+        onAddWater={handleAddWater}
+        onToggleFavorite={handleToggleFavorite}
+        onSaveMeal={handleSaveMeal}
+        onDeleteSavedMeal={handleDeleteSavedMeal}
         onDeleteFood={handleDeleteFood}
         onUpdateFood={handleUpdateFood}
         onSaveSteps={handleSaveSteps}
@@ -568,6 +624,7 @@ export default function App() {
         onDeleteCircumferenceEntry={handleDeleteCircumferenceEntry}
         onSaveCircumferenceGoals={handleSaveCircumferenceGoals}
         onApplyProgram={handleApplyProgram}
+        onSaveCustomPlan={handleSaveCustomPlan}
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}

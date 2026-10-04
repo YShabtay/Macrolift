@@ -207,6 +207,8 @@ export interface WorkoutPlan {
   title: string;
   description: string;
   days: DayWorkout[];
+  /** True for a plan the user built or edited by hand; automatic program changes then leave it alone. */
+  isCustom?: boolean;
   /** Human-readable notes on how this plan was personalized (focus areas, deload, injury swaps). */
   adaptationNotes?: string[];
 }
@@ -216,11 +218,21 @@ export interface WorkoutPlan {
 // ---------------------------------------------------------------------------
 
 /** Tracks which sets of a given exercise (in a given day, on a given date) are checked off. */
+/** What was actually lifted in one completed set. Either value may be missing (a set can be ticked without writing numbers down). */
+export interface SetLog {
+  weightKg?: number;
+  reps?: number;
+}
+
 export interface SetProgressEntry {
   exerciseId: string;
   dayId: string;
   date: string; // ISO date, the day the workout was performed
   completedSets: number; // how many sets marked done
+  /** The exercise's name when logged - history and personal records follow the exercise across plan changes (ids don't survive those). */
+  exerciseName?: string;
+  /** Weight and reps per completed set, in set order (index 0 = set 1). */
+  sets?: SetLog[];
 }
 
 /** A single daily body-weight entry. At most one per calendar date. */
@@ -272,6 +284,25 @@ export interface FoodEntry {
   carbsG: number;
 }
 
+/** A food as it was logged, without the day / meal it was logged on - the reusable part of an entry. */
+export type FoodTemplate = Omit<FoodEntry, 'id' | 'date' | 'meal' | 'time'>;
+
+/** A food the user starred, to add again in one tap. */
+export type FavoriteFood = FoodTemplate & { id: string };
+
+/** A named set of foods ("ארוחת בוקר רגילה") that is added to a meal in one tap. */
+export interface SavedMeal {
+  id: string;
+  name: string;
+  items: FoodTemplate[];
+}
+
+/** Water drunk on one date, in millilitres. At most one entry per date. */
+export interface WaterLog {
+  date: string; // YYYY-MM-DD
+  ml: number;
+}
+
 /** One day's recorded step count. At most one entry per date. */
 export interface StepLog {
   date: string; // YYYY-MM-DD
@@ -315,6 +346,12 @@ export interface AppState {
   circumferenceGoals: CircumferenceGoals;
   /** Daily step target set from the steps card; the app falls back to 10,000 when unset. */
   stepGoal?: number;
+  /** Daily water intake. */
+  waterLogs?: WaterLog[];
+  /** Foods the user starred for one-tap logging. */
+  favoriteFoods?: FavoriteFood[];
+  /** Meals the user saved to log again as a whole. */
+  savedMeals?: SavedMeal[];
   /** 'weekly' (default): stepGoal is a per-day AVERAGE for the week and surplus/shortfall carries across days; 'daily': a fixed goal for every day. */
   stepGoalMode?: 'weekly' | 'daily';
   /**

@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, CheckCircle2, Compass, Download, MoreVertical, Save, X } from 'lucide-react';
 import type { AppState } from '../types/fitness';
-import { downloadBackup, hasTrackedData } from '../utils/backupExport';
+import { exportBackup, hasTrackedData } from '../utils/backupExport';
 import {
   detectPlatform,
   getInstallPrompt,
@@ -105,8 +105,7 @@ export default function PwaInstallModal({ appState, onClose }: PwaInstallModalPr
 
   async function handleDownloadBackup() {
     if (!appState) return;
-    await downloadBackup(appState);
-    setIsBackupDone(true);
+    if ((await exportBackup(appState)) !== 'cancelled') setIsBackupDone(true);
   }
 
   const steps = tab === 'ios' ? IOS_STEPS : ANDROID_STEPS;

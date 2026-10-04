@@ -17,9 +17,10 @@ interface SettingsProps {
   metrics: UserMetrics;
   currentSplit: WorkoutSplitType;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
+  isCustomPlan?: boolean;
 }
 
-export default function Settings({ metrics, currentSplit, onApplyProgram }: SettingsProps) {
+export default function Settings({ metrics, currentSplit, onApplyProgram, isCustomPlan = false }: SettingsProps) {
   const [selectedDays, setSelectedDays] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
   const [justSaved, setJustSaved] = useState(false);
   const [recommendation, setRecommendation] = useState<ProgramRecommendation | null>(null);
@@ -109,6 +110,7 @@ export default function Settings({ metrics, currentSplit, onApplyProgram }: Sett
 
       {recommendation && (
         <ProgramSwitcherModal
+          isCustomPlan={isCustomPlan}
           currentSplit={currentSplit}
           currentDays={metrics.trainingDaysPerWeek}
           recommendation={recommendation}

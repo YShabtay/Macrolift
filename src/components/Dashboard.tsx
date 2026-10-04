@@ -11,6 +11,7 @@ import {
   Database,
   Download,
   Dumbbell,
+  Maximize2,
   FileSpreadsheet,
   Flame,
   Footprints,
@@ -55,12 +56,21 @@ import GuidedTour, { type TourStep } from './GuidedTour';
 import HelpCenterModal from './HelpCenterModal';
 import PwaInstallModal from './PwaInstallModal';
 import SectionErrorBoundary from './SectionErrorBoundary';
+import ExerciseSets from './ExerciseSets';
+import WorkoutMode from './WorkoutMode';
+import DateField from './DateField';
+import WeeklySummaryCard from './WeeklySummaryCard';
+import { getWaterGoalMl } from '../utils/water';
+import PlanBuilder from './PlanBuilder';
+import WeeklyVolume from './WeeklyVolume';
+import { getLastSessionLog, isPersonalRecord } from '../utils/setLogs';
 import WelcomeGuide from './WelcomeGuide';
 import { storageService } from '../services/storageService';
 import { getFrequencyRecommendation } from '../data/workoutTemplates';
 import PwaInstallBanner from './PwaInstallBanner';
 import { useInstallBanner } from '../hooks/useInstallBanner';
-import { downloadBackup, hasLoggedMealOrWorkout } from '../utils/backupExport';
+import { daysSince as daysSinceTimestamp, exportBackup, getLastBackupAt, hasLoggedMealOrWorkout, shouldShowBackupReminder, snoozeBackupReminder } from '../utils/backupExport';
+import BackupReminder from './BackupReminder';
 import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
@@ -109,10 +119,15 @@ import type {
   DayWorkout,
   Exercise,
   ExerciseAlternative,
+  FavoriteFood,
   FoodEntry,
   FoodPer100g,
+  FoodTemplate,
+  SavedMeal,
   ProgressPhoto,
+  SetLog,
   SetProgressEntry,
+  WaterLog,
   TrainingDaysPerWeek,
   WorkoutSplitType,
   WeightLog,
@@ -130,7 +145,8 @@ import type {
 
 interface DashboardProps {
   appState: AppState;
-  onToggleSet: (dayId: string, exerciseId: string, setIndex: number) => void;
+  onToggleSet: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log?: SetLog, date?: string) => void;
+  onUpdateSetLog: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log: SetLog, date?: string) => void;
   onSwapExercise: (dayId: string, exerciseId: string, alternative: ExerciseAlternative) => void;
   onRevertExercise: (dayId: string, exerciseId: string) => void;
   onSaveWeightLog: (date: string, weightKg: number, notes?: string) => void;
@@ -144,6 +160,10 @@ interface DashboardProps {
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onClearSchedule: (date: string) => void;
+  onAddWater: (date: string, deltaMl: number) => void;
+  onToggleFavorite: (entry: FoodEntry | FoodTemplate) => void;
+  onSaveMeal: (name: string, entries: FoodEntry[]) => void;
+  onDeleteSavedMeal: (id: string) => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
@@ -153,6 +173,7 @@ interface DashboardProps {
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
+  onSaveCustomPlan: (plan: WorkoutPlan) => void;
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
@@ -189,6 +210,9 @@ function readDismissedBannerDate(): string | null {
 
 /** Stable empty list so memo dependencies don't change on every render when no dates are stored. */
 const NO_DATES: string[] = [];
+const NO_FAVORITES: FavoriteFood[] = [];
+const NO_WATER: WaterLog[] = [];
+const NO_SAVED_MEALS: SavedMeal[] = [];
 
 const TOUR_STEPS: TourStep[] = [
   {
@@ -237,6 +261,7 @@ const TOUR_STEPS: TourStep[] = [
 export default function Dashboard({
   appState,
   onToggleSet,
+  onUpdateSetLog,
   onSwapExercise,
   onRevertExercise,
   onSaveWeightLog,
@@ -251,6 +276,10 @@ export default function Dashboard({
   onSetSchedule,
   onClearSchedule,
   onAddFood,
+  onAddWater,
+  onToggleFavorite,
+  onSaveMeal,
+  onDeleteSavedMeal,
   onDeleteFood,
   onUpdateFood,
   onSaveSteps,
@@ -259,6 +288,7 @@ export default function Dashboard({
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
   onApplyProgram,
+  onSaveCustomPlan,
   onApplyRebalance,
   onUpdateProfileFull,
   onImportAppState,
@@ -396,6 +426,8 @@ export default function Dashboard({
               progress={appState.progress}
               completedDates={appState.completedWorkoutDates ?? NO_DATES}
               onToggleSet={onToggleSet}
+              onUpdateSetLog={onUpdateSetLog}
+              onSaveCustomPlan={onSaveCustomPlan}
               onSwapExercise={onSwapExercise}
               onRevertExercise={onRevertExercise}
               onQuickCompleteDay={onQuickCompleteDay}
@@ -410,6 +442,14 @@ export default function Dashboard({
               nutritionPlan={appState.nutritionPlan}
               weeklyBalance={appState.weeklyBalance}
               onAddFood={onAddFood}
+              waterLogs={appState.waterLogs ?? NO_WATER}
+              waterGoalMl={getWaterGoalMl(appState.profile.metrics.weightKg)}
+              onAddWater={onAddWater}
+              favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
+              savedMeals={appState.savedMeals ?? NO_SAVED_MEALS}
+              onToggleFavorite={onToggleFavorite}
+              onSaveMeal={onSaveMeal}
+              onDeleteSavedMeal={onDeleteSavedMeal}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
               onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
@@ -530,6 +570,7 @@ function DashboardTab({
   const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
   const installBanner = useInstallBanner();
+  const [isBackupReminderVisible, setIsBackupReminderVisible] = useState(() => shouldShowBackupReminder(appState));
   // A brand-new, still-empty profile in a browser tab: the moment to suggest installing first, so tracking starts inside the installed app.
   const isStorageFresh =
     appState.weightLogs.length === 0 &&
@@ -646,6 +687,21 @@ function DashboardTab({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">הנה סיכום היעדים והאימון שלך להיום</p>
       </div>
 
+      {isBackupReminderVisible && (
+        <BackupReminder
+          daysSinceBackup={getLastBackupAt() === null ? null : daysSinceTimestamp(getLastBackupAt() ?? 0)}
+          onBackup={async () => {
+            const result = await exportBackup(appState);
+            if (result !== 'cancelled') setIsBackupReminderVisible(false);
+            return result !== 'cancelled';
+          }}
+          onLater={() => {
+            snoozeBackupReminder();
+            setIsBackupReminderVisible(false);
+          }}
+        />
+      )}
+
       {installBanner.isVisible && (
         <PwaInstallBanner
           variant={hasLoggedMealOrWorkout(appState) ? 'has-data' : isStorageFresh ? 'first-install' : 'default'}
@@ -741,6 +797,8 @@ function DashboardTab({
         onSaveGoal={onSaveStepGoal}
       />
 
+      <WeeklySummaryCard appState={appState} />
+
       {isDailyMealsOpen && (
         <DailyMealsModal
           entries={todaysFoodEntries}
@@ -782,6 +840,7 @@ function DashboardTab({
 
       {isProgramModalOpen && (
         <ProgramSwitcherModal
+          isCustomPlan={!!workoutPlan.isCustom}
           currentSplit={workoutPlan.splitType}
           currentDays={profile.metrics.trainingDaysPerWeek}
           onApply={onApplyProgram}
@@ -1190,20 +1249,24 @@ function WorkoutPlanTab({
   progress,
   completedDates,
   onToggleSet,
+  onUpdateSetLog,
   onSwapExercise,
   onRevertExercise,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
   onClearSchedule,
+  onSaveCustomPlan,
 }: {
   /** The sub-view to open on; the screen remounts on each visit, so this only matters on arrival. */
   initialView: WorkoutView;
+  onSaveCustomPlan: (plan: WorkoutPlan) => void;
   workoutPlan: WorkoutPlan;
   schedule: WorkoutScheduleEntry[];
   progress: SetProgressEntry[];
   completedDates: readonly string[];
-  onToggleSet: (dayId: string, exerciseId: string, setIndex: number) => void;
+  onToggleSet: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log?: SetLog, date?: string) => void;
+  onUpdateSetLog: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log: SetLog, date?: string) => void;
   onSwapExercise: (dayId: string, exerciseId: string, alternative: ExerciseAlternative) => void;
   onRevertExercise: (dayId: string, exerciseId: string) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
@@ -1212,6 +1275,8 @@ function WorkoutPlanTab({
   onClearSchedule: (date: string) => void;
 }) {
   const [view, setView] = useState<WorkoutView>(initialView);
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
   const [selectedDayId, setSelectedDayId] = useState<string>(todaysDay.id);
   const selectedDay = workoutPlan.days.find((d) => d.id === selectedDayId) ?? workoutPlan.days[0];
@@ -1238,6 +1303,32 @@ function WorkoutPlanTab({
       <p className="-mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
         {getFrequencyRecommendation(workoutPlan)} אפשר לשבץ כל אימון ליום שנוח לך דרך לוח השנה.
       </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setIsBuilderOpen(true)} className="btn-secondary px-3 py-2 text-xs">
+          <Pencil className="h-3.5 w-3.5" />
+          {workoutPlan.isCustom ? 'עריכת התוכנית שלי' : 'בנה או ערוך תוכנית משלך'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsVolumeOpen((v) => !v)}
+          aria-expanded={isVolumeOpen}
+          className="text-xs font-bold text-lime-700 underline underline-offset-2 dark:text-lime-400"
+        >
+          {isVolumeOpen ? 'הסתר' : 'הצג'} סטים שבועיים לכל שריר
+        </button>
+      </div>
+      {isVolumeOpen && <WeeklyVolume plan={workoutPlan} className="glass-card p-4" />}
+      {isBuilderOpen && (
+        <PlanBuilder
+          plan={workoutPlan}
+          onSave={(plan) => {
+            onSaveCustomPlan(plan);
+            setIsBuilderOpen(false);
+          }}
+          onClose={() => setIsBuilderOpen(false)}
+        />
+      )}
 
       <div className="inline-flex self-end rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1">
         <button
@@ -1276,6 +1367,7 @@ function WorkoutPlanTab({
             selectedDay={selectedDay}
             onSelectDay={setSelectedDayId}
             onToggleSet={onToggleSet}
+            onUpdateSetLog={onUpdateSetLog}
             onSwapExercise={onSwapExercise}
             onRevertExercise={onRevertExercise}
             progress={progress}
@@ -1302,6 +1394,7 @@ function WorkoutCard({
   selectedDay,
   onSelectDay,
   onToggleSet,
+  onUpdateSetLog,
   onSwapExercise,
   onRevertExercise,
   progress,
@@ -1309,14 +1402,21 @@ function WorkoutCard({
   workoutPlan: WorkoutPlan;
   selectedDay: DayWorkout;
   onSelectDay: (dayId: string) => void;
-  onToggleSet: (dayId: string, exerciseId: string, setIndex: number) => void;
+  onToggleSet: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log?: SetLog, date?: string) => void;
+  onUpdateSetLog: (dayId: string, exercise: Pick<Exercise, 'id' | 'name'>, setIndex: number, log: SetLog, date?: string) => void;
   onSwapExercise: (dayId: string, exerciseId: string, alternative: ExerciseAlternative) => void;
   onRevertExercise: (dayId: string, exerciseId: string) => void;
   progress: SetProgressEntry[];
 }) {
-  const date = todayIso();
+  const today = todayIso();
+  // The day being logged: today by default, or an earlier date to fill in a workout that was done but not written down.
+  const [logDate, setLogDate] = useState(today);
+  const date = logDate;
+  const isPastDate = date !== today;
   const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
   const [swapExercise, setSwapExercise] = useState<Exercise | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isWorkoutModeOpen, setIsWorkoutModeOpen] = useState(false);
   const restTimer = useRestTimer();
   const previousByExercise = useMemo(() => getPreviousPerformances(progress, date), [progress, date]);
 
@@ -1327,6 +1427,25 @@ function WorkoutCard({
     );
     return sum + (entry?.completedSets ?? 0);
   }, 0);
+
+  /** Ticks (or un-ticks) one set: records the numbers, flags a personal record, and starts / cancels the rest timer. */
+  function tickSet(exercise: Exercise, setIndex: number, log?: SetLog) {
+    const completedSets = progress.find((p) => p.dayId === selectedDay.id && p.exerciseId === exercise.id && p.date === date)?.completedSets ?? 0;
+    const isCompletingNewSet = setIndex >= completedSets;
+    if (isCompletingNewSet && log && isPersonalRecord(progress, exercise.name, date, log)) {
+      setToastMessage(`🏆 שיא אישי חדש ב${exercise.name}!`);
+    }
+    onToggleSet(selectedDay.id, exercise, setIndex, log, date);
+    // No rest timer for a workout that already happened.
+    if (isCompletingNewSet && !isPastDate) {
+      // start() unlocks Web Audio and asks for notification permission, which both must
+      // happen synchronously inside this click - iOS only allows them within a user gesture.
+      restTimer.start(getDefaultRestSeconds(exercise), exercise.name);
+    } else if (restTimer.status !== 'idle' && restTimer.label === exercise.name) {
+      // Unchecking a set cancels the rest it started (a rest from a different exercise is left alone).
+      restTimer.cancel();
+    }
+  }
 
   return (
     <div className="glass-card flex h-full flex-col p-5 sm:p-6">
@@ -1352,6 +1471,30 @@ function WorkoutCard({
           </button>
         ))}
       </div>
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 px-3 py-2">
+        <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">תיעוד אימון ליום:</span>
+        <div className="flex items-center gap-2">
+          <DateField
+            value={date}
+            max={today}
+            onChange={setLogDate}
+            ariaLabel="תאריך האימון לתיעוד"
+            className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200"
+          />
+          {isPastDate && (
+            <button type="button" onClick={() => setLogDate(today)} className="text-xs font-bold text-lime-700 underline underline-offset-2 dark:text-lime-400">
+              חזרה להיום
+            </button>
+          )}
+        </div>
+        {isPastDate && <p className="w-full text-[11px] text-amber-700 dark:text-amber-400">מתעד אימון מ-{formatDateDisplay(date)}. הסטים יישמרו בתאריך הזה.</p>}
+      </div>
+
+      <button type="button" onClick={() => setIsWorkoutModeOpen(true)} className="btn-primary mb-4 w-full py-3">
+        <Maximize2 className="h-4 w-4" />
+        מצב אימון: תרגיל אחד במסך מלא
+      </button>
 
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-500">
@@ -1390,7 +1533,7 @@ function WorkoutCard({
                   </p>
                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-500">
                     {exercise.repsRange} חזרות &middot; מנוחה {getDefaultRestSeconds(exercise)} שנ׳
-                    {previousByExercise.get(exercise.id) && (
+                    {!getLastSessionLog(progress, exercise.name, date) && previousByExercise.get(exercise.id) && (
                       <span className="text-zinc-400 dark:text-zinc-600">
                         {' '}
                         &middot; קודם: {previousByExercise.get(exercise.id)?.completedSets}/{exercise.sets} סטים (
@@ -1429,43 +1572,30 @@ function WorkoutCard({
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: exercise.sets }).map((_, i) => {
-                  const setDone = i < completedSets;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        const isCompletingNewSet = i >= completedSets;
-                        onToggleSet(selectedDay.id, exercise.id, i);
-                        if (isCompletingNewSet) {
-                          // start() unlocks Web Audio and asks for notification permission, which both must
-                          // happen synchronously inside this click - iOS only allows them within a user gesture.
-                          restTimer.start(getDefaultRestSeconds(exercise), exercise.name);
-                        } else if (restTimer.status !== 'idle' && restTimer.label === exercise.name) {
-                          // Unchecking a set cancels the rest it started (a rest from a different exercise is left alone).
-                          restTimer.cancel();
-                        }
-                      }}
-                      aria-label={`סט ${i + 1} מתוך ${exercise.sets} - ${exercise.name}`}
-                      aria-pressed={setDone}
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-bold transition active:scale-90 ${
-                        setDone
-                          ? 'border-lime-400 bg-lime-400 text-zinc-950'
-                          : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  );
-                })}
-              </div>
+              <ExerciseSets
+                exercise={exercise}
+                entry={entry}
+                lastSession={getLastSessionLog(progress, exercise.name, date)}
+                onToggle={(i, log) => tickSet(exercise, i, log)}
+                onUpdateLog={(i, log) => onUpdateSetLog(selectedDay.id, exercise, i, log, date)}
+              />
             </div>
           );
         })}
       </div>
 
+      {isWorkoutModeOpen && (
+        <WorkoutMode
+          day={selectedDay}
+          progress={progress}
+          date={date}
+          onCompleteSet={tickSet}
+          onUndoSet={(exercise, completedSets) => tickSet(exercise, completedSets - 1)}
+          onOpenVideo={setActiveExercise}
+          onClose={() => setIsWorkoutModeOpen(false)}
+        />
+      )}
+      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
       <VideoModal exercise={activeExercise} onClose={() => setActiveExercise(null)} />
       <ExerciseSwapModal
         exercise={swapExercise}
@@ -1706,6 +1836,7 @@ function ProfileTab({
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isWelcomeGuideOpen, setIsWelcomeGuideOpen] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(() => getLastBackupAt());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [pendingImport, setPendingImport] = useState<
@@ -1722,8 +1853,11 @@ function ProfileTab({
   }
 
   async function handleExportData() {
-    await downloadBackup(appState);
-    setToastMessage('הנתונים יוצאו בהצלחה');
+    const result = await exportBackup(appState);
+    if (result !== 'cancelled') {
+      setLastBackupAt(getLastBackupAt());
+      setToastMessage(result === 'shared' ? 'הגיבוי נשלח' : 'הנתונים יוצאו בהצלחה');
+    }
   }
 
   function handleExportCsv() {
@@ -1862,7 +1996,7 @@ function ProfileTab({
         <ChevronLeft className="h-5 w-5 shrink-0 text-zinc-400" />
       </button>
 
-      <Settings metrics={metrics} currentSplit={appState.workoutPlan.splitType} onApplyProgram={onApplyProgram} />
+      <Settings metrics={metrics} currentSplit={appState.workoutPlan.splitType} onApplyProgram={onApplyProgram} isCustomPlan={!!appState.workoutPlan.isCustom} />
 
       <div className="glass-card p-5 sm:p-6">
         <h2 className="mb-3 font-bold text-zinc-900 dark:text-zinc-100">חישוב קלורי</h2>
@@ -2042,6 +2176,9 @@ function ProfileTab({
             className="hidden"
           />
         </div>
+        <p className="mt-3 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+          {lastBackupAt === null ? 'עדיין לא גיבית ממכשיר זה.' : `הגיבוי האחרון: ${daysSinceTimestamp(lastBackupAt) === 0 ? 'היום' : `לפני ${daysSinceTimestamp(lastBackupAt)} ימים`}.`}
+        </p>
         <p className="mt-4 rounded-xl border border-lime-400/25 bg-lime-400/5 p-3.5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
           💡 שים לב: המידע נשמר באופן פרטי ומקומי על המכשיר שלך. אם התחלת להשתמש בדפדפן (ספארי) ואתה עובר לאפליקציה במסך הבית, ייצא גיבוי מכאן ושחזר אותו
           במסך הבית בלחיצה אחת.

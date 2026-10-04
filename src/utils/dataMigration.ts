@@ -1,11 +1,15 @@
 import type {
   AppState,
   CircumferenceEntry,
+  FavoriteFood,
   FoodEntry,
+  FoodTemplate,
   Meal,
   ProgressPhoto,
+  SavedMeal,
   SetProgressEntry,
   StepLog,
+  WaterLog,
   WeightLog,
   WorkoutPlan,
   WorkoutScheduleEntry,
@@ -16,7 +20,7 @@ import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
 /** Records the schema version storage was last fully repaired to, so a normal launch skips parsing every saved state (photos make them large). */
@@ -56,6 +60,80 @@ function normalizeStepLogs(raw: unknown): StepLog[] {
     if (isIsoDate(date) && n !== null && n >= 0) byDate.set(date, Math.round(n));
   }
   return [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([date, steps]) => ({ date, steps }));
+}
+
+/** Weight / reps written down per set: keeps only sane numbers, and drops the field entirely when nothing usable is left. */
+function normalizeProgressEntry(entry: SetProgressEntry): SetProgressEntry {
+  const { sets, exerciseName, ...rest } = entry;
+  const cleanSets = Array.isArray(sets)
+    ? sets.slice(0, 50).map((set) => {
+        const o = isObject(set) ? set : {};
+        const weightKg = finite(o.weightKg);
+        const reps = finite(o.reps);
+        return {
+          ...(weightKg !== null && weightKg >= 0 && weightKg <= 1000 ? { weightKg } : {}),
+          ...(reps !== null && reps >= 0 && reps <= 200 ? { reps: Math.round(reps) } : {}),
+        };
+      })
+    : undefined;
+  return {
+    ...rest,
+    completedSets: Math.max(0, Math.round(finite(entry.completedSets) ?? 0)),
+    ...(typeof exerciseName === 'string' && exerciseName ? { exerciseName } : {}),
+    ...(cleanSets && cleanSets.length > 0 ? { sets: cleanSets } : {}),
+  };
+}
+
+/** One entry per date, 0 < ml <= 10 L, oldest first. */
+function normalizeWaterLogs(raw: unknown): WaterLog[] {
+  const byDate = new Map<string, number>();
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!isObject(item) || !isIsoDate(item.date)) continue;
+      const ml = finite(item.ml);
+      if (ml !== null && ml > 0 && ml <= 10_000) byDate.set(item.date, Math.round(ml));
+    }
+  }
+  return [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([date, ml]) => ({ date, ml }));
+}
+
+/** A reusable food (favorite / part of a saved meal): needs a name and a calorie value, everything else gets harmless defaults. */
+function normalizeTemplate(raw: unknown): FoodTemplate | null {
+  if (!isObject(raw) || typeof raw.name !== 'string' || !raw.name.trim()) return null;
+  const calories = finite(raw.calories);
+  if (calories === null || calories < 0) return null;
+  const weightGrams = finite(raw.weightGrams);
+  return {
+    name: raw.name,
+    quantity: typeof raw.quantity === 'string' ? raw.quantity : '',
+    ...(weightGrams !== null && weightGrams > 0 ? { weightGrams } : {}),
+    ...(typeof raw.unitLabel === 'string' && raw.unitLabel.trim() ? { unitLabel: raw.unitLabel.trim().slice(0, 60) } : {}),
+    calories,
+    proteinG: nonNegative(raw.proteinG),
+    fatG: nonNegative(raw.fatG),
+    carbsG: nonNegative(raw.carbsG),
+  };
+}
+
+function normalizeFavorites(raw: unknown): FavoriteFood[] {
+  if (!Array.isArray(raw)) return [];
+  const result: FavoriteFood[] = [];
+  for (const item of raw) {
+    const template = normalizeTemplate(item);
+    if (template) result.push({ ...template, id: isObject(item) ? idOf(item) : newId() });
+  }
+  return result.slice(0, 60);
+}
+
+function normalizeSavedMeals(raw: unknown): SavedMeal[] {
+  if (!Array.isArray(raw)) return [];
+  const result: SavedMeal[] = [];
+  for (const item of raw) {
+    if (!isObject(item) || typeof item.name !== 'string' || !item.name.trim() || !Array.isArray(item.items)) continue;
+    const items = item.items.map(normalizeTemplate).filter((t): t is FoodTemplate => t !== null);
+    if (items.length > 0) result.push({ id: idOf(item), name: item.name.trim().slice(0, 40), items });
+  }
+  return result.slice(0, 30);
 }
 
 function normalizeFoodLog(raw: unknown): FoodEntry[] {
@@ -119,7 +197,7 @@ export function sanitizeAppState(raw: unknown): AppState | null {
     profile,
     nutritionPlan: hasValidNutritionPlan(raw.nutritionPlan) ? (raw.nutritionPlan as AppState['nutritionPlan']) : calculateNutritionPlan(metrics),
     workoutPlan: normalizeWorkoutPlan(raw.workoutPlan, metrics.trainingDaysPerWeek),
-    progress: keep<SetProgressEntry>(raw.progress, (p) => typeof p.dayId === 'string' && typeof p.exerciseId === 'string' && isIsoDate(p.date)),
+    progress: keep<SetProgressEntry>(raw.progress, (p) => typeof p.dayId === 'string' && typeof p.exerciseId === 'string' && isIsoDate(p.date)).map(normalizeProgressEntry),
     weightLogs: keep<Record<string, unknown>>(raw.weightLogs, (w) => isIsoDate(w.date) && (finite(w.weightKg) ?? 0) > 0).map((w) => ({
       ...(w as unknown as WeightLog),
       id: idOf(w),
@@ -137,6 +215,16 @@ export function sanitizeAppState(raw: unknown): AppState | null {
     })),
     circumferenceGoals: isObject(raw.circumferenceGoals) ? (raw.circumferenceGoals as AppState['circumferenceGoals']) : {},
   };
+
+  const waterLogs = normalizeWaterLogs(raw.waterLogs);
+  if (waterLogs.length > 0) state.waterLogs = waterLogs;
+  else delete state.waterLogs;
+  const favoriteFoods = normalizeFavorites(raw.favoriteFoods);
+  if (favoriteFoods.length > 0) state.favoriteFoods = favoriteFoods;
+  else delete state.favoriteFoods;
+  const savedMeals = normalizeSavedMeals(raw.savedMeals);
+  if (savedMeals.length > 0) state.savedMeals = savedMeals;
+  else delete state.savedMeals;
 
   // Optional fields: kept only when usable, otherwise removed so the app's own defaults apply.
   const stepGoal = finite(raw.stepGoal);

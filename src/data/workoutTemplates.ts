@@ -1040,3 +1040,55 @@ export function getFrequencyRecommendation(plan: Pick<WorkoutPlan, 'daysPerWeek'
   if (n === 4) return 'תדירות מומלצת: 4 אימונים בשבוע, עם לפחות יום מנוחה אחד באמצע השבוע 💡';
   return `תדירות מומלצת: ${n} אימונים בשבוע, עם לפחות יום מנוחה אחד ולא יותר משלושה אימונים רצופים 💡`;
 }
+
+// ---------------------------------------------------------------------------
+// Exercise library (for building a plan by hand)
+// ---------------------------------------------------------------------------
+
+export interface LibraryExercise {
+  name: string;
+  nameEn?: string;
+  muscleGroup: MuscleGroup;
+  equipment: Equipment;
+}
+
+let libraryCache: LibraryExercise[] | null = null;
+
+/** Every exercise the app knows (template exercises, swap alternatives, extras), one entry per name. */
+export function getExerciseLibrary(): LibraryExercise[] {
+  if (libraryCache) return libraryCache;
+  const byName = new Map<string, LibraryExercise>();
+  const add = (e: LibraryExercise) => {
+    if (!byName.has(e.name)) byName.set(e.name, e);
+  };
+  for (const plan of WORKOUT_TEMPLATES) {
+    for (const d of plan.days) for (const e of d.exercises) add({ name: e.name, nameEn: e.nameEn, muscleGroup: e.muscleGroup, equipment: e.equipment });
+  }
+  for (const list of Object.values(EXERCISE_ALTERNATIVES)) {
+    for (const a of list) add({ name: a.name, nameEn: a.nameEn, muscleGroup: a.muscleGroup, equipment: a.equipment });
+  }
+  for (const [name, info] of Object.entries(EXTRA_EXERCISES)) add({ name, nameEn: EXERCISE_NAMES_EN[name], ...info });
+  libraryCache = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  return libraryCache;
+}
+
+/** A plan exercise for the builder: library media (video, cues) and swap options are attached when the name is known. The id is unique forever. */
+export function createPlanExercise(
+  base: Pick<Exercise, 'name' | 'muscleGroup' | 'equipment'> & Partial<Pick<Exercise, 'nameEn' | 'sets' | 'repsRange' | 'restSeconds'>>,
+): Exercise {
+  const media = EXERCISE_MEDIA[base.name];
+  const isCompound = base.equipment === 'barbell' || ['quads', 'hamstrings', 'glutes', 'back', 'chest'].includes(base.muscleGroup);
+  return {
+    id: `cx-${crypto.randomUUID()}`,
+    name: base.name,
+    nameEn: base.nameEn ?? EXERCISE_NAMES_EN[base.name],
+    muscleGroup: base.muscleGroup,
+    equipment: base.equipment,
+    sets: base.sets ?? 3,
+    repsRange: base.repsRange ?? (isCompound ? '8-12' : '10-15'),
+    restSeconds: base.restSeconds ?? (isCompound ? 90 : 60),
+    youtubeId: media?.youtubeId,
+    cues: media?.cues,
+    alternatives: getExerciseAlternatives(base.name, base.muscleGroup),
+  };
+}

@@ -87,7 +87,7 @@ export default function VideoModal({ exercise, onClose }: VideoModalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[75] flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
