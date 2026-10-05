@@ -486,7 +486,7 @@ export default function Dashboard({
       </main>
 
       {/* Bottom nav - mobile */}
-      <nav className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-20 mx-auto flex max-w-md justify-around gap-1 rounded-full border border-zinc-200 bg-white/90 p-1.5 shadow-xl backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/90 md:hidden">
+      <nav className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-20 mx-auto flex max-w-md justify-around gap-1 rounded-full border border-white/60 bg-white/55 p-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6),0_12px_40px_-12px_rgba(0,0,0,0.35)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/15 dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14),0_12px_40px_-12px_rgba(0,0,0,0.7)] md:hidden">
         {NAV_ITEMS.map(({ id, shortLabel, icon: Icon }) => {
           const isActive = tab === id;
           return (
@@ -495,7 +495,7 @@ export default function Dashboard({
               type="button"
               onClick={() => selectTab(id)}
               className={`flex flex-1 flex-col items-center gap-0.5 rounded-full py-2 text-[10px] font-semibold transition ${
-                isActive ? 'bg-lime-400 text-zinc-950' : 'text-zinc-500 dark:text-zinc-400'
+                isActive ? 'bg-lime-400 text-zinc-950' : 'text-zinc-600 dark:text-zinc-300'
               }`}
             >
               <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2.5 : 2} />
