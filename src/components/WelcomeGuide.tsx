@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import PwaInstallModal from './PwaInstallModal';
-import { detectPlatform, isStandalone } from '../utils/pwaInstall';
+import { detectPlatform, getInAppBrowserName, isStandalone } from '../utils/pwaInstall';
 
 interface WelcomeGuideProps {
   /** Called when the guide ends - finished or skipped. */
@@ -146,6 +146,8 @@ export default function WelcomeGuide({ onClose }: WelcomeGuideProps) {
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const alreadyInstalled = isStandalone();
   const isAndroid = detectPlatform() === 'android';
+  // Opened from Instagram & co.: their built-in browser can't install the app, so say how to get out of it first.
+  const inAppBrowser = alreadyInstalled ? null : getInAppBrowserName();
 
   const cards: GuideCard[] = [
     {
@@ -168,6 +170,12 @@ export default function WelcomeGuide({ onClose }: WelcomeGuideProps) {
             illustration: <HomeScreenIllustration />,
             body: (
               <>
+                {inAppBrowser && (
+                  <p className="mb-2 rounded-lg border border-orange-400/50 bg-orange-400/10 px-3 py-2 text-xs font-semibold leading-relaxed text-orange-700 dark:text-orange-300">
+                    ⚠️ פתחתם את הקישור בתוך {inAppBrowser}, ובדפדפן הזה אי אפשר להתקין.{' '}
+                    {isAndroid ? 'לחצו על ⋮ ← "פתיחה בדפדפן" (Chrome או Samsung), ושם התקינו.' : 'לחצו על ⋯ ← "Open in Safari", ושם התקינו.'}
+                  </p>
+                )}
                 <p>
                   {isAndroid
                     ? 'בדפדפן: תפריט ⋮ ← "התקן אפליקציה" (או "הוסף למסך הבית") ← אישור.'

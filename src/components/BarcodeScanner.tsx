@@ -2,7 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, ScanBarcode, X } from 'lucide-react';
 import type { FoodPer100g } from '../types/fitness';
-import { lookupBarcode, normalizeBarcode, ProductNotFoundError } from '../services/barcodeLookup';
+import {
+  lookupBarcode,
+  normalizeBarcode,
+  ProductNotFoundError,
+  ProductWithoutNutritionError,
+  saveManualBarcodeFood,
+  validateManualBarcodeFood,
+} from '../services/barcodeLookup';
+import DecimalInput from './DecimalInput';
+import { parseDecimal } from '../utils/decimalInput';
 
 interface BarcodeScannerProps {
   /** The product that was found (already cached on the device). */
@@ -11,6 +20,16 @@ interface BarcodeScannerProps {
 }
 
 type Phase = 'starting' | 'scanning' | 'looking-up';
+
+/** A scanned product the database can't give usable values for; the user types them in from the package. */
+interface MissingProduct {
+  code: string;
+  /** The name the database has, when it knows the product at all. */
+  name: string;
+}
+
+const fieldClass =
+  'min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2.5 text-center text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-lime-400';
 
 /** A message for the ways camera access fails, in plain words (permission denied is by far the most common). */
 function describeCameraError(error: unknown): string {
@@ -30,6 +49,9 @@ export default function BarcodeScanner({ onFound, onClose }: BarcodeScannerProps
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
+  const [missing, setMissing] = useState<MissingProduct | null>(null);
+  const [form, setForm] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' });
+  const [formError, setFormError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const stoppedRef = useRef(false);
   const onFoundRef = useRef(onFound);
@@ -49,7 +71,16 @@ export default function BarcodeScanner({ onFound, onClose }: BarcodeScannerProps
       if (!stoppedRef.current) onFoundRef.current(food);
     } catch (err) {
       if (stoppedRef.current) return;
-      setLookupError(err instanceof ProductNotFoundError ? `המוצר ${code} לא נמצא במאגר. אפשר לחפש אותו בשם או להזין ידנית.` : err instanceof Error ? err.message : 'החיפוש נכשל');
+      if (err instanceof ProductNotFoundError || err instanceof ProductWithoutNutritionError) {
+        // Stay "busy" so the camera doesn't keep re-scanning while the values are being typed in.
+        const name = err instanceof ProductWithoutNutritionError ? err.productName : '';
+        setMissing({ code, name });
+        setForm({ name, calories: '', protein: '', carbs: '', fat: '' });
+        setFormError(null);
+        setPhase('scanning');
+        return;
+      }
+      setLookupError(err instanceof Error ? err.message : 'החיפוש נכשל');
       // Let the camera find the next barcode (after a pause, so the same unreadable one isn't hammered).
       setTimeout(() => {
         busyRef.current = false;
@@ -101,6 +132,33 @@ export default function BarcodeScanner({ onFound, onClose }: BarcodeScannerProps
 
   const manualValid = normalizeBarcode(manualCode) !== null;
 
+  async function handleSaveMissing() {
+    if (!missing) return;
+    const food = {
+      name: form.name,
+      calories: parseDecimal(form.calories) ?? Number.NaN,
+      protein: parseDecimal(form.protein) ?? Number.NaN,
+      carbs: parseDecimal(form.carbs) ?? Number.NaN,
+      fat: parseDecimal(form.fat) ?? Number.NaN,
+    };
+    const problem = validateManualBarcodeFood(food);
+    if (problem) {
+      setFormError(problem);
+      return;
+    }
+    try {
+      onFoundRef.current(await saveManualBarcodeFood(missing.code, food));
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'השמירה נכשלה');
+    }
+  }
+
+  function handleScanAgain() {
+    setMissing(null);
+    setFormError(null);
+    busyRef.current = false;
+  }
+
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label="סריקת ברקוד" dir="rtl" className="fixed inset-0 z-[80] flex flex-col bg-zinc-950 text-zinc-100 animate-fade-in">
       <div className="flex items-center justify-between px-4 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
@@ -134,6 +192,43 @@ export default function BarcodeScanner({ onFound, onClose }: BarcodeScannerProps
         )}
         {cameraError && <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm leading-relaxed text-zinc-300">{cameraError}</p>}
       </div>
+
+      {missing && (
+        <div className="absolute inset-x-0 bottom-0 z-10 max-h-[85%] overflow-y-auto rounded-t-2xl border-t border-zinc-700 bg-zinc-950 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 shadow-2xl">
+          <p className="text-sm font-bold text-zinc-100">
+            {missing.name ? `המוצר נמצא (${missing.name}), אבל חסרים בו ערכי תזונה` : `המוצר ${missing.code} לא נמצא במאגר`}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+            אפשר להזין אותם מהאריזה (העמודה &quot;ל-100 גרם&quot;). נזכור את המוצר, וסריקה הבאה תמצא אותו מיד.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="שם המוצר"
+              aria-label="שם המוצר"
+              className={fieldClass}
+            />
+            <div className="grid grid-cols-4 gap-2">
+              <DecimalInput value={form.calories} onValueChange={(v) => setForm((f) => ({ ...f, calories: v }))} placeholder="קק״ל" aria-label="קלוריות ל-100 גרם" className={fieldClass} />
+              <DecimalInput value={form.protein} onValueChange={(v) => setForm((f) => ({ ...f, protein: v }))} placeholder="חלבון" aria-label="חלבון ל-100 גרם" className={fieldClass} />
+              <DecimalInput value={form.carbs} onValueChange={(v) => setForm((f) => ({ ...f, carbs: v }))} placeholder="פחמימה" aria-label="פחמימה ל-100 גרם" className={fieldClass} />
+              <DecimalInput value={form.fat} onValueChange={(v) => setForm((f) => ({ ...f, fat: v }))} placeholder="שומן" aria-label="שומן ל-100 גרם" className={fieldClass} />
+            </div>
+            <p className="text-center text-[11px] text-zinc-500">הערכים ל-100 גרם: קלוריות, חלבון, פחמימה, שומן</p>
+            {formError && <p className="text-center text-xs font-semibold text-amber-400">{formError}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => void handleSaveMissing()} className="btn-primary flex-1 py-2.5 text-sm">
+                שמור והמשך
+              </button>
+              <button type="button" onClick={handleScanAgain} className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-zinc-300">
+                סרוק שוב
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3">
         {lookupError && <p className="mb-2 text-center text-xs font-semibold text-amber-400">{lookupError}</p>}
