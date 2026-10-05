@@ -62,7 +62,9 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
     <div
       // Phone: edge to edge and up under the status bar, rounded only at the bottom, no frame or glow. Desktop (md+) keeps it inside the content column.
       className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] grid overflow-hidden rounded-b-[2rem] sm:-mx-6 md:mx-0 md:mt-0 md:rounded-3xl ${
-        compact ? 'min-h-[230px] sm:min-h-[250px] md:min-h-[190px]' : 'min-h-[340px] sm:min-h-[360px] md:min-h-[320px]'
+        compact
+          ? 'min-h-[calc(200px+env(safe-area-inset-top))] sm:min-h-[250px] md:min-h-[190px]'
+          : 'min-h-[calc(300px+env(safe-area-inset-top))] sm:min-h-[360px] md:min-h-[320px]'
       }`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -79,7 +81,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
               isActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
             }`}
           >
-            <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[50%_22%]" />
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
 
             <div

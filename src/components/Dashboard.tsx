@@ -332,8 +332,9 @@ export default function Dashboard({
       {restTimerStatus !== 'idle' &&
         (tab === 'workout' ? <RestTimer /> : <RestTimerMiniBar onOpenWorkout={() => selectTab('workout')} />)}
 
-      {/* Opaque strip behind the iPhone status bar / camera cutout so scrolled content never shows through it */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:hidden" />
+      {/* A soft fade (not an opaque band) behind the iPhone status bar: the hero photo reaches the very top, while scrolled content still dims
+          enough for the clock and battery to stay readable. */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[calc(env(safe-area-inset-top)+0.75rem)] bg-gradient-to-b from-zinc-50/85 via-zinc-50/40 to-transparent dark:from-zinc-950/75 dark:via-zinc-950/30 md:hidden" />
 
       {/* Theme toggle - mobile top bar (no persistent header exists on mobile otherwise) */}
       <div className="fixed left-4 top-[max(env(safe-area-inset-top),1rem)] z-30 md:hidden">
