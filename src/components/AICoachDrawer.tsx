@@ -11,6 +11,7 @@ import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, sumTotals
 import { compressImageToDataUrl } from '../utils/imageEncoding';
 import { todayIso } from '../utils/weightCalculations';
 import Toast from './Toast';
+import { useVisualViewport } from '../hooks/useVisualViewport';
 import ChatText from './ChatText';
 
 interface AICoachDrawerProps {
@@ -104,6 +105,8 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
+  // Keeps the drawer inside the visible area when the iOS keyboard opens, instead of letting the page behind it show.
+  const viewport = useVisualViewport(isOpen);
 
   useEffect(() => {
     saveHistory(userId, messages);
@@ -257,6 +260,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
           <div
             data-safe-area="self"
             className="fixed inset-0 z-50 flex justify-end bg-zinc-950/70 backdrop-blur-sm animate-fade-in"
+            style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined}
             onClick={() => setIsOpen(false)}
           >
             <div
@@ -370,7 +374,11 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 px-3 pt-3 pb-[max(env(safe-area-inset-bottom),1rem)]">
+                  <div
+                    className={`flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 px-3 pt-3 ${
+                      viewport?.keyboardOpen ? 'pb-3' : 'pb-[max(env(safe-area-inset-bottom),1rem)]'
+                    }`}
+                  >
                     {pendingImage && (
                       <div className="flex items-center gap-2 self-start rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5">
                         <img src={pendingImage.previewUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
