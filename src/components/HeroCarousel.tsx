@@ -60,11 +60,12 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
 
   return (
     <div
-      // Phone: edge to edge and up under the status bar, rounded only at the bottom, no frame or glow. Desktop (md+) keeps it inside the content column.
-      className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] grid overflow-hidden rounded-b-[2rem] sm:-mx-6 md:mx-0 md:mt-0 md:rounded-3xl ${
+      // Phone: edge to edge and up under the status bar, no frame or glow; the picture dissolves into the page at the bottom (see the mask below), in light
+      // and dark alike. Desktop (md+) keeps it inside the content column.
+      className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] grid overflow-hidden sm:-mx-6 md:mx-0 md:mt-0 md:rounded-3xl ${
         compact
-          ? 'min-h-[calc(200px+env(safe-area-inset-top))] sm:min-h-[250px] md:min-h-[190px]'
-          : 'min-h-[calc(300px+env(safe-area-inset-top))] sm:min-h-[360px] md:min-h-[320px]'
+          ? 'min-h-[calc(230px+env(safe-area-inset-top))] sm:min-h-[270px] md:min-h-[210px]'
+          : 'min-h-[calc(340px+env(safe-area-inset-top))] sm:min-h-[390px] md:min-h-[340px]'
       }`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -81,12 +82,21 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
               isActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
             }`}
           >
-            <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[50%_42%]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+            {/* The picture and its dark scrim fade out together at the bottom, so there is no hard edge against the page colour. The text sits above that fade. */}
+            <div
+              className="absolute inset-0"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+              }}
+            >
+              <img src={slide.imageUrl} alt="" aria-hidden="true" className="h-full w-full object-cover object-[50%_42%]" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 from-15% via-black/50 via-55% to-transparent" />
+            </div>
 
             <div
               className={`relative z-10 flex flex-col gap-2 ${
-                compact ? 'p-5 sm:p-6' : `gap-2.5 p-6 sm:p-8 ${hasControls ? 'pb-12 sm:pb-14' : ''}`
+                compact ? 'p-5 pb-9 sm:p-6 sm:pb-10' : `gap-2.5 p-6 pb-12 sm:p-8 sm:pb-12 ${hasControls ? 'pb-14 sm:pb-16' : ''}`
               }`}
             >
               <div>
@@ -96,7 +106,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
                   {slide.eyebrow}
                 </p>
                 <h2
-                  className={`font-extrabold tracking-tight text-white ${
+                  className={`font-extrabold tracking-tight text-white [text-shadow:0_1px_14px_rgba(0,0,0,0.5)] ${
                     compact ? 'mt-0.5 text-lg sm:text-xl' : 'mt-1 text-xl sm:text-2xl'
                   }`}
                 >
