@@ -19,7 +19,7 @@ export default {
         sans: ['"Assistant"', '"Rubik"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 0 20px 0 rgba(163, 230, 53, 0.25)',
+        glow: '0 0 28px 0 rgba(163, 230, 53, 0.09)',
         'glow-orange': '0 0 20px 0 rgba(251, 146, 60, 0.25)',
       },
       backgroundImage: {

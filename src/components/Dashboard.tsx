@@ -1076,32 +1076,31 @@ function StreaksCard({
 
   return (
     <div className="glass-card flex flex-col gap-4 p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
-      <div className="flex items-center gap-2">
-        <Flame className="h-5 w-5 text-orange-700 dark:text-orange-400" />
-        <h2 className="font-bold text-zinc-900 dark:text-zinc-100">עקביות השבוע</h2>
-      </div>
+      <h2 className="text-sm font-bold tracking-wide text-zinc-600 dark:text-zinc-400">עקביות השבוע</h2>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3 text-center">
-          <p className="text-xl">🔥</p>
-          <p className="mt-1 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{weighInsThisWeek}</p>
-          <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">ימי שקילה השבוע</p>
+        <div className="rounded-xl bg-zinc-100/80 dark:bg-zinc-800/40 p-3 text-center">
+          <p className="text-3xl font-extrabold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white">{weighInsThisWeek}</p>
+          <p className="mt-1.5 text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">ימי שקילה השבוע</p>
         </div>
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3 text-center">
-          <p className="text-xl">💪</p>
-          <p className="mt-1 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-            {workoutsThisWeek}/{trainingDaysPerWeek}
+        <div className="rounded-xl bg-zinc-100/80 dark:bg-zinc-800/40 p-3 text-center">
+          <p className="text-3xl font-extrabold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white">
+            {workoutsThisWeek}
+            <span className="text-lg font-bold text-zinc-500">/{trainingDaysPerWeek}</span>
           </p>
-          <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">אימונים הושלמו השבוע</p>
+          <p className="mt-1.5 text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">אימונים הושלמו השבוע</p>
         </div>
       </div>
 
-      <p className="rounded-xl border border-lime-400/20 bg-lime-400/5 px-3 py-2 text-center text-sm font-semibold text-lime-700 dark:text-lime-300">
+      <p className="rounded-xl bg-lime-400/10 px-3 py-2 text-center text-sm font-semibold text-lime-700 dark:text-lime-300">
         {message}
       </p>
     </div>
   );
 }
+
+const RING_RADIUS = 52;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function NutritionCard({
   metrics,
@@ -1133,20 +1132,48 @@ function NutritionCard({
 
   return (
     <div className="glass-card flex flex-col p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <Flame className="h-5 w-5 text-orange-700 dark:text-orange-400" />
-        <h2 className="font-bold text-zinc-900 dark:text-zinc-100">{isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
+      <h2 className="mb-4 text-sm font-bold tracking-wide text-zinc-600 dark:text-zinc-400">{isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
+
+      <div className="flex items-center gap-5">
+        <div className="relative h-36 w-36 shrink-0">
+          <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
+            <circle cx="60" cy="60" r={RING_RADIUS} fill="none" strokeWidth="9" className="stroke-zinc-200 dark:stroke-zinc-800" />
+            <circle
+              cx="60"
+              cy="60"
+              r={RING_RADIUS}
+              fill="none"
+              strokeWidth="9"
+              strokeLinecap="round"
+              stroke={isOver ? '#fb923c' : '#a3e635'}
+              strokeDasharray={RING_CIRCUMFERENCE}
+              strokeDashoffset={RING_CIRCUMFERENCE * (1 - (isOver ? 100 : progressPercent) / 100)}
+              className="transition-all duration-700"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span
+              className={`text-4xl font-extrabold tabular-nums leading-none tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-50'}`}
+            >
+              {formatMacro(Math.abs(remainingCalories))}
+            </span>
+            <span className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-500">{isOver ? 'קק״ל מעל היעד' : 'קק״ל נותרו'}</span>
+          </div>
+        </div>
+
+        <dl className="min-w-0 flex-1 space-y-2.5 text-sm">
+          <div>
+            <dt className="text-[11px] text-zinc-600 dark:text-zinc-500">נצרכו</dt>
+            <dd className="text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{formatMacro(eaten.calories)}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] text-zinc-600 dark:text-zinc-500">יעד להיום</dt>
+            <dd className="text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{formatMacro(targetCalories)}</dd>
+          </div>
+        </dl>
       </div>
 
-      <p
-        className={`text-5xl font-extrabold tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}
-      >
-        {formatMacro(Math.abs(remainingCalories))}
-      </p>
-      <p className="text-xs text-zinc-600 dark:text-zinc-500">
-        {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
-      </p>
-      <div className="mb-3 mt-1.5">
+      <div className="mb-4 mt-3">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
@@ -1163,13 +1190,6 @@ function NutritionCard({
             ⚖️ חרגת ב-{overshootKcal} קק״ל • צפה באפשרויות לאיזון שבועי
           </button>
         )}
-      </div>
-
-      <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${isOver ? 100 : progressPercent}%`, backgroundColor: isOver ? '#fb923c' : '#a3e635' }}
-        />
       </div>
 
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
@@ -1205,7 +1225,7 @@ function MacroStat({
   const isOver = formatMacro(eatenG) > formatMacro(targetG);
 
   return (
-    <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-2 min-[360px]:p-2.5">
+    <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl bg-zinc-100/80 dark:bg-zinc-800/40 p-2 min-[360px]:p-2.5">
       <div className="mb-1 flex min-w-0 items-center justify-center gap-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
         <span className="truncate text-[11px] text-zinc-600 dark:text-zinc-500">{label}</span>
