@@ -35,21 +35,25 @@ export default function WelcomeScreen({
   onOpenProfile,
 }: WelcomeScreenProps) {
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-zinc-950 text-white">
-      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" fetchPriority="high" />
+    // Phone: the photo fills the screen behind the content. Desktop (md+): the screen splits in half - content on one side, the photo in a frame on the other.
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-zinc-950 text-white md:grid md:grid-cols-2">
+      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%] md:hidden" fetchPriority="high" />
       {/* Darkens the bright windows at the top and builds a calm, readable base for the text and buttons. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/10 to-zinc-950/10" />
-      <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/10 to-zinc-950/10 md:hidden" />
+      <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent md:hidden" />
+      {/* Desktop only: a soft lime wash behind the content so the glass has something to blur. */}
+      <div className="pointer-events-none absolute -start-40 top-1/3 hidden h-[34rem] w-[34rem] rounded-full bg-lime-400/10 blur-3xl md:block" />
 
-      <header className="relative flex items-center gap-2.5 px-6 pt-[max(env(safe-area-inset-top),1.5rem)]">
+      <div className="relative flex flex-1 flex-col md:mx-auto md:w-full md:max-w-lg md:justify-center md:gap-10 md:px-8">
+      <header className="relative flex items-center gap-2.5 px-6 pt-[max(env(safe-area-inset-top),1.5rem)] md:px-0 md:pt-0">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-400 text-zinc-950 shadow-lg">
           <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
         </span>
         <span className="font-display text-xl tracking-tight">MacroLift</span>
       </header>
 
-      <main className="relative mt-auto px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
-        <h1 className="font-display text-[2.15rem] leading-[1.15] tracking-tight">
+      <main className="relative mt-auto px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)] md:mt-0 md:px-0 md:pb-0">
+        <h1 className="font-display text-[2.15rem] leading-[1.15] tracking-tight md:text-5xl md:leading-[1.1]">
           האימון והתזונה שלך,
           <br />
           <span className="text-lime-400">במקום אחד</span>
@@ -117,6 +121,14 @@ export default function WelcomeScreen({
           <p className="text-[11px] leading-relaxed text-zinc-400">אורח, הרשמה ושחזור נשמרים על המכשיר בלבד, בלי שרת.</p>
         </div>
       </main>
+      </div>
+
+      <div className="relative hidden p-4 md:block">
+        <div className="relative h-full min-h-[30rem] overflow-hidden rounded-[2rem] border border-white/10">
+          <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_35%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/50 via-transparent to-zinc-950/20" />
+        </div>
+      </div>
     </div>
   );
 }
