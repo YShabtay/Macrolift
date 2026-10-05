@@ -2,7 +2,7 @@ import { formatMacro } from '../utils/formatMacro';
 import { useRestTimer } from '../context/restTimerContext';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Bot, Camera, Check, RotateCw, Send, X } from 'lucide-react';
+import { AlertTriangle, Bot, Camera, Check, MessageSquarePlus, RotateCw, Send, X } from 'lucide-react';
 import type { AppState, FoodEntry } from '../types/fitness';
 import { hasGeminiApiKey, sendCoachMessage, type ChatMessage } from '../services/geminiChat';
 import PhotoSourceSheet from './PhotoSourceSheet';
@@ -11,6 +11,7 @@ import { calculateRemaining, getEntriesForDate, getMealForCurrentTime, sumTotals
 import { compressImageToDataUrl } from '../utils/imageEncoding';
 import { todayIso } from '../utils/weightCalculations';
 import Toast from './Toast';
+import ChatText from './ChatText';
 
 interface AICoachDrawerProps {
   appState: AppState;
@@ -51,15 +52,42 @@ function isDrawerMessage(value: unknown): value is DrawerMessage {
   return kind === 'text' || kind === 'user-image' || kind === 'meal-scan';
 }
 
-/** Filters out anything that doesn't match a known message shape, so a schema change or corrupted entry can't crash the render. */
-function loadHistory(userId: string): DrawerMessage[] {
+/** How many text messages of the conversation are kept between visits (photos are not stored - they are large and the scan card already served its purpose). */
+const MAX_STORED_MESSAGES = 40;
+
+function parseHistory(raw: string | null): DrawerMessage[] {
+  if (!raw) return [];
   try {
-    const raw = sessionStorage.getItem(storageKey(userId));
-    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? parsed.filter(isDrawerMessage) : [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * The conversation continues from where it stopped, even after the app was closed, so it lives in localStorage. An older tab-only copy
+ * (sessionStorage, from before this was persistent) is picked up once. Filters out anything that doesn't match a known message shape,
+ * so a schema change or corrupted entry can't crash the render.
+ */
+function loadHistory(userId: string): DrawerMessage[] {
+  try {
+    const stored = parseHistory(localStorage.getItem(storageKey(userId)));
+    if (stored.length > 0) return stored;
+    return parseHistory(sessionStorage.getItem(storageKey(userId)));
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(userId: string, messages: DrawerMessage[]): void {
+  try {
+    const textOnly = messages.filter((m) => m.kind === 'text').slice(-MAX_STORED_MESSAGES);
+    if (textOnly.length === 0) localStorage.removeItem(storageKey(userId));
+    else localStorage.setItem(storageKey(userId), JSON.stringify(textOnly));
+    sessionStorage.removeItem(storageKey(userId));
+  } catch {
+    // Storage full/unavailable - the conversation just won't survive closing the app.
   }
 }
 
@@ -78,11 +106,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
   const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem(storageKey(userId), JSON.stringify(messages));
-    } catch {
-      // sessionStorage full/unavailable - the conversation just won't survive a reload.
-    }
+    saveHistory(userId, messages);
   }, [userId, messages]);
 
   useEffect(() => {
@@ -130,6 +154,15 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleNewConversation() {
+    if (isLoading) return;
+    setMessages([]);
+    setError(null);
+    setLastFailedAction(null);
+    setInput('');
+    setPendingImage(null);
   }
 
   async function handlePickImage(file: File) {
@@ -246,6 +279,20 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                     </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-1">
+                {hasGeminiApiKey && messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleNewConversation}
+                    disabled={isLoading}
+                    aria-label="שיחה חדשה"
+                    title="שיחה חדשה"
+                    className="flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 transition hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-40"
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                    שיחה חדשה
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
@@ -254,6 +301,7 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                 >
                   <X className="h-5 w-5" />
                 </button>
+                </div>
               </div>
 
               {!hasGeminiApiKey ? (
@@ -397,13 +445,13 @@ function DrawerMessageBubble({
   if (message.kind === 'text') {
     return (
       <div
-        className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
           message.role === 'user'
-            ? 'self-end bg-zinc-800 text-zinc-100'
+            ? 'self-end whitespace-pre-wrap bg-zinc-800 text-zinc-100'
             : 'self-start border border-lime-400/30 bg-lime-400/10 text-zinc-900 dark:text-zinc-100'
         }`}
       >
-        {message.text}
+        {message.role === 'user' ? message.text : <ChatText text={message.text} />}
       </div>
     );
   }

@@ -54,7 +54,9 @@ async function callGemini(systemInstruction: string, contents: GeminiContent[], 
  * active workout plan), and returns the coach's reply text.
  */
 export async function sendCoachMessage(history: ChatMessage[], appState: AppState): Promise<string> {
-  const systemInstruction = buildCoachSystemPrompt(appState);
+  // Only the opening answer of a conversation may greet; once the coach has replied, it continues instead of starting over.
+  const isFirstReply = !history.some((m) => m.role === 'model');
+  const systemInstruction = buildCoachSystemPrompt(appState, isFirstReply);
   const contents: GeminiContent[] = history.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
   return callGemini(systemInstruction, contents, false);
 }
