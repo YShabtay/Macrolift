@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, Dumbbell, Eye, EyeOff, FileUp, Loader2, Lock, LogIn, Mail, Smartphone, Sparkles, User, UserPlus, X, Zap } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, Dumbbell, Eye, EyeOff, FileUp, Loader2, Lock, LogIn, Mail, Smartphone, Sparkles, User, UserPlus, X, Zap } from 'lucide-react';
 import { hashPassword, loadUsers, saveUsers, setSessionUserId } from '../utils/authStorage';
 import type { AuthUser } from '../utils/authStorage';
 import { ThemeToggleButton } from './ThemeToggle';
@@ -7,6 +7,7 @@ import Toast from './Toast';
 import { startDemoSession } from '../utils/demoData';
 import { isLocalProfile, openLocalProfile, restoreProfileFromBackup, startGuestSession } from '../utils/localProfiles';
 import RestoreResultModal, { type RestoreResult } from './RestoreResultModal';
+import WelcomeScreen from './WelcomeScreen';
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -52,6 +53,8 @@ function getPasswordStrength(rules: PasswordRule[]): PasswordStrength {
 // ---------------------------------------------------------------------------
 
 type Mode = 'login' | 'register';
+/** The photo welcome screen comes first; sign-in and sign-up open from it. */
+type View = 'welcome' | 'form';
 
 interface AuthProps {
   onAuthenticated: (userId: string) => void;
@@ -59,6 +62,7 @@ interface AuthProps {
 
 export default function Auth({ onAuthenticated }: AuthProps) {
   const [mode, setMode] = useState<Mode>('login');
+  const [view, setView] = useState<View>('welcome');
 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -257,12 +261,65 @@ export default function Auth({ onAuthenticated }: AuthProps) {
     }
   }
 
+  // Shared by both views: the hidden file picker for restoring a backup, the result dialog and the toast.
+  const overlays = (
+    <>
+      <input ref={restoreInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleRestoreFile} />
+      {restoreOutcome && (
+        <RestoreResultModal
+          result={restoreOutcome.result}
+          onClose={() => {
+            const outcome = restoreOutcome;
+            setRestoreOutcome(null);
+            // Closing the success summary is the "continue": the restored profile is already saved and active.
+            if (outcome.userId) onAuthenticated(outcome.userId);
+          }}
+        />
+      )}
+      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+    </>
+  );
+
+  if (view === 'welcome') {
+    return (
+      <>
+        <WelcomeScreen
+          profiles={localProfiles}
+          isGuestLoading={isGuestLoading}
+          isRestoring={isRestoring}
+          isDemoLoading={isDemoLoading}
+          onGuest={() => void handleGuestStart()}
+          onLogin={() => {
+            switchMode('login');
+            setView('form');
+          }}
+          onRegister={() => {
+            switchMode('register');
+            setView('form');
+          }}
+          onRestore={() => restoreInputRef.current?.click()}
+          onDemo={() => void handleDemoLogin()}
+          onOpenProfile={(id) => void handleOpenLocalProfile(id)}
+        />
+        {overlays}
+      </>
+    );
+  }
+
   return (
     <div className="flex min-h-svh items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4 pb-[max(env(safe-area-inset-bottom),2.5rem)] pt-[max(env(safe-area-inset-top),3.5rem)] text-zinc-900 dark:text-zinc-100">
       <div className="fixed left-4 top-[max(env(safe-area-inset-top),1rem)] z-30">
         <ThemeToggleButton />
       </div>
       <div className="w-full max-w-sm animate-slide-up">
+        <button
+          type="button"
+          onClick={() => setView('welcome')}
+          className="mb-4 flex items-center gap-1 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          <ArrowRight className="h-4 w-4" />
+          חזרה
+        </button>
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 shadow-glow">
             <Dumbbell className="h-7 w-7" strokeWidth={2.5} />
@@ -479,7 +536,6 @@ export default function Auth({ onAuthenticated }: AuthProps) {
             {isRestoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
             {isRestoring ? 'טוען את הגיבוי...' : 'כניסה באמצעות קובץ גיבוי (Restore JSON) 📥'}
           </button>
-          <input ref={restoreInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleRestoreFile} />
 
           <button
             type="button"
@@ -533,19 +589,7 @@ export default function Auth({ onAuthenticated }: AuthProps) {
         </p>
       </div>
 
-      {restoreOutcome && (
-        <RestoreResultModal
-          result={restoreOutcome.result}
-          onClose={() => {
-            const outcome = restoreOutcome;
-            setRestoreOutcome(null);
-            // Closing the success summary is the "continue": the restored profile is already saved and active.
-            if (outcome.userId) onAuthenticated(outcome.userId);
-          }}
-        />
-      )}
-
-      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+      {overlays}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function RestTimerMiniBar({ onOpenWorkout }: RestTimerMiniBarProp
     <div
       role="status"
       onClick={onOpenWorkout}
-      className={`fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md cursor-pointer items-center justify-between gap-2 rounded-2xl border p-3 shadow-2xl backdrop-blur animate-slide-up md:bottom-6 md:end-6 md:start-auto md:mx-0 md:w-96 ${
+      className={`fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md cursor-pointer items-center justify-between gap-2 rounded-2xl border p-3 shadow-2xl backdrop-blur animate-slide-up md:bottom-6 md:end-6 md:start-auto md:mx-0 md:w-96 ${
         isDone ? 'border-lime-400/70 bg-zinc-900/95 animate-glow-pulse' : 'border-zinc-800 bg-zinc-900/95'
       }`}
     >
