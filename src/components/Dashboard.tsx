@@ -81,7 +81,6 @@ import ImportConfirmModal from './ImportConfirmModal';
 import EditProfileModal from './EditProfileModal';
 import Toast from './Toast';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
-import { MUSCLE_GROUP_LABELS } from '../data/muscleLabels';
 import { buildWeeklySummaries, daysSince, formatDateDisplay, getWeekStart, todayIso } from '../utils/weightCalculations';
 import { countCompletedWorkoutsThisWeek, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
@@ -614,57 +613,14 @@ function DashboardTab({
 
   const showPhotoReminder = latestPhotoDaysAgo === null || latestPhotoDaysAgo >= 30;
 
-  // Dashboard hero carousel is workout/gym imagery only (nutrition & recovery photos
-  // live on their own screens) - every slide leads to the same "start workout" action.
+  // The dashboard hero: one photo and the "start workout" action (today's focus is shown in the banner below it).
   const heroSlides: HeroSlide[] = useMemo(() => {
-    const targetMuscles = Array.from(new Set(todaysDay.exercises.map((e) => e.muscleGroup))).map(
-      (m) => MUSCLE_GROUP_LABELS[m],
-    );
-
     return [
       {
         id: 'today',
-        imageUrl: HERO_WORKOUT_IMAGE,
+        imageUrl: DASHBOARD_HERO_IMAGE,
         eyebrow: todaysDay.dayLabel,
         headline: 'אימון היום מחכה לך',
-        body: todaysDay.focus,
-        tags: targetMuscles,
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'records',
-        imageUrl: HERO_RECORDS_IMAGE,
-        eyebrow: 'קדימה',
-        headline: 'שוברים שיאים',
-        body: 'כל סט הוא הזדמנות להוסיף עוד חזרה, עוד קילו, עוד התקדמות. הבא בתור זה אתם.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'consistency',
-        imageUrl: HERO_CONSISTENCY_IMAGE,
-        eyebrow: 'משמעת',
-        headline: 'התמדה מביאה תוצאות',
-        body: 'לא האימון המושלם בונה את הגוף - האימון שחוזר על עצמו שוב ושוב.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'limit',
-        imageUrl: HERO_LIMIT_IMAGE,
-        eyebrow: 'כוח',
-        headline: 'הגבול הוא רק בראש',
-        body: 'כל חזרה נוספת מקרבת אתכם למי שאתם רוצים להיות.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'effort',
-        imageUrl: HERO_EFFORT_IMAGE,
-        eyebrow: 'מחויבות',
-        headline: 'תנו הכל, בכל סט',
-        body: 'האנרגיה שאתם משקיעים היום היא התוצאה של מחר.',
         ctaLabel: 'התחל אימון',
         onCta: () => onNavigate('workout'),
       },
@@ -877,12 +833,8 @@ function ProgramCard({
 // Hero banner
 // ---------------------------------------------------------------------------
 
-// Hero carousel background photos - gym/weightlifting only (verified stable Unsplash CDN URLs).
-const HERO_WORKOUT_IMAGE = 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1600&q=80';
-const HERO_RECORDS_IMAGE = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=80';
-const HERO_CONSISTENCY_IMAGE = 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=1600&q=80';
-const HERO_LIMIT_IMAGE = 'https://images.unsplash.com/photo-1533560904424-a0c61dc306fc?auto=format&fit=crop&w=1600&q=80';
-const HERO_EFFORT_IMAGE = 'https://images.unsplash.com/photo-1585152968992-d2b9444408cc?auto=format&fit=crop&w=1600&q=80';
+// The dashboard hero: one photo, with today's workout on top of it.
+const DASHBOARD_HERO_IMAGE = '/images/dashboard-hero.jpg';
 
 // Static single-slide hero banners for the other tabs (see WorkoutPlanTab / ProgressTab / ProfileTab below).
 const TAB_HERO_WORKOUT_IMAGE = 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1600&q=80';
