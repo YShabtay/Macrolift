@@ -99,6 +99,7 @@ Design decisions worth knowing:
 - **Logic is separated from UI.** Calculations live in small, pure modules under `src/utils` (for example `calculations.ts`, `weeklyBalance.ts`, `planVolume.ts`, `coachInsights.ts`), which keeps them easy to reason about and to test.
 - **The AI key never reaches the browser.** In production every AI call goes through `api/gemini.ts`, a serverless proxy that holds the key server-side and enforces a model allow-list, request-size and token caps, a same-origin check and a per-IP rate limit. During local development the app calls Google directly with `VITE_GEMINI_API_KEY`, which is compiled out of production builds.
 - **Heavy dependencies load on demand.** The barcode decoder (ZXing) is only fetched when the scanner opens.
+- **The core logic is covered by unit tests** (see below).
 - **Resilience over cleverness.** Stored data is validated and migrated at boot (`dataMigration.ts`), and a bad entry degrades one screen rather than the whole app.
 
 ### Project structure
@@ -114,6 +115,27 @@ src/data/         Workout templates, muscle labels and the local food database
 
 ---
 
+## Testing
+
+```bash
+npm test
+```
+
+95 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+
+| Area | What is verified |
+| --- | --- |
+| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, activity-multiplier boundaries, every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
+| Weekly balance (`weeklyBalance`) | Rebalancing a one-time overshoot across the remaining days, the safe-reduction cap, calories-to-steps conversion and step credits, the last day of the week |
+| Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
+| Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
+| Data safety (`dataMigration`, `backupValidation`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored |
+| Utilities (`plates`, `chatFormat`) | Plate loading and warm-up ramps, Markdown clean-up for coach replies |
+
+The tests were checked for real sensitivity by temporarily breaking the code (for example changing the lean-bulk surplus or the week start day) and confirming the right tests fail. Dates are pinned to one time zone so results don't depend on the machine.
+
+---
+
 ## Run it locally
 
 ```bash
@@ -126,6 +148,7 @@ npm run dev
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` | Type-check and production build |
+| `npm test` | Run the unit tests (Vitest); `npm run test:watch` re-runs them on save |
 | `npm run lint` | Lint with oxlint |
 | `npm run preview` | Serve the production build |
 
@@ -143,4 +166,3 @@ Without a key the app still works; only the AI features are unavailable.
 
 - Data lives on a single device. Backup/restore covers moving between devices; optional cloud backup is the main candidate for a future version.
 - The nutrition model gives estimates for healthy adults, not medical advice (the app shows a disclaimer).
-- Planned: automated unit tests for the calculation modules with CI.
