@@ -34,6 +34,7 @@ import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
 import HeroCarousel from './HeroCarousel';
+import { APP_PHOTO } from '../utils/appPhoto';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
 import { FoodSearch, ServingPanel } from './FoodSearch';
@@ -50,7 +51,7 @@ import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalcul
 import { formatMacro } from '../utils/formatMacro';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
-const NUTRITION_HEADER_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1600&q=80';
+
 
 const MEAL_ICONS: Record<Meal, typeof Coffee> = {
   breakfast: Coffee,
@@ -121,7 +122,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
         slides={[
           {
             id: 'nutrition-header',
-            imageUrl: NUTRITION_HEADER_IMAGE,
+            imageUrl: APP_PHOTO,
             eyebrow: 'יומן תזונה',
             headline: 'הדלק של הגוף שלך',
             body: 'תיעוד ארוחות ומעקב יתרת קלוריות ומאקרו בזמן אמת',

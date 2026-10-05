@@ -60,7 +60,7 @@
      near-identical page background, so the transparency stays safe for text
      contrast while giving every surface a premium glassmorphism feel. */
   .glass-card {
-    @apply relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-zinc-900/60 dark:shadow-none;
+    @apply relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/80 shadow-sm transition-colors dark:border-white/10 dark:bg-zinc-900/55 dark:shadow-none;
   }
 
   .neon-border {

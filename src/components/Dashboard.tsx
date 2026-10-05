@@ -74,6 +74,8 @@ import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
+import AppBackdrop from './AppBackdrop';
+import { APP_PHOTO } from '../utils/appPhoto';
 import DailyMealsModal from './DailyMealsModal';
 import CircumferenceTracker from './CircumferenceTracker';
 import ResetConfirmModal from './ResetConfirmModal';
@@ -319,10 +321,8 @@ export default function Dashboard({
   }, [profileId]);
 
   return (
-    <div className="flex min-h-svh bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      {/* Ambient background glows - fixed to the viewport so they read as soft, persistent lighting */}
-      <div className="pointer-events-none fixed -top-24 -right-24 -z-10 h-[420px] w-[420px] rounded-full bg-lime-500/5 blur-[120px] dark:bg-lime-500/10" />
-      <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
+    <div className="flex min-h-svh text-zinc-900 dark:text-zinc-100">
+      <AppBackdrop />
 
       <RestFinishedAlert />
 
@@ -623,47 +623,11 @@ function DashboardTab({
     return [
       {
         id: 'today',
-        imageUrl: HERO_WORKOUT_IMAGE,
+        imageUrl: APP_PHOTO,
         eyebrow: todaysDay.dayLabel,
         headline: 'אימון היום מחכה לך',
         body: todaysDay.focus,
         tags: targetMuscles,
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'records',
-        imageUrl: HERO_RECORDS_IMAGE,
-        eyebrow: 'קדימה',
-        headline: 'שוברים שיאים',
-        body: 'כל סט הוא הזדמנות להוסיף עוד חזרה, עוד קילו, עוד התקדמות. הבא בתור זה אתם.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'consistency',
-        imageUrl: HERO_CONSISTENCY_IMAGE,
-        eyebrow: 'משמעת',
-        headline: 'התמדה מביאה תוצאות',
-        body: 'לא האימון המושלם בונה את הגוף - האימון שחוזר על עצמו שוב ושוב.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'limit',
-        imageUrl: HERO_LIMIT_IMAGE,
-        eyebrow: 'כוח',
-        headline: 'הגבול הוא רק בראש',
-        body: 'כל חזרה נוספת מקרבת אתכם למי שאתם רוצים להיות.',
-        ctaLabel: 'התחל אימון',
-        onCta: () => onNavigate('workout'),
-      },
-      {
-        id: 'effort',
-        imageUrl: HERO_EFFORT_IMAGE,
-        eyebrow: 'מחויבות',
-        headline: 'תנו הכל, בכל סט',
-        body: 'האנרגיה שאתם משקיעים היום היא התוצאה של מחר.',
         ctaLabel: 'התחל אימון',
         onCta: () => onNavigate('workout'),
       },
@@ -876,17 +840,7 @@ function ProgramCard({
 // Hero banner
 // ---------------------------------------------------------------------------
 
-// Hero carousel background photos - gym/weightlifting only (verified stable Unsplash CDN URLs).
-const HERO_WORKOUT_IMAGE = 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1600&q=80';
-const HERO_RECORDS_IMAGE = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=80';
-const HERO_CONSISTENCY_IMAGE = 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=1600&q=80';
-const HERO_LIMIT_IMAGE = 'https://images.unsplash.com/photo-1533560904424-a0c61dc306fc?auto=format&fit=crop&w=1600&q=80';
-const HERO_EFFORT_IMAGE = 'https://images.unsplash.com/photo-1585152968992-d2b9444408cc?auto=format&fit=crop&w=1600&q=80';
-
-// Static single-slide hero banners for the other tabs (see WorkoutPlanTab / ProgressTab / ProfileTab below).
-const TAB_HERO_WORKOUT_IMAGE = 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1600&q=80';
-const TAB_HERO_PROGRESS_IMAGE = 'https://images.unsplash.com/photo-1576243345690-4e4b79b63288?auto=format&fit=crop&w=1600&q=80';
-const TAB_HERO_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&w=1600&q=80';
+// One photo for every hero (see utils/appPhoto.ts).
 
 // ---------------------------------------------------------------------------
 // Quick-complete "סיימתי אימון היום!" button
@@ -1282,7 +1236,7 @@ function WorkoutPlanTab({
         slides={[
           {
             id: 'workout-header',
-            imageUrl: TAB_HERO_WORKOUT_IMAGE,
+            imageUrl: APP_PHOTO,
             eyebrow: 'תוכנית אימונים',
             headline: 'זמן לתת עבודה',
             body: workoutPlan.title,
@@ -1669,7 +1623,7 @@ function ProgressTab({
         slides={[
           {
             id: 'progress-header',
-            imageUrl: TAB_HERO_PROGRESS_IMAGE,
+            imageUrl: APP_PHOTO,
             eyebrow: 'מעקב התקדמות',
             headline: 'עקביות מנצחת הכל',
             body: 'שקילות, ממוצעים שבועיים ותמונות התקדמות במקום אחד',
@@ -1921,7 +1875,7 @@ function ProfileTab({
         slides={[
           {
             id: 'profile-header',
-            imageUrl: TAB_HERO_PROFILE_IMAGE,
+            imageUrl: APP_PHOTO,
             eyebrow: profile.name,
             headline: 'פרופיל אישי והאקדמיה',
           },
