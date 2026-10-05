@@ -60,7 +60,6 @@ import ExerciseSets from './ExerciseSets';
 import WorkoutMode from './WorkoutMode';
 import DateField from './DateField';
 import WeeklySummaryCard from './WeeklySummaryCard';
-import { getWaterGoalMl } from '../utils/water';
 import PlanBuilder from './PlanBuilder';
 import WeeklyVolume from './WeeklyVolume';
 import { getLastSessionLog, isPersonalRecord } from '../utils/setLogs';
@@ -127,7 +126,6 @@ import type {
   ProgressPhoto,
   SetLog,
   SetProgressEntry,
-  WaterLog,
   TrainingDaysPerWeek,
   WorkoutSplitType,
   WeightLog,
@@ -160,7 +158,6 @@ interface DashboardProps {
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onClearSchedule: (date: string) => void;
-  onAddWater: (date: string, deltaMl: number) => void;
   onToggleFavorite: (entry: FoodEntry | FoodTemplate) => void;
   onSaveMeal: (name: string, entries: FoodEntry[]) => void;
   onDeleteSavedMeal: (id: string) => void;
@@ -211,7 +208,6 @@ function readDismissedBannerDate(): string | null {
 /** Stable empty list so memo dependencies don't change on every render when no dates are stored. */
 const NO_DATES: string[] = [];
 const NO_FAVORITES: FavoriteFood[] = [];
-const NO_WATER: WaterLog[] = [];
 const NO_SAVED_MEALS: SavedMeal[] = [];
 
 const TOUR_STEPS: TourStep[] = [
@@ -276,7 +272,6 @@ export default function Dashboard({
   onSetSchedule,
   onClearSchedule,
   onAddFood,
-  onAddWater,
   onToggleFavorite,
   onSaveMeal,
   onDeleteSavedMeal,
@@ -442,9 +437,6 @@ export default function Dashboard({
               nutritionPlan={appState.nutritionPlan}
               weeklyBalance={appState.weeklyBalance}
               onAddFood={onAddFood}
-              waterLogs={appState.waterLogs ?? NO_WATER}
-              waterGoalMl={getWaterGoalMl(appState.profile.metrics.weightKg)}
-              onAddWater={onAddWater}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
               savedMeals={appState.savedMeals ?? NO_SAVED_MEALS}
               onToggleFavorite={onToggleFavorite}

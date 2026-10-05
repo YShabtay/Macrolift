@@ -9,7 +9,6 @@ import type {
   SavedMeal,
   SetProgressEntry,
   StepLog,
-  WaterLog,
   WeightLog,
   WorkoutPlan,
   WorkoutScheduleEntry,
@@ -20,7 +19,7 @@ import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const APP_STATE_KEY_PREFIX = 'macrolift-app-state-';
 /** Records the schema version storage was last fully repaired to, so a normal launch skips parsing every saved state (photos make them large). */
@@ -82,19 +81,6 @@ function normalizeProgressEntry(entry: SetProgressEntry): SetProgressEntry {
     ...(typeof exerciseName === 'string' && exerciseName ? { exerciseName } : {}),
     ...(cleanSets && cleanSets.length > 0 ? { sets: cleanSets } : {}),
   };
-}
-
-/** One entry per date, 0 < ml <= 10 L, oldest first. */
-function normalizeWaterLogs(raw: unknown): WaterLog[] {
-  const byDate = new Map<string, number>();
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (!isObject(item) || !isIsoDate(item.date)) continue;
-      const ml = finite(item.ml);
-      if (ml !== null && ml > 0 && ml <= 10_000) byDate.set(item.date, Math.round(ml));
-    }
-  }
-  return [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([date, ml]) => ({ date, ml }));
 }
 
 /** A reusable food (favorite / part of a saved meal): needs a name and a calorie value, everything else gets harmless defaults. */
@@ -216,9 +202,8 @@ export function sanitizeAppState(raw: unknown): AppState | null {
     circumferenceGoals: isObject(raw.circumferenceGoals) ? (raw.circumferenceGoals as AppState['circumferenceGoals']) : {},
   };
 
-  const waterLogs = normalizeWaterLogs(raw.waterLogs);
-  if (waterLogs.length > 0) state.waterLogs = waterLogs;
-  else delete state.waterLogs;
+  // The water tracker was removed: drop any water data an earlier version saved.
+  delete (state as AppState & { waterLogs?: unknown }).waterLogs;
   const favoriteFoods = normalizeFavorites(raw.favoriteFoods);
   if (favoriteFoods.length > 0) state.favoriteFoods = favoriteFoods;
   else delete state.favoriteFoods;

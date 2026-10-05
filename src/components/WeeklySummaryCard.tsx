@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Award, BarChart3, ChevronLeft, ChevronRight, Droplets, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
+import { Award, BarChart3, ChevronLeft, ChevronRight, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
 import type { AppState } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { buildWeeklySummary } from '../utils/weeklySummary';
@@ -25,7 +25,7 @@ function Stat({ icon: Icon, label, value, hint }: { icon: typeof Dumbbell; label
   );
 }
 
-/** "This week" / "last week" at a glance - workouts, sets and personal records, steps, nutrition, water, weight - plus the streaks that keep it going. */
+/** "This week" / "last week" at a glance - workouts, sets and personal records, steps, nutrition, weight - plus the streaks that keep it going. */
 export default function WeeklySummaryCard({ appState }: { appState: AppState }) {
   const today = useToday();
   const [offset, setOffset] = useState(0);
@@ -46,8 +46,8 @@ export default function WeeklySummaryCard({ appState }: { appState: AppState }) 
     [appState, today],
   );
 
-  const { workouts, nutrition, steps, water, weight } = summary;
-  const hasAnything = workouts.done > 0 || summary.sets > 0 || nutrition.daysLogged > 0 || steps.daysLogged > 0 || water.daysLogged > 0 || weight.latest !== null;
+  const { workouts, nutrition, steps, weight } = summary;
+  const hasAnything = workouts.done > 0 || summary.sets > 0 || nutrition.daysLogged > 0 || steps.daysLogged > 0 || weight.latest !== null;
 
   return (
     <div className="glass-card p-5 sm:p-6">
@@ -123,7 +123,6 @@ export default function WeeklySummaryCard({ appState }: { appState: AppState }) 
               hint={`יעד ${nutrition.targetCalories.toLocaleString()}`}
             />
             <Stat icon={UtensilsCrossed} label="חלבון (ממוצע)" value={nutrition.daysLogged > 0 ? `${nutrition.avgProteinG} ג׳` : '-'} hint={`יעד ${nutrition.targetProteinG} ג׳`} />
-            {water.daysLogged > 0 && <Stat icon={Droplets} label="מים (ממוצע)" value={`${(water.avgMl / 1000).toLocaleString('he-IL', { maximumFractionDigits: 1 })} ל׳`} hint={`יעד ${(water.goalMl / 1000).toLocaleString('he-IL', { maximumFractionDigits: 1 })} ל׳`} />}
             {weight.latest !== null && (
               <Stat
                 icon={Scale}

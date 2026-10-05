@@ -3,7 +3,6 @@ import { getStepsForDate } from './stepsCalculations';
 import { addDaysIso } from './dateMath';
 import { estimateOneRepMax, sessionVolumeKg } from './setLogs';
 import { getDoneWorkoutDates } from './streaks';
-import { getWaterForDate, getWaterGoalMl } from './water';
 import { getWeekEnd, getWeekStart } from './weightCalculations';
 
 export interface WeeklySummary {
@@ -17,14 +16,13 @@ export interface WeeklySummary {
   personalRecords: number;
   steps: { average: number; daysLogged: number; goal: number };
   nutrition: { daysLogged: number; avgCalories: number; targetCalories: number; avgProteinG: number; targetProteinG: number };
-  water: { daysLogged: number; avgMl: number; goalMl: number };
   weight: { latest: number | null; changeKg: number | null };
   insights: string[];
 }
 
 type SummaryState = Pick<
   AppState,
-  'foodLog' | 'progress' | 'workoutPlan' | 'completedWorkoutDates' | 'stepLogs' | 'weightLogs' | 'schedule' | 'nutritionPlan' | 'profile' | 'waterLogs' | 'stepGoal'
+  'foodLog' | 'progress' | 'workoutPlan' | 'completedWorkoutDates' | 'stepLogs' | 'weightLogs' | 'schedule' | 'nutritionPlan' | 'profile' | 'stepGoal'
 >;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -75,11 +73,6 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
   const avgCalories = foodDays.length > 0 ? Math.round(totalCalories / foodDays.length) : 0;
   const avgProteinG = foodDays.length > 0 ? Math.round(totalProtein / foodDays.length) : 0;
 
-  // Water
-  const waterGoalMl = getWaterGoalMl(state.profile.metrics.weightKg);
-  const waterDays = dates.filter((d) => getWaterForDate(state.waterLogs ?? [], d) > 0);
-  const avgWaterMl = waterDays.length > 0 ? Math.round(waterDays.reduce((s, d) => s + getWaterForDate(state.waterLogs ?? [], d), 0) / waterDays.length) : 0;
-
   // Weight: the last weigh-in of the week against the latest one before it (or the week's first, when there is nothing earlier).
   const weekWeights = state.weightLogs.filter((w) => inWeek(w.date) && w.date <= lastDay).sort((a, b) => a.date.localeCompare(b.date));
   const earlier = state.weightLogs.filter((w) => w.date < weekStart).sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -100,7 +93,6 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
     insights.push('הקלוריות הממוצעות קרובות ליעד. יציבות טובה 👌');
   }
   if (stepDays.length >= 3 && stepsAverage >= stepGoal) insights.push(`ממוצע הצעדים (${stepsAverage.toLocaleString()}) עמד ביעד 👟`);
-  if (waterDays.length >= 3 && avgWaterMl < waterGoalMl * 0.7) insights.push('שתיית המים נמוכה מהיעד. כוס נוספת אחרי כל ארוחה עוזרת.');
 
   return {
     weekStart,
@@ -112,7 +104,6 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
     personalRecords,
     steps: { average: stepsAverage, daysLogged: stepDays.length, goal: stepGoal },
     nutrition: { daysLogged: foodDays.length, avgCalories, targetCalories: state.nutritionPlan.targetCalories, avgProteinG, targetProteinG: state.nutritionPlan.macros.proteinG },
-    water: { daysLogged: waterDays.length, avgMl: avgWaterMl, goalMl: waterGoalMl },
     weight: { latest, changeKg },
     insights: insights.slice(0, 3),
   };

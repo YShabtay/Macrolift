@@ -22,15 +22,13 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, WaterLog, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, WeeklyBalanceAdjustment } from '../types/fitness';
 import QuickFoodShortcuts from './QuickFoodShortcuts';
 import WeekStrip, { type WeekStripDay } from './WeekStrip';
 import WeeklyCalorieCard from './WeeklyCalorieCard';
 import DateField from './DateField';
 import { getWeeklyCalorieBudget } from '../utils/calorieBudget';
 import BarcodeScanner from './BarcodeScanner';
-import WaterTracker from './WaterTracker';
-import { getWaterForDate } from '../utils/water';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
 import HeroCarousel from './HeroCarousel';
@@ -65,9 +63,6 @@ interface FoodTrackerProps {
   /** Temporary weekly rebalance, which can lower the target on the days it covers. */
   weeklyBalance?: WeeklyBalanceAdjustment;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
-  waterLogs: WaterLog[];
-  waterGoalMl: number;
-  onAddWater: (date: string, deltaMl: number) => void;
   favoriteFoods: FavoriteFood[];
   savedMeals: SavedMeal[];
   onToggleFavorite: (food: FoodEntry | FoodTemplate) => void;
@@ -89,7 +84,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, waterLogs, waterGoalMl, onAddWater, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIso());
@@ -186,7 +181,6 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
 
       <WeeklyCalorieCard budget={calorieBudget} />
 
-      <WaterTracker ml={getWaterForDate(waterLogs, selectedDate)} goalMl={waterGoalMl} onAdd={(delta) => onAddWater(selectedDate, delta)} />
 
       <button
         type="button"

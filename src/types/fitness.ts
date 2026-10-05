@@ -297,12 +297,6 @@ export interface SavedMeal {
   items: FoodTemplate[];
 }
 
-/** Water drunk on one date, in millilitres. At most one entry per date. */
-export interface WaterLog {
-  date: string; // YYYY-MM-DD
-  ml: number;
-}
-
 /** One day's recorded step count. At most one entry per date. */
 export interface StepLog {
   date: string; // YYYY-MM-DD
@@ -346,8 +340,6 @@ export interface AppState {
   circumferenceGoals: CircumferenceGoals;
   /** Daily step target set from the steps card; the app falls back to 10,000 when unset. */
   stepGoal?: number;
-  /** Daily water intake. */
-  waterLogs?: WaterLog[];
   /** Foods the user starred for one-tap logging. */
   favoriteFoods?: FavoriteFood[];
   /** Meals the user saved to log again as a whole. */

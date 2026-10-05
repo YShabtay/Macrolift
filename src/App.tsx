@@ -38,7 +38,6 @@ import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
 import { toggleSetEntry, updateSetLogEntry } from './utils/setLogs';
 import { addSavedMeal, toggleFavoriteFood } from './utils/foodShortcuts';
-import { addWaterForDate } from './utils/water';
 import { saveStepsForDate } from './utils/stepsCalculations';
 import { requestPersistentStorage } from './utils/persistentStorage';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -401,10 +400,6 @@ export default function App() {
     setAppState((prev) => (prev ? { ...prev, savedMeals: (prev.savedMeals ?? []).filter((m) => m.id !== id) } : prev));
   }
 
-  function handleAddWater(date: string, deltaMl: number) {
-    setAppState((prev) => (prev ? { ...prev, waterLogs: addWaterForDate(prev.waterLogs ?? [], date, deltaMl) } : prev));
-  }
-
   function handleDeleteFood(id: string) {
     setAppState((prev) => (prev ? { ...prev, foodLog: prev.foodLog.filter((f) => f.id !== id) } : prev));
   }
@@ -612,7 +607,6 @@ export default function App() {
         onSetSchedule={handleSetSchedule}
         onClearSchedule={handleClearSchedule}
         onAddFood={handleAddFood}
-        onAddWater={handleAddWater}
         onToggleFavorite={handleToggleFavorite}
         onSaveMeal={handleSaveMeal}
         onDeleteSavedMeal={handleDeleteSavedMeal}

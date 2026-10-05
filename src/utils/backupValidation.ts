@@ -282,7 +282,6 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (rawSchedule) state.schedule = keepObjects(rawSchedule, (p) => typeof p.date === 'string' && typeof p.dayId === 'string');
   if (rawSteps) state.stepLogs = keepObjects(rawSteps, (p) => typeof p.date === 'string' && isFiniteNumber(p.steps));
   if (rawCircumference) state.circumferenceLogs = keepObjects(rawCircumference, (p) => typeof p.date === 'string');
-  if (Array.isArray(candidate.waterLogs)) state.waterLogs = candidate.waterLogs as AppState['waterLogs'];
   // Favorites and saved meals are cleaned (and bad entries dropped) when the state is next loaded.
   if (Array.isArray(candidate.favoriteFoods)) state.favoriteFoods = candidate.favoriteFoods as AppState['favoriteFoods'];
   if (Array.isArray(candidate.savedMeals)) state.savedMeals = candidate.savedMeals as AppState['savedMeals'];
