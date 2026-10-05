@@ -74,6 +74,7 @@ import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
+import AppBackdrop from './AppBackdrop';
 import DailyMealsModal from './DailyMealsModal';
 import CircumferenceTracker from './CircumferenceTracker';
 import ResetConfirmModal from './ResetConfirmModal';
@@ -318,10 +319,8 @@ export default function Dashboard({
   }, [profileId]);
 
   return (
-    <div className="flex min-h-svh bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      {/* Ambient background glows - fixed to the viewport so they read as soft, persistent lighting */}
-      <div className="pointer-events-none fixed -top-24 -right-24 -z-10 h-[420px] w-[420px] rounded-full bg-lime-500/5 blur-[120px] dark:bg-lime-500/10" />
-      <div className="pointer-events-none fixed -bottom-24 -left-24 -z-10 h-[420px] w-[420px] rounded-full bg-emerald-500/5 blur-[120px] dark:bg-emerald-500/10" />
+    <div className="flex min-h-svh text-zinc-900 dark:text-zinc-100">
+      <AppBackdrop />
 
       <RestFinishedAlert />
 
