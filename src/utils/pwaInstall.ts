@@ -34,6 +34,23 @@ export function isIosNonSafari(): boolean {
   return typeof navigator !== 'undefined' && /CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram/i.test(navigator.userAgent || '');
 }
 
+/**
+ * The social/chat app whose built-in browser opened the page, in Hebrew, or null for a normal browser. These in-app browsers can't install a
+ * web app (no "Install app" in their menu), so a link opened from an Instagram story must first be reopened in Chrome / Safari.
+ */
+export function getInAppBrowserName(ua: string = typeof navigator === 'undefined' ? '' : navigator.userAgent || ''): string | null {
+  if (/Instagram/i.test(ua)) return 'אינסטגרם';
+  if (/FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua)) return 'פייסבוק';
+  if (/TikTok|musical_ly|BytedanceWebview/i.test(ua)) return 'טיקטוק';
+  if (/Snapchat/i.test(ua)) return 'סנאפצ׳אט';
+  if (/LinkedInApp/i.test(ua)) return 'לינקדאין';
+  if (/Twitter/i.test(ua)) return 'אקס (טוויטר)';
+  if (/Pinterest/i.test(ua)) return 'פינטרסט';
+  if (/Line\//i.test(ua)) return 'LINE';
+  if (/Android/i.test(ua) && /; wv\)/.test(ua)) return 'אפליקציה';
+  return null;
+}
+
 /** The install banner is for phones/tablets that haven't installed the app and weren't asked to hold off. */
 export function shouldShowInstallBanner(now: number = Date.now()): boolean {
   if (isStandalone() || detectPlatform() === 'other') return false;

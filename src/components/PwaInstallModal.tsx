@@ -5,6 +5,7 @@ import type { AppState } from '../types/fitness';
 import { exportBackup, hasTrackedData } from '../utils/backupExport';
 import {
   detectPlatform,
+  getInAppBrowserName,
   getInstallPrompt,
   isIosNonSafari,
   isStandalone,
@@ -102,6 +103,19 @@ export default function PwaInstallModal({ appState, onClose }: PwaInstallModalPr
   // Browser storage and the home-screen app's storage are separate on iPhone, so existing data has to travel in a backup file.
   const hasExistingData = !alreadyInstalled && !!appState && hasTrackedData(appState);
   const [isBackupDone, setIsBackupDone] = useState(false);
+  // A link opened from Instagram & co. lands in their built-in browser, which can't install anything.
+  const inAppBrowser = alreadyInstalled ? null : getInAppBrowserName();
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+  async function handleCopyLink() {
+    const url = window.location.origin;
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsLinkCopied(true);
+    } catch {
+      window.prompt('העתיקו את הקישור:', url);
+    }
+  }
 
   async function handleDownloadBackup() {
     if (!appState) return;
@@ -163,6 +177,23 @@ export default function PwaInstallModal({ appState, onClose }: PwaInstallModalPr
         </div>
 
         <div className="overflow-y-auto p-4 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
+          {inAppBrowser && (
+            <div className="mb-4 rounded-xl border border-orange-400/50 bg-orange-400/10 p-3.5">
+              <p className="flex items-start gap-2 text-sm font-extrabold leading-snug text-orange-700 dark:text-orange-300">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                נראה שפתחתם את הקישור בתוך {inAppBrowser}. בדפדפן הזה אי אפשר להתקין את האפליקציה.
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                {platform === 'ios'
+                  ? 'לחצו על ⋯ (שלוש נקודות) ← "Open in Safari", ושם תוכלו להתקין.'
+                  : 'לחצו על ⋮ (שלוש נקודות) ← "פתיחה ב-Samsung Browser" או "פתיחה ב-Chrome", ושם תוכלו להתקין.'}
+              </p>
+              <button type="button" onClick={() => void handleCopyLink()} className="btn-secondary mt-3 w-full text-xs">
+                {isLinkCopied ? '✅ הקישור הועתק, הדביקו אותו בדפדפן' : 'או העתיקו את הקישור ופתחו אותו בדפדפן'}
+              </button>
+            </div>
+          )}
+
           {hasExistingData && (
             <div className="mb-4 rounded-xl border border-orange-400/50 bg-orange-400/10 p-3.5">
               <p className="flex items-start gap-2 text-sm font-extrabold leading-snug text-orange-700 dark:text-orange-300">
@@ -206,7 +237,7 @@ export default function PwaInstallModal({ appState, onClose }: PwaInstallModalPr
             ))}
           </div>
 
-          {tab === 'ios' && platform === 'ios' && isIosNonSafari() && (
+          {tab === 'ios' && platform === 'ios' && isIosNonSafari() && !inAppBrowser && (
             <p className="mt-3 flex items-start gap-2 rounded-xl border border-orange-400/30 bg-orange-400/5 px-3 py-2.5 text-xs leading-relaxed text-orange-700 dark:text-orange-300">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               נראה שאתם לא ב-Safari. פתחו את הקישור הזה ב-Safari כדי שאפשרות ההוספה למסך הבית תופיע.
