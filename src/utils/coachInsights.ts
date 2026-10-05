@@ -34,17 +34,30 @@ function findTodayCompletedStrengthExercise(
   return null;
 }
 
+/** Weigh-ins a week needs before its average says anything: day-to-day weight swings by half a kilo or more from water and salt alone. */
+const MIN_WEIGH_INS_PER_WEEK = 3;
+
 function getWeightTrendInsight(goal: Goal, weightLogs: WeightLog[]): CoachInsight | null {
   const summaries = buildWeeklySummaries(weightLogs);
   if (summaries.length < 2) return null;
 
   const last = summaries[summaries.length - 1];
   const prev = summaries[summaries.length - 2];
+
+  // Two weigh-ins in a week can't separate a real change from normal fluctuation - never judge on that; ask for more data, calmly.
+  if (last.daysLogged < MIN_WEIGH_INS_PER_WEEK || prev.daysLogged < MIN_WEIGH_INS_PER_WEEK) {
+    return {
+      emoji: '📊',
+      message: `כדי לדעת אם המשקל באמת זז צריך לפחות ${MIN_WEIGH_INS_PER_WEEK} שקילות בכל שבוע (לפי ממוצע שבועי). שקילה אחת-שתיים מושפעות מאוד ממים ומלח, ולכן לא שופטים לפיהן.`,
+    };
+  }
+
   const delta = Math.round((last.averageKg - prev.averageKg) * 10) / 10;
 
   const isPlateaued = (() => {
     if (summaries.length < 3 || Math.abs(delta) >= 0.1) return false;
     const prev2 = summaries[summaries.length - 3];
+    if (prev2.daysLogged < MIN_WEIGH_INS_PER_WEEK) return false;
     const deltaPrev = prev.averageKg - prev2.averageKg;
     return Math.abs(deltaPrev) < 0.1;
   })();
@@ -59,10 +72,10 @@ function getWeightTrendInsight(goal: Goal, weightLogs: WeightLog[]): CoachInsigh
         message: 'פלאטו בעלייה - המשקל כמעט לא זז כבר שבועיים. מומלץ להעלות כ-150 קלוריות (בעיקר פחמימה סביב האימון).',
       };
     }
-    if (delta > 0.35) {
+    if (delta > 0.5) {
       return {
-        emoji: '⚠️',
-        message: `עלית ${delta.toFixed(1)} ק״ג השבוע - קצב מהיר מהרצוי למסה נקייה. שקול/י להוריד מעט קלוריות כדי לצמצם עודף שומן.`,
+        emoji: '📈',
+        message: `הממוצע השבועי עלה ב-${delta.toFixed(1)} ק״ג, קצת מהר למסה נקייה. אם זה נמשך גם בשבוע הבא, אפשר להוריד כ-100 קלוריות ביום. תנודות קטנות הן נורמליות ולא סיבה לדאגה.`,
       };
     }
   }
