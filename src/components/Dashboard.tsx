@@ -391,7 +391,7 @@ export default function Dashboard({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
+      <main className="flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           {/* One boundary per screen (keyed by tab): a crash stays on that screen while the navigation and the other tabs keep working. */}
           <SectionErrorBoundary key={tab} section={tab}>
@@ -486,7 +486,7 @@ export default function Dashboard({
       </main>
 
       {/* Bottom nav - mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/95 dark:bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-20 mx-auto flex max-w-md justify-around gap-1 rounded-full border border-zinc-200 bg-white/90 p-1.5 shadow-xl backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/90 md:hidden">
         {NAV_ITEMS.map(({ id, shortLabel, icon: Icon }) => {
           const isActive = tab === id;
           return (
@@ -494,13 +494,11 @@ export default function Dashboard({
               key={id}
               type="button"
               onClick={() => selectTab(id)}
-              className={`flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-medium transition ${
-                isActive ? 'text-lime-700 dark:text-lime-400' : 'text-zinc-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-full py-2 text-[10px] font-semibold transition ${
+                isActive ? 'bg-lime-400 text-zinc-950' : 'text-zinc-500 dark:text-zinc-400'
               }`}
             >
-              <span className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${isActive ? 'bg-lime-400/10' : ''}`}>
-                <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2.5 : 2} />
-              </span>
+              <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2.5 : 2} />
               {shortLabel}
             </button>
           );
@@ -1075,16 +1073,16 @@ function StreaksCard({
     progressRatio >= 0.8 ? '🏆 שבוע מנצח, כל הכבוד!' : progressRatio >= 0.4 ? '🔥 ממשיכים חזק, קדימה!' : '💪 בואו נניע את השבוע!';
 
   return (
-    <div className="glass-card flex flex-col gap-4 p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
+    <div className="glass-card flex flex-col gap-4 p-5 sm:p-6">
       <h2 className="text-sm font-bold tracking-wide text-zinc-600 dark:text-zinc-400">עקביות השבוע</h2>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-zinc-100/80 dark:bg-zinc-800/40 p-3 text-center">
-          <p className="text-3xl font-extrabold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white">{weighInsThisWeek}</p>
+          <p className="font-display text-3xl tabular-nums leading-none text-zinc-900 dark:text-white">{weighInsThisWeek}</p>
           <p className="mt-1.5 text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">ימי שקילה השבוע</p>
         </div>
         <div className="rounded-xl bg-zinc-100/80 dark:bg-zinc-800/40 p-3 text-center">
-          <p className="text-3xl font-extrabold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white">
+          <p className="font-display text-3xl tabular-nums leading-none text-zinc-900 dark:text-white">
             {workoutsThisWeek}
             <span className="text-lg font-bold text-zinc-500">/{trainingDaysPerWeek}</span>
           </p>
@@ -1131,7 +1129,7 @@ function NutritionCard({
   const progressPercent = targetCalories > 0 ? Math.min((eaten.calories / targetCalories) * 100, 100) : 0;
 
   return (
-    <div className="glass-card flex flex-col p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
+    <div className="glass-card flex flex-col p-5 sm:p-6">
       <h2 className="mb-4 text-sm font-bold tracking-wide text-zinc-600 dark:text-zinc-400">{isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
 
       <div className="flex items-center gap-5">
@@ -1153,7 +1151,7 @@ function NutritionCard({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span
-              className={`text-4xl font-extrabold tabular-nums leading-none tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-50'}`}
+              className={`font-display text-4xl tabular-nums leading-none ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-50'}`}
             >
               {formatMacro(Math.abs(remainingCalories))}
             </span>

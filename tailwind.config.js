@@ -17,6 +17,8 @@ export default {
       },
       fontFamily: {
         sans: ['"Assistant"', '"Rubik"', 'system-ui', 'sans-serif'],
+        // Heavy display face for titles and big numbers; falls back to the body font if it can't load.
+        display: ['"Secular One"', '"Assistant"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         glow: '0 0 28px 0 rgba(163, 230, 53, 0.09)',

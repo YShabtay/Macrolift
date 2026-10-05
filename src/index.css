@@ -16,6 +16,13 @@
     @apply border-zinc-200 dark:border-zinc-800;
   }
 
+  h1,
+  h2,
+  h3 {
+    font-family: theme('fontFamily.display');
+    letter-spacing: -0.01em;
+  }
+
   /* A faint lime wash from the top edge gives the dark theme some depth without the glow having to do the work. */
   .dark body {
     background-image: radial-gradient(70% 38% at 50% 0%, rgba(163, 230, 53, 0.07), transparent 72%);
@@ -70,7 +77,7 @@
   }
 
   .neon-border {
-    @apply border border-lime-400/20 shadow-glow;
+    @apply border border-zinc-300/70 shadow-lg dark:border-zinc-700/70;
   }
 
   .btn-primary {

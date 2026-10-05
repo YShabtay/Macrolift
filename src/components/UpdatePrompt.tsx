@@ -56,7 +56,7 @@ export default function UpdatePrompt() {
   if (!needRefresh) return null;
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[60] flex justify-center px-4 md:bottom-6">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[60] flex justify-center px-4 md:bottom-6">
       <div role="status" className="pointer-events-auto flex w-full max-w-sm items-center gap-2 rounded-2xl border border-lime-400/50 bg-zinc-900 p-1.5 pe-2 shadow-glow animate-slide-up">
         <button
           type="button"
