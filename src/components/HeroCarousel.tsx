@@ -81,7 +81,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
               isActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
             }`}
           >
-            <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[50%_22%]" />
+            <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[50%_42%]" />
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
 
             <div
