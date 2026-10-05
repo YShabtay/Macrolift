@@ -635,6 +635,8 @@ function AddFoodModal({
   const [pickedFood, setPickedFood] = useState<FoodPer100g | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isBarcodeIntroOpen, setIsBarcodeIntroOpen] = useState(false);
+  // A scanned product opens with a ready amount; a searched one still starts empty.
+  const [pickedFromScan, setPickedFromScan] = useState(false);
 
   function handleQuickAdd(item: (typeof QUICK_FOODS)[number]) {
     onAdd({
@@ -698,6 +700,7 @@ function AddFoodModal({
           <BarcodeScanner
             onFound={(food) => {
               setIsScanning(false);
+              setPickedFromScan(true);
               setPickedFood(food);
             }}
             onClose={() => setIsScanning(false)}
@@ -713,6 +716,7 @@ function AddFoodModal({
               onBack={() => setPickedFood(null)}
               onAdd={onAdd}
               onDone={onClose}
+              prefillAmount={pickedFromScan}
             />
           </div>
         )}
@@ -744,7 +748,12 @@ function AddFoodModal({
             סרוק ברקוד של מוצר
           </button>
 
-          <FoodSearch onPick={setPickedFood} />
+          <FoodSearch
+            onPick={(food) => {
+              setPickedFromScan(false);
+              setPickedFood(food);
+            }}
+          />
 
           <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
             <p className="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-500">פריטים נפוצים</p>

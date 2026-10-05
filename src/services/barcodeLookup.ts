@@ -179,3 +179,13 @@ export async function saveManualBarcodeFood(rawCode: string, food: ManualBarcode
   await storageService.saveCustomFoods([saved, ...current.filter((f) => f.id !== saved.id)]);
   return saved;
 }
+
+/** Remembers a scanned product's pack size (grams, read off the label), so it can be logged as "1 pack" from now on. */
+export async function saveBarcodePackSize(foodId: string, grams: number): Promise<void> {
+  if (!foodId.startsWith('barcode-') || !Number.isFinite(grams) || grams < 5 || grams > 5000) return;
+  const current = await storageService.getCustomFoods();
+  const updated = current.map((f) =>
+    f.id === foodId ? { ...f, servingUnits: [...(f.servingUnits ?? []).filter((u) => u.name !== 'אריזה'), { name: 'אריזה', grams: round1(grams) }] } : f,
+  );
+  await storageService.saveCustomFoods(updated);
+}

@@ -7,7 +7,9 @@ import { lookupAndCacheFood } from '../services/foodLookup';
 import { storageService } from '../services/storageService';
 import { normalizeFoodQuery, scaleNutrition, searchFoods } from '../utils/foodSearch';
 import DecimalInput from './DecimalInput';
-import { formatServingQuantity, formatUnitCount, shouldDefaultToUnits, unitsToGrams } from '../utils/servingUnits';
+import { formatServingQuantity, formatUnitCount, getScannedDefault, shouldDefaultToUnits, unitsToGrams } from '../utils/servingUnits';
+import { saveBarcodePackSize } from '../services/barcodeLookup';
+import type { ServingUnit } from '../types/fitness';
 import { MEAL_LABELS } from '../utils/nutritionLog';
 
 const AUTO_AI_DELAY_MS = 900;
@@ -156,16 +158,37 @@ interface ServingPanelProps {
   onBack: () => void;
   onAdd: (entry: Omit<FoodEntry, 'id'>) => void;
   onDone: () => void;
+  /** For a scanned product: start with a ready amount (one serving, else one pack, else 100 g) so the values are already filled in. */
+  prefillAmount?: boolean;
 }
 
 /** Gram-based entry for one chosen food: per-100g reference values, quick-gram buttons and live macro math. */
-export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: ServingPanelProps) {
-  const units = food.servingUnits;
+export function ServingPanel({ food, meal, date, onBack, onAdd, onDone, prefillAmount = false }: ServingPanelProps) {
+  // A pack size the user adds from the label joins the units the database already gave.
+  const [addedPack, setAddedPack] = useState<ServingUnit | null>(null);
+  const [packText, setPackText] = useState('');
+  const units = addedPack ? [...(food.servingUnits ?? []).filter((u) => u.name !== addedPack.name), addedPack] : food.servingUnits;
   const startsInUnits = shouldDefaultToUnits(units);
+  const scannedDefault = prefillAmount ? getScannedDefault(food.servingUnits) : null;
+  const canAddPack = prefillAmount && !(food.servingUnits ?? []).some((u) => u.name === 'אריזה' || u.name === 'מנה') && !addedPack;
+  const packGrams = Number(packText);
+  const isPackValid = Number.isFinite(packGrams) && packGrams >= 5 && packGrams <= 5000;
+
+  function handleSavePack() {
+    if (!isPackValid) return;
+    const pack: ServingUnit = { name: 'אריזה', grams: packGrams };
+    setAddedPack(pack);
+    setUnitName(pack.name);
+    setAmountText('1');
+    setHasEdited(true);
+    void saveBarcodePackSize(food.id, packGrams);
+  }
   // '' = grams; otherwise the name of the selected serving unit.
-  const [unitName, setUnitName] = useState(startsInUnits && units ? units[0].name : '');
-  // Starts empty (shown as 0): a pre-filled 100 / 1 looked like an amount the user had already chosen and was easy to add by mistake.
-  const [amountText, setAmountText] = useState('');
+  const [unitName, setUnitName] = useState(scannedDefault ? scannedDefault.unitName : startsInUnits && units ? units[0].name : '');
+  // Searched foods start empty (shown as 0): a pre-filled 100 / 1 looked like an amount the user had already chosen and was easy to add by mistake.
+  // A scanned product is different - the user just pointed the camera at the thing they ate - so it starts with one serving, ready to add or change.
+  const [amountText, setAmountText] = useState(scannedDefault ? scannedDefault.amountText : '');
+  const [hasEdited, setHasEdited] = useState(false);
   const selectedUnit = units?.find((u) => u.name === unitName);
 
   const amount = Number(amountText);
@@ -178,6 +201,7 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
     if (next === unitName) return;
     setUnitName(next);
     setAmountText('');
+    setHasEdited(true);
   }
 
   function handleAdd() {
@@ -247,7 +271,10 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
           <DecimalInput
             aria-label={selectedUnit ? `כמות ב${selectedUnit.name}` : 'כמות בגרמים'}
             value={amountText}
-            onValueChange={setAmountText}
+            onValueChange={(v) => {
+              setAmountText(v);
+              setHasEdited(true);
+            }}
             placeholder="0"
             className={`w-28 rounded-xl border bg-white dark:bg-zinc-900 px-3 py-2.5 text-center text-lg font-bold text-zinc-900 dark:text-zinc-100 outline-none transition focus:ring-2 ${
               isValid || amountText.trim() === ''
@@ -260,7 +287,10 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
               <button
                 key={q}
                 type="button"
-                onClick={() => setAmountText(String(q))}
+                onClick={() => {
+                  setAmountText(String(q));
+                  setHasEdited(true);
+                }}
                 className={`flex-1 rounded-xl border text-xs font-bold transition ${
                   amount === q
                     ? 'border-lime-400/50 bg-lime-400/10 text-lime-700 dark:text-lime-400'
@@ -272,6 +302,11 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
             ))}
           </div>
         </div>
+        {scannedDefault && !hasEdited && (
+          <p className="mt-1.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+            התחלנו מ{scannedDefault.label}. לכמות אחרת, הקלידו אותה בשדה או בחרו מהכפתורים.
+          </p>
+        )}
         {selectedUnit && isValid && (
           <p className="mt-1.5 text-xs font-semibold text-lime-700 dark:text-lime-400">
             {formatUnitCount(amount, selectedUnit)} (~{grams} גרם)
@@ -283,6 +318,32 @@ export function ServingPanel({ food, meal, date, onBack, onAdd, onDone }: Servin
           </p>
         )}
       </div>
+
+      {canAddPack && (
+        <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-3">
+          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">לא יודעים כמה גרם? אוכלים אריזה שלמה?</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+            הזינו פעם אחת את המשקל שכתוב על האריזה, ובפעם הבאה תוכלו פשוט לרשום &quot;אריזה אחת&quot;.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <DecimalInput
+              aria-label="משקל האריזה בגרמים"
+              value={packText}
+              onValueChange={setPackText}
+              placeholder="משקל האריזה בגרמים"
+              className="min-w-0 flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-center text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+            />
+            <button
+              type="button"
+              onClick={handleSavePack}
+              disabled={!isPackValid}
+              className="rounded-lg border border-lime-400/50 bg-lime-400/10 px-4 text-xs font-bold text-lime-700 transition disabled:opacity-40 dark:text-lime-400"
+            >
+              שמור
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-2 text-center">
         <MacroCell label="קק״ל" value={scaled.calories} accent />

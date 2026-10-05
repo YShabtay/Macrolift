@@ -61,3 +61,15 @@ export function sanitizeServingUnits(raw: unknown): ServingUnit[] | undefined {
   }
   return units.length > 0 ? units : undefined;
 }
+
+/**
+ * The amount a scanned product starts with. People eat "a pot" or "a bar", not grams, so: one serving if the package states it,
+ * otherwise the whole pack, otherwise 100 g (when the database knows no unit at all).
+ */
+export function getScannedDefault(units: ServingUnit[] | undefined): { unitName: string; amountText: string; label: string } {
+  const serving = units?.find((u) => u.name === 'מנה');
+  if (serving) return { unitName: serving.name, amountText: '1', label: `מנה אחת (${serving.grams} גרם)` };
+  const pack = units?.find((u) => u.name === 'אריזה');
+  if (pack) return { unitName: pack.name, amountText: '1', label: `אריזה אחת (${pack.grams} גרם)` };
+  return { unitName: '', amountText: '100', label: '100 גרם' };
+}
