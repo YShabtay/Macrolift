@@ -672,6 +672,8 @@ function DashboardTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <HeroCarousel slides={heroSlides} />
+
       <div>
         <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100">שלום, {profile.name} 👋</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">הנה סיכום היעדים והאימון שלך להיום</p>
@@ -715,8 +717,6 @@ function DashboardTab({
           }}
         />
       )}
-
-      <HeroCarousel slides={heroSlides} />
 
       <QuickCompleteButton
         day={todaysDay}

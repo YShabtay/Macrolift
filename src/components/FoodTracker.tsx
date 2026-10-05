@@ -116,10 +116,6 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
 
   return (
     <div className="flex flex-col gap-5">
-      {installBanner.isVisible && foodLog.length > 0 && (
-        <PwaInstallBanner variant="has-data" onOpen={onOpenInstallGuide} onDismiss={installBanner.dismiss} />
-      )}
-
       <HeroCarousel
         compact
         slides={[
@@ -132,6 +128,10 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
           },
         ]}
       />
+
+      {installBanner.isVisible && foodLog.length > 0 && (
+        <PwaInstallBanner variant="has-data" onOpen={onOpenInstallGuide} onDismiss={installBanner.dismiss} />
+      )}
 
       <div className="glass-card flex items-center justify-between p-3">
         <button

@@ -60,8 +60,9 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
 
   return (
     <div
-      className={`group relative isolate grid overflow-hidden rounded-2xl border border-zinc-800 shadow-glow ${
-        compact ? 'min-h-[160px] sm:min-h-[190px]' : 'min-h-[280px] sm:min-h-[320px]'
+      // Phone: edge to edge and up under the status bar, rounded only at the bottom, no frame or glow. Desktop (md+) keeps it inside the content column.
+      className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] grid overflow-hidden rounded-b-[2rem] sm:-mx-6 md:mx-0 md:mt-0 md:rounded-3xl ${
+        compact ? 'min-h-[230px] sm:min-h-[250px] md:min-h-[190px]' : 'min-h-[340px] sm:min-h-[360px] md:min-h-[320px]'
       }`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
