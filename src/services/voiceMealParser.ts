@@ -1,4 +1,4 @@
-import { API_KEY, GEMINI_MODEL, MissingApiKeyError } from './aiFoodScanner';
+import { MissingApiKeyError, postToGemini } from './geminiClient';
 
 export { MissingApiKeyError };
 
@@ -93,22 +93,14 @@ export function parseVoiceMealResponse(rawText: string): VoiceFoodItem[] {
 
 /** Sends a meal description to Gemini and returns the foods it identified, with estimated grams and macros. */
 export async function parseMealDescription(description: string): Promise<VoiceFoodItem[]> {
-  if (!API_KEY) throw new MissingApiKeyError('VITE_GEMINI_API_KEY is not configured');
   const text = description.trim().slice(0, MAX_DESCRIPTION_CHARS);
   if (text.length < 2) throw new Error('לא התקבל תיאור. נסו שוב וספרו מה אכלתם.');
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: `מה שאכלתי: ${text}` }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    },
-  );
+  const response = await postToGemini({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: `מה שאכלתי: ${text}` }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  });
   if (!response.ok) throw new Error(`הניתוח נכשל (${response.status}). נסו שוב.`);
 
   const data = await response.json();

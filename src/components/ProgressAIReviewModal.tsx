@@ -435,10 +435,8 @@ function MissingApiKeyNotice() {
       <AlertTriangle className="h-8 w-8 text-orange-700 dark:text-orange-400" />
       <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">ניתוח AI לא מחובר</p>
       <p className="max-w-sm text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-        כדי להפעיל את הניתוח, יש להגדיר מפתח API חינמי של Gemini (מתוך Google AI Studio) במשתנה הסביבה{' '}
-        <code className="rounded bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300">VITE_GEMINI_API_KEY</code> בקובץ{' '}
-        <code className="rounded bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300">.env.local</code>, ולהפעיל מחדש את השרת.
-      </p>
+                  שירות ה-AI אינו זמין כרגע. נסו שוב מאוחר יותר.
+                </p>
     </div>
   );
 }

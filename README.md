@@ -28,3 +28,19 @@ Developed by an **Industrial Engineering & Information Systems** student as a st
 * IndexedDB & Web Storage APIs
 * Google Gemini API
 * Vercel Deployment
+
+---
+
+## 🔐 Running it & the AI key
+
+```bash
+npm install
+cp .env.example .env.local   # add VITE_GEMINI_API_KEY for local AI features (optional)
+npm run dev
+```
+
+The Gemini key is **never shipped to the browser in production**. In production the app calls its own serverless function
+(`api/gemini.ts`), which holds the key as a server-side variable and adds a model allow-list, request-size and token caps, a same-origin check and a
+per-IP rate limit. For local development `npm run dev` calls Google directly with `VITE_GEMINI_API_KEY`; that value is compiled out of production builds.
+
+On Vercel add `GEMINI_API_KEY` (not a `VITE_` variable) under *Settings → Environment Variables*, and set a quota on the key in Google Cloud.

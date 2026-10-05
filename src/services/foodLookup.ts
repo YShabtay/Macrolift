@@ -1,5 +1,5 @@
 import type { FoodPer100g } from '../types/fitness';
-import { API_KEY, GEMINI_MODEL, MissingApiKeyError } from './aiFoodScanner';
+import { MissingApiKeyError, postToGemini } from './geminiClient';
 import { storageService } from './storageService';
 import { normalizeFoodQuery } from '../utils/foodSearch';
 import { sanitizeServingUnits } from '../utils/servingUnits';
@@ -78,20 +78,11 @@ function parseFoodResponse(rawText: string, query: string): FoodPer100g {
 
 /** Asks Gemini for a food's average nutrition per 100 g. Does not touch the cache - see lookupAndCacheFood. */
 export async function lookupFoodWithAI(query: string): Promise<FoodPer100g> {
-  if (!API_KEY) throw new MissingApiKeyError('VITE_GEMINI_API_KEY is not configured');
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: `המאכל: ${query.trim()}` }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    },
-  );
+  const response = await postToGemini({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: `המאכל: ${query.trim()}` }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  });
   if (!response.ok) throw new Error(`החיפוש עם AI נכשל (${response.status})`);
 
   const data = await response.json();

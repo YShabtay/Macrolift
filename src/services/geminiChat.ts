@@ -1,14 +1,9 @@
 import type { AppState, Goal, GoalIntensity } from '../types/fitness';
 import { buildCoachSystemPrompt } from '../utils/aiContext';
 
-// gemini-2.5-flash returns 404 on generateContent for accounts without prior usage of the
-// 2.x series (Google is restricting access to it) - gemini-3.5-flash-lite is the current
-// fast/cost-effective default Google recommends for new projects as of September 2026.
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+import { hasGeminiApiKey, MissingApiKeyError, postToGemini } from './geminiClient';
 
-/** Whether VITE_GEMINI_API_KEY is configured, so the UI can show the "connect your key" notice up front. */
-export const hasGeminiApiKey = Boolean(API_KEY);
+export { hasGeminiApiKey, MissingApiKeyError };
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -20,9 +15,6 @@ export interface ImagePart {
   base64: string;
   mimeType: string;
 }
-
-/** Thrown when VITE_GEMINI_API_KEY isn't configured, so callers can show a dedicated "connect your key" notice. */
-export class MissingApiKeyError extends Error {}
 
 interface GeminiPart {
   text?: string;
@@ -36,22 +28,13 @@ interface GeminiContent {
 
 /** Shared request/error-handling for every Gemini call in this service. */
 async function callGemini(systemInstruction: string, contents: GeminiContent[], asJson: boolean): Promise<string> {
-  if (!API_KEY) throw new MissingApiKeyError('VITE_GEMINI_API_KEY is not configured');
-
   let response: Response;
   try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents,
-          ...(asJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
-        }),
-      },
-    );
+    response = await postToGemini({
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents,
+      ...(asJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+    });
   } catch {
     throw new Error('לא ניתן להתחבר לשרת ה-AI כרגע. בדקו את החיבור לאינטרנט ונסו שוב.');
   }

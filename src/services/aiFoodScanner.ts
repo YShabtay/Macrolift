@@ -1,11 +1,9 @@
 import { compressImage } from '../utils/imageCompressor';
 import { dataUrlToBase64 } from '../utils/imageEncoding';
 
-// gemini-2.5-flash returns 404 on generateContent for accounts without prior usage of the
-// 2.x series (Google is restricting access to it) - gemini-3.5-flash-lite is multimodal
-// (supports image input) and is the current default Google recommends for new projects.
-export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
-export const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+import { MissingApiKeyError, postToGemini } from './geminiClient';
+
+export { MissingApiKeyError };
 
 export interface FoodScanBreakdownItem {
   item: string;
@@ -24,9 +22,6 @@ export interface FoodScanResult {
   confidence: 'low' | 'medium' | 'high';
   breakdown: FoodScanBreakdownItem[];
 }
-
-/** Thrown when VITE_GEMINI_API_KEY isn't configured, so callers can show a dedicated notice. */
-export class MissingApiKeyError extends Error {}
 
 const SYSTEM_PROMPT = `אתה מומחה תזונה שמנתח תמונות של מנות אוכל עבור אפליקציית כושר ותזונה. בהינתן תמונה של צלחת/מנה, זהה את כל המרכיבים הנראים לעין, העריך את המשקל הכולל בגרמים ואת הערכים התזונתיים (קלוריות, חלבון, פחמימה, שומן) עבור המנה כולה, וגם פירוט משוער לכל מרכיב בנפרד.
 
@@ -100,14 +95,7 @@ function parseScanResponse(rawText: string): FoodScanResult {
 
 /** Sends a meal photo (base64) to Gemini's vision model and returns the parsed nutrition estimate. */
 export async function scanMealImage(base64Image: string, mimeType: string): Promise<FoodScanResult> {
-  if (!API_KEY) throw new MissingApiKeyError('VITE_GEMINI_API_KEY is not configured');
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+  const response = await postToGemini({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [
           {
@@ -121,9 +109,7 @@ export async function scanMealImage(base64Image: string, mimeType: string): Prom
         generationConfig: {
           responseMimeType: 'application/json',
         },
-      }),
-    },
-  );
+      });
 
   if (!response.ok) throw new Error(`בקשת הניתוח נכשלה (${response.status})`);
 
