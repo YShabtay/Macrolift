@@ -29,6 +29,8 @@ import WeeklyCalorieCard from './WeeklyCalorieCard';
 import DateField from './DateField';
 import { getWeeklyCalorieBudget } from '../utils/calorieBudget';
 import BarcodeScanner from './BarcodeScanner';
+import BarcodeIntro from './BarcodeIntro';
+import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
 import HeroCarousel from './HeroCarousel';
@@ -632,6 +634,7 @@ function AddFoodModal({
   const [carbsG, setCarbsG] = useState('');
   const [pickedFood, setPickedFood] = useState<FoodPer100g | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isBarcodeIntroOpen, setIsBarcodeIntroOpen] = useState(false);
 
   function handleQuickAdd(item: (typeof QUICK_FOODS)[number]) {
     onAdd({
@@ -680,6 +683,17 @@ function AddFoodModal({
           </button>
         </div>
 
+        {isBarcodeIntroOpen && (
+          <BarcodeIntro
+            onContinue={() => {
+              markBarcodeIntroSeen();
+              setIsBarcodeIntroOpen(false);
+              setIsScanning(true);
+            }}
+            onCancel={() => setIsBarcodeIntroOpen(false)}
+          />
+        )}
+
         {isScanning && (
           <BarcodeScanner
             onFound={(food) => {
@@ -723,7 +737,7 @@ function AddFoodModal({
 
           <button
             type="button"
-            onClick={() => setIsScanning(true)}
+            onClick={() => (hasSeenBarcodeIntro() ? setIsScanning(true) : setIsBarcodeIntroOpen(true))}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-lime-400/40 bg-lime-400/10 py-3 text-sm font-bold text-lime-700 transition hover:bg-lime-400/20 dark:text-lime-400"
           >
             <ScanBarcode className="h-4 w-4" />
