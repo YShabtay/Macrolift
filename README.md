@@ -2,6 +2,7 @@
 
 **A local-first fitness & nutrition PWA in Hebrew (RTL): personalised calorie/macro targets, workout programs, weight-trend analysis and an AI coach, with all user data staying on the device.**
 
+[![CI](https://github.com/YShabtay/Macrolift/actions/workflows/ci.yml/badge.svg)](https://github.com/YShabtay/Macrolift/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Demo-Live%20App-brightgreen)](https://macrolift-one.vercel.app/)
 ![React](https://img.shields.io/badge/React_18-61dafb?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)
@@ -99,7 +100,7 @@ Design decisions worth knowing:
 - **Logic is separated from UI.** Calculations live in small, pure modules under `src/utils` (for example `calculations.ts`, `weeklyBalance.ts`, `planVolume.ts`, `coachInsights.ts`), which keeps them easy to reason about and to test.
 - **The AI key never reaches the browser.** In production every AI call goes through `api/gemini.ts`, a serverless proxy that holds the key server-side and enforces a model allow-list, request-size and token caps, a same-origin check and a per-IP rate limit. During local development the app calls Google directly with `VITE_GEMINI_API_KEY`, which is compiled out of production builds.
 - **Heavy dependencies load on demand.** The barcode decoder (ZXing) is only fetched when the scanner opens.
-- **The core logic is covered by unit tests** (see below).
+- **The core logic is covered by unit tests** (see below), run on every push and pull request by GitHub Actions together with lint, type-check and the production build.
 - **Resilience over cleverness.** Stored data is validated and migrated at boot (`dataMigration.ts`), and a bad entry degrades one screen rather than the whole app.
 
 ### Project structure
