@@ -66,8 +66,8 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
       // and dark alike. Desktop (md+) keeps it inside the content column.
       className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] -mb-7 grid overflow-hidden sm:-mx-6 md:mx-0 md:mb-0 md:mt-0 md:rounded-3xl ${
         compact
-          ? 'min-h-[calc(230px+env(safe-area-inset-top))] sm:min-h-[270px] md:min-h-[210px]'
-          : 'min-h-[calc(340px+env(safe-area-inset-top))] sm:min-h-[390px] md:min-h-[340px]'
+          ? 'min-h-[calc(230px+env(safe-area-inset-top))] sm:min-h-[270px] md:aspect-[2/1] md:min-h-0'
+          : 'min-h-[calc(340px+env(safe-area-inset-top))] sm:min-h-[390px] md:aspect-[2/1] md:min-h-0'
       }`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -111,7 +111,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
                   alt=""
                   aria-hidden="true"
                   className="h-full w-full object-cover"
-                  style={{ objectPosition: slide.focus ?? '50% 42%' }}
+                  style={{ objectPosition: slide.focus ?? '50% 28%' }}
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 from-15% via-black/50 via-55% to-transparent" />

@@ -1236,7 +1236,7 @@ function WorkoutPlanTab({
           {
             id: 'workout-header',
             imageUrl: TAB_HERO_WORKOUT_IMAGE,
-            focus: '55% 40%',
+            focus: '55% 22%',
             eyebrow: 'תוכנית אימונים',
             headline: 'זמן לתת עבודה',
             body: workoutPlan.title,
@@ -1624,7 +1624,7 @@ function ProgressTab({
           {
             id: 'progress-header',
             imageUrl: TAB_HERO_PROGRESS_IMAGE,
-            focus: '64% 40%',
+            focus: '64% 12%',
             eyebrow: 'מעקב התקדמות',
             headline: 'עקביות מנצחת הכל',
             body: 'שקילות, ממוצעים שבועיים ותמונות התקדמות במקום אחד',
@@ -1877,6 +1877,7 @@ function ProfileTab({
           {
             id: 'profile-header',
             imageUrl: TAB_HERO_PROFILE_IMAGE,
+            focus: '50% 18%',
             eyebrow: profile.name,
             headline: 'פרופיל אישי והאקדמיה',
           },
