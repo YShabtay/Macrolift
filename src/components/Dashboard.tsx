@@ -1877,7 +1877,7 @@ function ProfileTab({
           {
             id: 'profile-header',
             eyebrow: profile.name,
-            headline: 'פרופיל אישי והאקדמיה',
+            headline: 'הפרופיל שלי',
           },
         ]}
       />
