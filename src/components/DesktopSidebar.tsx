@@ -77,7 +77,10 @@ export default function DesktopSidebar<T extends string>({ items, active, onSele
         aria-label="ניווט ראשי"
         onMouseEnter={() => setHoverSoon(true)}
         onMouseLeave={() => setHoverSoon(false)}
-        onFocusCapture={() => setFocused(true)}
+        onFocusCapture={(e) => {
+          // Only keyboard focus keeps the rail open: a mouse click leaves the button focused, which would otherwise hold it open like a pin.
+          if (e.target instanceof HTMLElement && e.target.matches(':focus-visible')) setFocused(true);
+        }}
         onBlurCapture={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
         }}
