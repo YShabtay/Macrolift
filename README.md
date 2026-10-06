@@ -20,14 +20,14 @@ Built by a 3rd-year Industrial Engineering & Management student (Information Sys
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/01-dashboard.jpg" width="220" alt="Dashboard"><br><sub><b>Dashboard</b><br>weigh-in, calories and macros left today</sub></td>
-    <td align="center"><img src="docs/screenshots/02-nutrition.jpg" width="220" alt="Food log"><br><sub><b>Food log</b><br>meals with per-meal macro summary</sub></td>
-    <td align="center"><img src="docs/screenshots/03-workout.jpg" width="220" alt="Workout in progress"><br><sub><b>Workout</b><br>per-set logging, previous session, rest timer</sub></td>
+    <td align="center"><img src="docs/screenshots/01-welcome.jpg" width="220" alt="Welcome screen"><br><sub><b>Welcome</b><br>guest, sign-in, restore from backup or demo user</sub></td>
+    <td align="center"><img src="docs/screenshots/02-dashboard.jpg" width="220" alt="Dashboard"><br><sub><b>Dashboard</b><br>today's workout, weigh-in and daily insight</sub></td>
+    <td align="center"><img src="docs/screenshots/03-nutrition.jpg" width="220" alt="Food log"><br><sub><b>Nutrition</b><br>calories and macros left, meals by day</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/04-weight-trend.jpg" width="220" alt="Weight trend"><br><sub><b>Weight trend</b><br>weekly averages instead of daily noise</sub></td>
-    <td align="center"><img src="docs/screenshots/05-ai-coach.jpg" width="220" alt="AI coach"><br><sub><b>AI coach</b><br>answers based on your plan and today's intake</sub></td>
-    <td align="center"><img src="docs/screenshots/06-calorie-calc.jpg" width="220" alt="Calorie calculation"><br><sub><b>Transparent targets</b><br>BMR, TDEE and goal calories</sub></td>
+    <td align="center"><img src="docs/screenshots/04-workout.jpg" width="220" alt="Workout in progress"><br><sub><b>Workout</b><br>per-set logging, exercise videos and swaps</sub></td>
+    <td align="center"><img src="docs/screenshots/05-weight-trend.jpg" width="220" alt="Weight trend"><br><sub><b>Weight trend</b><br>weekly averages instead of daily noise</sub></td>
+    <td align="center"><img src="docs/screenshots/06-ai-coach.jpg" width="220" alt="AI coach"><br><sub><b>AI coach</b><br>answers based on your plan and today's intake</sub></td>
   </tr>
 </table>
 
@@ -122,7 +122,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-95 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+114 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
