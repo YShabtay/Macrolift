@@ -10,36 +10,32 @@ interface TabBackdropProps {
  * The photo that is the background of the top of a screen: it spans the full width of the page area (edge to edge, up under the status bar),
  * has no frame or rounded corners, and sits behind the title and the cards. It scrolls away with the page.
  * Phone: the picture dissolves into the page colour at the bottom.
- * Desktop: the picture ends in a clean edge and continues for a moment as a faint mirror reflection that fades out, like a glossy floor.
+ * Desktop: the picture goes from sharp to softly blurred as it goes down, and that blur carries on a little below the picture, fading out into the page.
  */
 export default function TabBackdrop({ src, focus = '50% 18%', compact = false }: TabBackdropProps) {
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden ${
-        compact ? 'h-[calc(340px+env(safe-area-inset-top))] md:h-[clamp(400px,34vw,600px)]' : 'h-[calc(420px+env(safe-area-inset-top))] md:h-[clamp(520px,44vw,780px)]'
+      className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden md:overflow-visible md:[overflow-x:clip] ${
+        compact ? 'h-[calc(340px+env(safe-area-inset-top))] md:h-[clamp(380px,32vw,560px)]' : 'h-[calc(420px+env(safe-area-inset-top))] md:h-[clamp(480px,40vw,720px)]'
       }`}
     >
-      {/* The photo. On phones it fills the whole backdrop and fades out at the bottom; on desktop it takes the upper 78% and the reflection the rest. */}
-      <div
-        className="absolute inset-x-0 top-0 bottom-0 max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] max-md:[mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] md:bottom-[22%]"
-      >
+      {/* The sharp photo. Phone: fades out at the bottom. Desktop: fades out lower down, handing over to the blurred layer. */}
+      <div className="absolute inset-0 max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] max-md:[mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] md:[-webkit-mask-image:linear-gradient(to_bottom,#000_42%,transparent_88%)] md:[mask-image:linear-gradient(to_bottom,#000_42%,transparent_88%)]">
         <img src={src} alt="" className="h-full w-full object-cover" style={{ objectPosition: focus }} />
-        {/* Darkens the lower part, behind the text, so white text stays readable on a bright photo (lighter on desktop, where nothing needs to fade into black). */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 from-20% via-black/40 via-60% to-transparent md:from-black/55 md:via-black/15 md:via-60%" />
+        {/* Keeps white text readable on a bright photo. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 from-20% via-black/40 via-60% to-transparent md:from-black/45 md:via-black/15" />
       </div>
 
-      {/* Desktop only: the reflection - the photo's bottom edge mirrored, slightly soft, fading to nothing. */}
+      {/* Desktop only: the same picture, blurred, starting around the middle and running on past the bottom of the photo into the page. */}
       <div
-        className="absolute inset-x-0 bottom-0 hidden h-[22%] overflow-hidden md:block"
+        className="absolute inset-x-0 top-0 -bottom-48 hidden md:block"
         style={{
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 28%, #000 62%, #000 74%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 28%, #000 62%, #000 74%, transparent 100%)',
         }}
       >
-        <div className="absolute inset-x-0 top-0 -scale-y-100" style={{ height: '354.5%' }}>
-          <img src={src} alt="" className="h-full w-full object-cover blur-[2px]" style={{ objectPosition: focus }} />
-        </div>
+        <img src={src} alt="" className="h-full w-full scale-110 object-cover blur-2xl brightness-75" style={{ objectPosition: focus }} />
       </div>
     </div>
   );
