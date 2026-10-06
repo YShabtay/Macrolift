@@ -15,13 +15,9 @@ export default function TabBackdrop({ src, focus = '50% 18%', compact = false }:
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden ${
-        compact ? 'h-[calc(340px+env(safe-area-inset-top))] md:h-[clamp(380px,32vw,560px)]' : 'h-[calc(420px+env(safe-area-inset-top))] md:h-[clamp(480px,40vw,720px)]'
+      className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] max-md:[mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] md:[-webkit-mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] md:[mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] ${
+        compact ? 'h-[calc(340px+env(safe-area-inset-top))] md:h-[clamp(460px,40vw,680px)]' : 'h-[calc(420px+env(safe-area-inset-top))] md:h-[clamp(560px,48vw,820px)]'
       }`}
-      style={{
-        WebkitMaskImage: 'linear-gradient(to bottom, #000 58%, transparent 100%)',
-        maskImage: 'linear-gradient(to bottom, #000 58%, transparent 100%)',
-      }}
     >
       <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: focus }} />
       {/* Keeps white text readable on a bright photo (lighter on desktop, where the photo is larger and the text sits lower). */}
