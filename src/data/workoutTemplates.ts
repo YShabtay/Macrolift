@@ -948,6 +948,15 @@ export function suggestSplitType(daysPerWeek: TrainingDaysPerWeek): WorkoutSplit
 export function findExerciseTemplate(
   name: string,
 ): Pick<Exercise, 'name' | 'nameEn' | 'muscleGroup' | 'equipment' | 'youtubeId' | 'demoUrl' | 'cues'> | undefined {
+  const found = findGymExerciseTemplate(name);
+  // Some home exercises share a name with a gym swap option that has no video; the home catalog supplies one.
+  if (found && !found.youtubeId) return { ...found, youtubeId: findHomeExercise(name)?.youtubeId };
+  return found;
+}
+
+function findGymExerciseTemplate(
+  name: string,
+): Pick<Exercise, 'name' | 'nameEn' | 'muscleGroup' | 'equipment' | 'youtubeId' | 'demoUrl' | 'cues'> | undefined {
   for (const plan of WORKOUT_TEMPLATES) {
     for (const day of plan.days) {
       const found = day.exercises.find((e) => e.name === name);

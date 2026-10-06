@@ -9,8 +9,8 @@
  * Volume follows the gym programs (see data/workoutTemplates.ts): each big muscle (chest, back, quads, hamstrings) is trained
  * every session of the full-body plan or twice a week in the upper/lower plan, with at most 8 sets for one muscle in a session.
  * Beginners land at 9-12 weekly sets per big muscle, the other levels at 12-16. The exercise cues are standard technique
- * pointers, not study results, and none of these exercises has a verified video yet: the player falls back to a YouTube search
- * on the English name, the same way the gym exercises without a verified video do.
+ * pointers, not study results, and the technique videos are listed in VIDEO_IDS below; an exercise without one falls back to
+ * a YouTube search on the English name, the same way the gym exercises without a verified video do.
  *
  * Self-contained on purpose: nothing here is part of WORKOUT_TEMPLATES, so the gym library, swap lists and volume checks
  * stay exactly as they were.
@@ -672,6 +672,75 @@ const CATALOG: HomeExerciseDef[] = [
   },
 ];
 
+/**
+ * YouTube technique videos picked from search results (reputable coaches, physical therapists and fitness channels; each id was
+ * checked to exist and allow embedding). Variations of one movement share its video where the technique is the same
+ * (tempo push-up, feet-elevated pike). An exercise without an entry falls back to a YouTube search on its English name.
+ */
+const VIDEO_IDS: Record<string, string> = {
+  'שכיבות סמיכה בשיפוע (ידיים על ספה)': 'cfns5VDVVvk',
+  'שכיבות סמיכה על הברכיים': 'lFR1GWy1Dcs',
+  'שכיבות סמיכה': 'IODxDxX7oi4',
+  'שכיבות סמיכה בקצב איטי': 'IODxDxX7oi4',
+  'שכיבות סמיכה עם רגליים מורמות': '5QFjmotLfW4',
+  'שכיבות סמיכה בסגנון ארצ׳ר': 'MxVbNel13Ek',
+  'לחיצת חזה עם משקולות על הרצפה': 'uUGDRwge4F8',
+  'פרפר עם משקולות על הרצפה': 'bgC53-J-6gA',
+  'לחיצת חזה יחידנית על הרצפה': 'uUGDRwge4F8',
+  'לחיצת כתפיים בעמידת V (ידיים על ספה)': 'eG20L9cl81w',
+  'לחיצת כתפיים בעמידת V': 'eG20L9cl81w',
+  'לחיצת כתפיים בעמידת V עם רגליים מורמות': 'eG20L9cl81w',
+  'לחיצת כתפיים עם משקולות בישיבה': 'rO_iEImwHyo',
+  'לחיצת כתפיים בעמידה עם משקולות': 'e_f5oodNEcI',
+  'הרחקת כתפיים לצד': 'Kl3LEzQ5Zqs',
+  'מקבילים על כיסא': '0326dy_-CzM',
+  'שכיבות סמיכה יהלום': 'kGhDnFwMY3E',
+  'מקבילים על כיסא עם רגליים ישרות': '0326dy_-CzM',
+  'פשיטת מרפק מעל הראש': 'b5le--KkyH0',
+  'פשיטת מרפק בהטיה': '6SS6K3lAwZ8',
+  'חתירה הפוכה עם ברכיים כפופות': '5W8F6MzZ8Rk',
+  'חתירה הפוכה מתחת לשולחן': 'EIFEKZe4Wm8',
+  'חתירה הפוכה עם רגליים מורמות': '5W8F6MzZ8Rk',
+  'סופרמן': 'J9zXkxUAfUA',
+  'הרמות Y-T-W בשכיבה': 'QdGTI4Lshg4',
+  'חתירה בהטיה עם משקולות': '6gvmcqr226U',
+  'חתירת משקולת יחידה (על כיסא)': 'dFzUjzfih7k',
+  'חתירה בהטיה עם משקולות בעצירה': '6gvmcqr226U',
+  'משיכת גומיה אופקית': 'LSkyinhmA8k',
+  'משיכת גומיה מלמעלה': '8oRWrUxU-6I',
+  'כפיפת מרפק עם משקולות': 'XE_pHwbst04',
+  'כפיפת מרפק פטיש': 'lmIo_gVE8T4',
+  'כפיפת מרפק בישיבה בריכוז': 'Jvj2wV0vOYU',
+  'סקוואט משקל גוף': 'P-yaD24bUE8',
+  'ישיבה על הקיר': 'y-wV4Venusw',
+  'סקוואט בקצב איטי': 'P-yaD24bUE8',
+  'מכרעים אחוריים': 'Ry-wqegeKlE',
+  'מכרעים בולגריים (רגל על ספה)': 'uBSoEWZu07k',
+  'סקוואט פיסטול עם סיוע': 'aYZnBGYloG4',
+  'סקוואט קפיצה': 'BRfxI2Es2lE',
+  'סקוואט גביע': 'gCESNsDsbqk',
+  'מכרעים אחוריים עם משקולות': 'sjlsISvHyZs',
+  'מכרעים בולגריים': 'uBSoEWZu07k',
+  'בוקר טוב משקל גוף': '0Syp9iyINZ4',
+  'גשר ישבן עם רגליים רחוקות': 'AfbW11YdWts',
+  'גשר ישבן על רגל אחת': 'b1zTCyGJXCQ',
+  'דדליפט רומני על רגל אחת': 'gz9l8UA_KXs',
+  'כפיפת ברך בהחלקה על מגבת': 'kkkTfzi2gj4',
+  'דדליפט רומני עם משקולות': 'FQKfr1YDhEk',
+  'בוקר טוב עם משקולת': 'vXyv3dAt5Hc',
+  'דדליפט רומני על רגל אחת עם משקולת': 'lI8-igvsnVQ',
+  'גשר ישבן': 'PhTDzR0TpZs',
+  'הרמת עקבים בעמידה': 'k8ipHzKeAkQ',
+  'הרמת עקבים על רגל אחת': 'k8ipHzKeAkQ',
+  'הרמת עקבים עם משקולות': 'k8ipHzKeAkQ',
+  'באג מת': 'GbSC02oU3To',
+  'כפיפות בטן': '0t4t3IpiEao',
+  'פלאנק': 'pvIjsG5Svck',
+  'פלאנק צידי': 'BFOyHDlY2UE',
+  'הרמת רגליים בשכיבה': 'xJJu-WiROM8',
+  'פלאנק עם הרמת יד': 'gKA5LBy7WAI',
+};
+
 const BY_NAME = new Map(CATALOG.map((d) => [d.name, d]));
 
 function def(name: string): HomeExerciseDef {
@@ -683,9 +752,9 @@ function def(name: string): HomeExerciseDef {
 /** Every exercise of the home programs, e.g. for finding a swap-in's muscle group and technique cues by name. */
 export function findHomeExercise(
   name: string,
-): Pick<Exercise, 'name' | 'nameEn' | 'muscleGroup' | 'equipment' | 'cues'> | undefined {
+): Pick<Exercise, 'name' | 'nameEn' | 'muscleGroup' | 'equipment' | 'cues' | 'youtubeId'> | undefined {
   const d = BY_NAME.get(name);
-  return d ? { name: d.name, nameEn: d.nameEn, muscleGroup: d.muscle, equipment: d.equipment, cues: d.cues } : undefined;
+  return d ? { name: d.name, nameEn: d.nameEn, muscleGroup: d.muscle, equipment: d.equipment, cues: d.cues, youtubeId: VIDEO_IDS[d.name] } : undefined;
 }
 
 /** Every home exercise as a plain library entry, so the custom plan builder can offer them too. */
@@ -972,6 +1041,7 @@ function buildDay(recipe: DayRecipe, planId: string, level: Level, equipment: Ho
       repsRange: d.reps,
       restSeconds: d.rest,
       cues: d.cues,
+      youtubeId: VIDEO_IDS[d.name],
       alternatives: alternativesFor(d, equipment),
     };
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Equipment, HomeEquipment, MuscleGroup, WorkoutPlan } from '../types/fitness';
 import { findExerciseTemplate } from './workoutTemplates';
+import { isValidYouTubeId } from '../utils/exerciseVideo';
 import {
   HOME_TEMPLATE_DAYS,
   HOME_TEMPLATE_EQUIPMENT,
@@ -120,6 +121,22 @@ describe('home program frequency', () => {
       const plan = getHomeWorkoutTemplate('dumbbells', 'advanced', days);
       expect(plan.daysPerWeek).toBe(4);
       expect(plan.adaptationNotes?.some((n) => n.includes('עד 4 אימונים'))).toBe(true);
+    }
+  });
+});
+
+describe('home exercise videos', () => {
+  it('gives every exercise in every program a valid YouTube video', () => {
+    for (const { equipment, level, days } of ALL) {
+      for (const e of getHomeWorkoutTemplate(equipment, level, days).days.flatMap((d) => d.exercises)) {
+        expect(isValidYouTubeId(e.youtubeId), `${e.name} (${equipment}/${level}/${days})`).toBe(true);
+      }
+    }
+  });
+
+  it('gives every library exercise a video, so swapping to one keeps the demo', () => {
+    for (const { name } of getHomeExerciseLibrary()) {
+      expect(isValidYouTubeId(findExerciseTemplate(name)?.youtubeId), name).toBe(true);
     }
   });
 });
