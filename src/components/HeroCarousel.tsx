@@ -64,7 +64,7 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
     <div
       // Phone: edge to edge and up under the status bar, no frame or glow; the picture dissolves into the page at the bottom (see the mask below), in light
       // and dark alike. Desktop (md+) keeps it inside the content column.
-      className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] grid overflow-hidden sm:-mx-6 md:mx-0 md:mt-0 md:rounded-3xl ${
+      className={`group relative isolate -mx-4 -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] -mb-7 grid overflow-hidden sm:-mx-6 md:mx-0 md:mb-0 md:mt-0 md:rounded-3xl ${
         compact
           ? 'min-h-[calc(230px+env(safe-area-inset-top))] sm:min-h-[270px] md:min-h-[210px]'
           : 'min-h-[calc(340px+env(safe-area-inset-top))] sm:min-h-[390px] md:min-h-[340px]'
@@ -86,10 +86,13 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
           >
             {/* The picture and its dark scrim fade out together at the bottom, so there is no hard edge against the page colour. The text sits above that fade. */}
             <div
-              className="absolute inset-0"
+              className="absolute inset-x-0 bottom-0"
               style={{
-                WebkitMaskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
-                maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+                // Below the camera cutout / status bar (safe-area inset; 0 on devices without one), so a head is never hidden behind the island.
+                // The picture fades in from the top edge over that zone and out at the bottom; the text sits above the bottom fade.
+                top: 'env(safe-area-inset-top)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.6), #000 62%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.6), #000 62%, transparent 100%)',
               }}
             >
               <img
