@@ -295,13 +295,19 @@ export default function Dashboard({
   // Which workout sub-view the workout screen opens on. Plain navigation always lands on "today's workout"; only the
   // dashboard's "full calendar" link asks for the calendar.
   const [workoutEntryView, setWorkoutEntryView] = useState<WorkoutView>('today');
+  // Opening a screen starts it from the top (the page scroll would otherwise carry over from the previous screen); tapping the
+  // tab you are already on scrolls back to its top instead.
+  const goToTab = (next: Tab) => {
+    window.scrollTo({ top: 0, behavior: next === tab ? 'smooth' : 'instant' });
+    setTab(next);
+  };
   const selectTab = (next: Tab) => {
     setWorkoutEntryView('today');
-    setTab(next);
+    goToTab(next);
   };
   const openWorkoutCalendar = () => {
     setWorkoutEntryView('calendar');
-    setTab('workout');
+    goToTab('workout');
   };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
@@ -354,9 +360,9 @@ export default function Dashboard({
       {/* Main content */}
       <main className="relative flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         {TAB_BACKDROPS[tab] && (
-          <TabBackdrop src={TAB_BACKDROPS[tab].src} focus={TAB_BACKDROPS[tab].focus} compact={TAB_BACKDROPS[tab].compact} />
+          <TabBackdrop key={tab} src={TAB_BACKDROPS[tab].src} focus={TAB_BACKDROPS[tab].focus} compact={TAB_BACKDROPS[tab].compact} />
         )}
-        <div className="relative mx-auto max-w-5xl">
+        <div key={tab} className="relative mx-auto max-w-5xl animate-tab-in motion-reduce:animate-none">
           {/* One boundary per screen (keyed by tab): a crash stays on that screen while the navigation and the other tabs keep working. */}
           <SectionErrorBoundary key={tab} section={tab}>
           {tab === 'dashboard' && (

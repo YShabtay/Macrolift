@@ -31,6 +31,7 @@ export default {
       animation: {
         'fade-in': 'fade-in 0.4s ease-out',
         'slide-up': 'slide-up 0.4s ease-out',
+        'tab-in': 'tab-in 0.28s ease-out',
         'slide-in-right': 'slide-in-right 0.35s ease-out',
         'bounce-dot': 'bounce-dot 1.2s ease-in-out infinite',
         'toast-in': 'toast-in 0.3s ease-out',
@@ -45,6 +46,10 @@ export default {
         },
         'slide-up': {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'tab-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         'slide-in-right': {

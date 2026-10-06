@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Dumbbell, LogOut, Moon, Pin, PinOff, RotateCcw, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -38,8 +38,8 @@ const ROW =
   'flex w-full items-center gap-3 overflow-hidden whitespace-nowrap rounded-xl px-[1.0625rem] py-3 text-right font-medium transition-colors';
 
 /**
- * Desktop navigation rail: icons only by default, expanding over the page while the pointer (or keyboard focus) is on it.
- * The pin button locks it open, in which case the page makes room for it; the choice is remembered on this device.
+ * Desktop navigation rail: icons only by default, opening (and pushing the page aside) while the pointer or keyboard focus is on it.
+ * The pin button keeps it open; the choice is remembered on this device.
  */
 export default function DesktopSidebar<T extends string>({ items, active, onSelect, onReset, onLogout }: DesktopSidebarProps<T>) {
   const [pinned, setPinned] = useState(readPinned);
@@ -48,6 +48,14 @@ export default function DesktopSidebar<T extends string>({ items, active, onSele
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const expanded = pinned || hovered || focused;
+
+  // A short delay both ways: sweeping the pointer across the edge doesn't pop the rail open, and slipping out of it doesn't snap it shut.
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  function setHoverSoon(next: boolean) {
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => setHovered(next), next ? 120 : 220);
+  }
 
   function togglePinned() {
     setPinned((p) => {
@@ -62,20 +70,20 @@ export default function DesktopSidebar<T extends string>({ items, active, onSele
 
   return (
     <>
-      {/* Takes the rail's place in the layout; only a pinned sidebar pushes the page aside, a hovered one floats over it. */}
-      <div aria-hidden className={`hidden shrink-0 transition-[width] duration-200 md:block ${pinned ? 'w-64' : 'w-[4.5rem]'}`} />
+      {/* Takes the rail's place in the layout: the page makes room whenever the sidebar is open, so it never covers the content. */}
+      <div aria-hidden className={`hidden shrink-0 transition-[width] duration-200 md:block ${expanded ? 'w-64' : 'w-[4.5rem]'}`} />
 
       <aside
         aria-label="ניווט ראשי"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => setHoverSoon(true)}
+        onMouseLeave={() => setHoverSoon(false)}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
         }}
-        className={`fixed inset-y-0 right-0 z-40 hidden flex-col overflow-hidden border-l border-zinc-200 bg-zinc-50/95 p-3 backdrop-blur-xl transition-[width,box-shadow] duration-200 dark:border-zinc-800 dark:bg-zinc-950/95 md:flex ${
+        className={`fixed inset-y-0 right-0 z-40 hidden flex-col overflow-hidden border-l border-zinc-200 bg-zinc-50/95 p-3 backdrop-blur-xl transition-[width] duration-200 dark:border-zinc-800 dark:bg-zinc-950/95 md:flex ${
           expanded ? 'w-64' : 'w-[4.5rem]'
-        } ${expanded && !pinned ? 'shadow-2xl shadow-black/40' : ''}`}
+        }`}
       >
         <div className="mb-8 mt-1 flex items-center gap-2.5 px-[0.5625rem]">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">

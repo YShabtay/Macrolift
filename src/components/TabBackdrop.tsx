@@ -15,7 +15,7 @@ export default function TabBackdrop({ src, focus = '50% 18%', compact = false }:
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-x-0 top-0 overflow-hidden max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] max-md:[mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] md:[-webkit-mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] md:[mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] ${
+      className={`pointer-events-none absolute inset-x-0 top-0 animate-fade-in overflow-hidden motion-reduce:animate-none max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] max-md:[mask-image:linear-gradient(to_bottom,#000_58%,transparent_100%)] md:[-webkit-mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] md:[mask-image:linear-gradient(to_bottom,#000_36%,transparent_90%)] ${
         compact ? 'h-[calc(340px+env(safe-area-inset-top))] md:h-[clamp(460px,40vw,680px)]' : 'h-[calc(420px+env(safe-area-inset-top))] md:h-[clamp(560px,48vw,820px)]'
       }`}
     >
