@@ -25,7 +25,7 @@ Built by a 3rd-year Industrial Engineering & Management student (Information Sys
     <td align="center"><img src="docs/screenshots/03-nutrition.jpg" width="220" alt="Food log"><br><sub><b>Nutrition</b><br>calories and macros left, meals by day</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/04-workout.jpg" width="220" alt="Workout in progress"><br><sub><b>Workout</b><br>per-set logging, exercise videos and swaps</sub></td>
+    <td align="center"><img src="docs/screenshots/04-workout.jpg" width="220" alt="Workout in progress"><br><sub><b>Workout</b><br>rest timer, A/B/C sessions and per-set logging</sub></td>
     <td align="center"><img src="docs/screenshots/05-weight-trend.jpg" width="220" alt="Weight trend"><br><sub><b>Weight trend</b><br>weekly averages instead of daily noise</sub></td>
     <td align="center"><img src="docs/screenshots/06-ai-coach.jpg" width="220" alt="AI coach"><br><sub><b>AI coach</b><br>answers based on your plan and today's intake</sub></td>
   </tr>
