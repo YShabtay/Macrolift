@@ -1,5 +1,5 @@
 import { getDailyTargets } from './weeklyBalance';
-import type { AppState } from '../types/fitness';
+import type { AppState, UserMetrics } from '../types/fitness';
 import { calculateRemaining, getEntriesForDate, sumTotals } from './nutritionLog';
 import { countCompletedWorkoutsThisWeek } from './workoutStats';
 import { getLatestWeekSummary } from './weightCalculations';
@@ -13,6 +13,14 @@ const GOAL_LABELS: Record<string, string> = {
   gain_muscle: 'מסה מבוקרת (Lean Bulk)',
   recomp: 'שיפור הרכב גוף (Recomp)',
 };
+
+const HOME_LEVEL_LABELS = { beginner: 'מתחיל', intermediate: 'בינוני', advanced: 'מתקדם' } as const;
+
+function trainingPlaceText(metrics: UserMetrics): string {
+  if (metrics.trainingLocation !== 'home') return 'מכון כושר';
+  const equipment = metrics.homeEquipment === 'dumbbells' ? 'משקולות וגומיות' : 'בלי ציוד, משקל גוף';
+  return `בבית (${equipment}), רמה: ${HOME_LEVEL_LABELS[metrics.homeLevel ?? 'beginner']}`;
+}
 
 /** Builds a Hebrew system prompt summarizing the user's live profile, plan and progress, for the AI coach. */
 /** `isFirstReply` is true only for the opening answer of a conversation - later answers must continue it, not greet again. */
@@ -40,6 +48,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
 - גובה: ${metrics.heightCm} ס"מ, משקל נוכחי: ${metrics.weightKg} ק"ג
 - מטרה: ${GOAL_LABELS[metrics.goal] ?? metrics.goal}
 - ימי אימון בשבוע: ${metrics.trainingDaysPerWeek}
+- מקום האימון: ${trainingPlaceText(metrics)}
 - ממוצע צעדים יומי: ${metrics.averageDailySteps}, צעדים שנצברו היום: ${stepsToday}
 
 ## יעד תזונתי יומי (מחושב אוטומטית לפי הפרופיל)

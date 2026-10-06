@@ -113,6 +113,9 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
   if (typeof raw.goalIntensity === 'string' && GOAL_INTENSITIES.includes(raw.goalIntensity)) {
     merged.goalIntensity = raw.goalIntensity as UserMetrics['goalIntensity'];
   }
+  if (raw.trainingLocation === 'gym' || raw.trainingLocation === 'home') merged.trainingLocation = raw.trainingLocation;
+  if (raw.homeEquipment === 'none' || raw.homeEquipment === 'dumbbells') merged.homeEquipment = raw.homeEquipment;
+  if (raw.homeLevel === 'beginner' || raw.homeLevel === 'intermediate' || raw.homeLevel === 'advanced') merged.homeLevel = raw.homeLevel;
   if (isObject(raw.measurements)) merged.measurements = raw.measurements as UserMetrics['measurements'];
   if (isObject(raw.experience) && typeof raw.experience.isCurrentlyTraining === 'boolean') {
     merged.experience = raw.experience as unknown as UserMetrics['experience'];

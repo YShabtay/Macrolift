@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Save, X } from 'lucide-react';
-import type { Goal, GoalIntensity, TargetFocus, TrainingDaysPerWeek, UserMetrics } from '../types/fitness';
+import type { ExerciseDifficulty, Goal, GoalIntensity, HomeEquipment, TargetFocus, TrainingDaysPerWeek, TrainingLocation, UserMetrics } from '../types/fitness';
 import BulkingPlanEditor from './BulkingPlanEditor';
 import TargetFocusPicker from './TargetFocusPicker';
+import TrainingSetupPicker from './TrainingSetupPicker';
 import { draftFromPlan, parseBulkingDraft } from '../utils/bulkingPlan';
 
 const AGE_MIN = 14;
@@ -43,6 +44,11 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
   const [averageDailySteps, setAverageDailySteps] = useState(String(metrics.averageDailySteps));
   const [trainingDaysPerWeek, setTrainingDaysPerWeek] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
   const [targetFocus, setTargetFocus] = useState<TargetFocus>(metrics.targetFocus ?? 'balanced');
+  const [setup, setSetup] = useState({
+    location: (metrics.trainingLocation ?? 'gym') as TrainingLocation,
+    equipment: (metrics.trainingLocation === 'home' ? (metrics.homeEquipment ?? 'none') : null) as HomeEquipment | null,
+    level: (metrics.trainingLocation === 'home' ? (metrics.homeLevel ?? 'beginner') : null) as ExerciseDifficulty | null,
+  });
   const [goal, setGoal] = useState<Goal>(metrics.goal);
   const [goalIntensity, setGoalIntensity] = useState<GoalIntensity>(metrics.goalIntensity ?? 'moderate');
   const [bulkingDraft, setBulkingDraft] = useState(() => draftFromPlan(metrics.bulkingPlan));
@@ -78,6 +84,9 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
       averageDailySteps: stepsValue,
       trainingDaysPerWeek,
       targetFocus,
+      trainingLocation: setup.location,
+      homeEquipment: setup.location === 'home' ? (setup.equipment ?? 'none') : undefined,
+      homeLevel: setup.location === 'home' ? (setup.level ?? 'beginner') : undefined,
       goal,
       goalIntensity: goal === 'gain_muscle' ? goalIntensity : undefined,
       bulkingPlan: goal === 'gain_muscle' && bulkingResult.status === 'ok' ? bulkingResult.plan : undefined,
@@ -180,6 +189,23 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
               ))}
             </div>
           </div>
+
+          <TrainingSetupPicker
+            value={setup}
+            onChange={(next) =>
+              setSetup({
+                location: next.location ?? 'gym',
+                equipment: next.location === 'home' ? (next.equipment ?? 'none') : null,
+                level: next.location === 'home' ? (next.level ?? 'beginner') : null,
+              })
+            }
+          />
+          {((setup.location === 'home') !== (metrics.trainingLocation === 'home') ||
+            (setup.location === 'home' && (setup.equipment !== (metrics.homeEquipment ?? 'none') || setup.level !== (metrics.homeLevel ?? 'beginner')))) && (
+            <p className="-mt-2 text-[11px] leading-relaxed text-orange-700 dark:text-orange-400">
+              שינוי מקום האימון, הציוד או הרמה יבנה תוכנית אימונים חדשה (אימונים שכבר סימנת כהושלמו יישמרו).
+            </p>
+          )}
 
           <TargetFocusPicker value={targetFocus} onChange={setTargetFocus} compact />
           {targetFocus !== (metrics.targetFocus ?? 'balanced') && (

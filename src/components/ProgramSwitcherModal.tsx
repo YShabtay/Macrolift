@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Settings2, Sparkles, X } from 'lucide-react';
-import type { TrainingDaysPerWeek, WorkoutSplitType } from '../types/fitness';
+import type { TrainingDaysPerWeek, TrainingLocation, WorkoutSplitType } from '../types/fitness';
 import type { ProgramRecommendation } from '../utils/programRecommendation';
 
 interface ProgramOption {
@@ -40,6 +40,8 @@ const PROGRAMS: ProgramOption[] = [
 interface ProgramSwitcherModalProps {
   currentSplit: WorkoutSplitType;
   currentDays: TrainingDaysPerWeek;
+  /** Where the user trains; home programs come only as full-body or upper/lower, so push/pull/legs is hidden. Defaults to the gym. */
+  location?: TrainingLocation;
   /** When set (after the user changed their weekly days), the matching program is highlighted as the recommended one. */
   recommendation?: ProgramRecommendation;
   /** True when the current plan was built by the user: switching replaces it, so the modal says so. */
@@ -53,6 +55,7 @@ interface ProgramSwitcherModalProps {
 export default function ProgramSwitcherModal({
   currentSplit,
   currentDays,
+  location = 'gym',
   recommendation,
   isCustomPlan = false,
   dismissLabel = 'ביטול',
@@ -108,7 +111,7 @@ export default function ProgramSwitcherModal({
         )}
 
         <div className="flex flex-col gap-2">
-          {PROGRAMS.map((option) => {
+          {PROGRAMS.filter((option) => location === 'gym' || option.split !== 'ppl').map((option) => {
             const isSelected = split === option.split;
             const isRecommended = recommendation?.split === option.split;
             return (

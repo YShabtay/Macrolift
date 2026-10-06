@@ -34,7 +34,7 @@ export default function Settings({ metrics, currentSplit, onApplyProgram, isCust
   }
 
   const hasChanged = selectedDays !== metrics.trainingDaysPerWeek;
-  const suggested = recommendProgram(selectedDays);
+  const suggested = recommendProgram(selectedDays, metrics.trainingLocation);
   const newSplit = suggested.split;
 
   function flashSaved() {
@@ -113,6 +113,7 @@ export default function Settings({ metrics, currentSplit, onApplyProgram, isCust
           isCustomPlan={isCustomPlan}
           currentSplit={currentSplit}
           currentDays={metrics.trainingDaysPerWeek}
+          location={metrics.trainingLocation}
           recommendation={recommendation}
           onApply={(split, days) => {
             onApplyProgram(split, days);

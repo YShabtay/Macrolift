@@ -21,6 +21,12 @@ export type TrainingDaysPerWeek = 2 | 3 | 4 | 5 | 6;
 
 export type WorkoutSplitType = 'fbw' | 'upper_lower' | 'ppl';
 
+/** Where the user trains: a gym (full equipment) or at home (bodyweight, or dumbbells and bands). */
+export type TrainingLocation = 'gym' | 'home';
+
+/** What a home trainee owns: nothing ('none') or a pair of dumbbells with resistance bands ('dumbbells'). */
+export type HomeEquipment = 'none' | 'dumbbells';
+
 /** Which half of the body the generated program gives extra priority and volume to. */
 export type TargetFocus = 'balanced' | 'lower_body' | 'upper_body';
 
@@ -43,7 +49,8 @@ export type Equipment =
   | 'machine'
   | 'cable'
   | 'bodyweight'
-  | 'kettlebell';
+  | 'kettlebell'
+  | 'band';
 
 // ---------------------------------------------------------------------------
 // User input / profile
@@ -121,6 +128,12 @@ export interface UserMetrics {
   experience?: ExperienceProfile;
   /** Optional planned bulking period (duration + circumference gain targets); only meaningful when goal === 'gain_muscle'. */
   bulkingPlan?: BulkingPlan;
+  /** Where the user trains; omitted (older profiles) means the gym. */
+  trainingLocation?: TrainingLocation;
+  /** Home trainees only: the equipment they have; defaults to none. */
+  homeEquipment?: HomeEquipment;
+  /** Home trainees only: their level, which sets how hard the exercise variations are; defaults to beginner. */
+  homeLevel?: ExerciseDifficulty;
 }
 
 export interface UserProfile {
@@ -207,6 +220,8 @@ export interface WorkoutPlan {
   title: string;
   description: string;
   days: DayWorkout[];
+  /** Set on programs built for training at home; omitted for the gym programs. */
+  location?: TrainingLocation;
   /** True for a plan the user built or edited by hand; automatic program changes then leave it alone. */
   isCustom?: boolean;
   /** Human-readable notes on how this plan was personalized (focus areas, deload, injury swaps). */

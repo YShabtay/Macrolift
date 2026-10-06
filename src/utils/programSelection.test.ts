@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest';
+import type { UserMetrics } from '../types/fitness';
+import { buildWorkoutProgram, trainsAtHome } from './programSelection';
+import { mergeProfile } from './backupValidation';
+
+const BASE: UserMetrics = {
+  gender: 'male',
+  age: 28,
+  heightCm: 178,
+  weightKg: 75,
+  averageDailySteps: 8000,
+  trainingDaysPerWeek: 3,
+  bodyState: 'athletic',
+  goal: 'maintain',
+};
+
+describe('buildWorkoutProgram', () => {
+  it('keeps profiles without a location on the gym programs', () => {
+    expect(trainsAtHome(BASE)).toBe(false);
+    const plan = buildWorkoutProgram(BASE);
+    expect(plan.location).toBeUndefined();
+    expect(plan.id).toBe('fbw-3');
+  });
+
+  it('builds the home program for the profile equipment and level', () => {
+    const plan = buildWorkoutProgram({ ...BASE, trainingLocation: 'home', homeEquipment: 'dumbbells', homeLevel: 'advanced', trainingDaysPerWeek: 4 });
+    expect(plan.location).toBe('home');
+    expect(plan.id).toBe('home-dumbbells-ul-4-advanced');
+  });
+
+  it('defaults a home profile with no equipment or level to the easiest bodyweight program', () => {
+    expect(buildWorkoutProgram({ ...BASE, trainingLocation: 'home' }).id).toBe('home-none-fbw-3-beginner');
+  });
+
+  it('follows the requested frequency when switching programs', () => {
+    const plan = buildWorkoutProgram({ ...BASE, trainingLocation: 'home' }, 'upper_lower', 4);
+    expect(plan.splitType).toBe('upper_lower');
+  });
+
+  it('notes that a muscle emphasis is not applied to home programs', () => {
+    const plan = buildWorkoutProgram({ ...BASE, trainingLocation: 'home', targetFocus: 'lower_body' });
+    expect(plan.adaptationNotes?.some((n) => n.includes('דגש'))).toBe(true);
+  });
+});
+
+describe('home training settings in a saved profile', () => {
+  it('survive a backup round trip and ignore invalid values', () => {
+    const merged = mergeProfile(undefined, { metrics: { trainingLocation: 'home', homeEquipment: 'dumbbells', homeLevel: 'intermediate' } });
+    expect(merged.metrics.trainingLocation).toBe('home');
+    expect(merged.metrics.homeEquipment).toBe('dumbbells');
+    expect(merged.metrics.homeLevel).toBe('intermediate');
+
+    const bad = mergeProfile(undefined, { metrics: { trainingLocation: 'moon', homeEquipment: 'jetpack', homeLevel: 'god' } });
+    expect(bad.metrics.trainingLocation).toBeUndefined();
+    expect(bad.metrics.homeEquipment).toBeUndefined();
+    expect(bad.metrics.homeLevel).toBeUndefined();
+  });
+});

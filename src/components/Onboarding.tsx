@@ -29,13 +29,16 @@ import type {
   GoalIntensity,
   InjuryArea,
   TrainingDaysPerWeek,
+  ExerciseDifficulty,
+  HomeEquipment,
   TrainingExperience,
+  TrainingLocation,
   UserMetrics,
   UserProfile,
 } from '../types/fitness';
 import { calculateNutritionPlan } from '../utils/calculations';
-import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
-import { adaptWorkoutPlan } from '../utils/workoutAdaptation';
+import { buildWorkoutProgram } from '../utils/programSelection';
+import TrainingSetupPicker from './TrainingSetupPicker';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import InfoTooltip from './InfoTooltip';
 import MedicalDisclaimerModal from './MedicalDisclaimerModal';
@@ -134,6 +137,9 @@ interface FormState {
   armCm: string;
   chestCm: string;
   hipCm: string;
+  trainingLocation: TrainingLocation | null;
+  homeEquipment: HomeEquipment | null;
+  homeLevel: ExerciseDifficulty | null;
   isCurrentlyTraining: boolean | null;
   experienceYears: TrainingExperience | null;
   currentSplit: CurrentSplit | null;
@@ -159,6 +165,9 @@ const INITIAL_FORM: FormState = {
   armCm: '',
   chestCm: '',
   hipCm: '',
+  trainingLocation: null,
+  homeEquipment: null,
+  homeLevel: null,
   isCurrentlyTraining: null,
   experienceYears: null,
   currentSplit: null,
@@ -192,6 +201,7 @@ function buildMeasurements(form: FormState): BodyMeasurements | undefined {
 }
 
 function buildExperienceProfile(form: FormState): ExperienceProfile | undefined {
+  if (form.trainingLocation === 'home') return undefined;
   if (form.isCurrentlyTraining === null) return undefined;
   if (!form.isCurrentlyTraining) return { isCurrentlyTraining: false };
   return {
@@ -235,7 +245,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           isValidOptionalMeasurement(form.hipCm)
         );
       case 4:
-        return form.isCurrentlyTraining !== null;
+        if (form.trainingLocation === 'home') return form.homeEquipment !== null && form.homeLevel !== null;
+        return form.trainingLocation === 'gym' && form.isCurrentlyTraining !== null;
       default:
         return true;
     }
@@ -257,15 +268,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       goalIntensity: form.goalIntensity,
       measurements: buildMeasurements(form),
       experience: buildExperienceProfile(form),
+      ...(form.trainingLocation === 'home'
+        ? { trainingLocation: 'home' as const, homeEquipment: form.homeEquipment ?? 'none', homeLevel: form.homeLevel ?? 'beginner' }
+        : { trainingLocation: 'gym' as const }),
     };
   }, [form, step]);
 
   const nutritionPlan = useMemo(() => (metrics ? calculateNutritionPlan(metrics) : null), [metrics]);
   const workoutPlan = useMemo(() => {
     if (!metrics) return null;
-    const split = suggestSplitType(metrics.trainingDaysPerWeek);
-    const baseTemplate = getWorkoutTemplate(split, metrics.trainingDaysPerWeek);
-    return adaptWorkoutPlan(baseTemplate, metrics.experience, metrics.targetFocus, metrics.gender).plan;
+    return buildWorkoutProgram(metrics);
   }, [metrics]);
 
   function goNext() {
@@ -762,6 +774,29 @@ function StepExperience({
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
 }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <SectionTitle title="איפה ואיך אתה מתאמן?" subtitle="התוכנית תותאם למקום, לציוד ולרמה שלך" />
+
+      <div className="glass-card p-5 sm:p-6">
+        <TrainingSetupPicker
+          value={{ location: form.trainingLocation, equipment: form.homeEquipment, level: form.homeLevel }}
+          onChange={(next) => setForm((f) => ({ ...f, trainingLocation: next.location, homeEquipment: next.equipment, homeLevel: next.level }))}
+        />
+      </div>
+
+      {form.trainingLocation === 'gym' && <GymExperienceQuestions form={form} setForm={setForm} />}
+    </div>
+  );
+}
+
+function GymExperienceQuestions({
+  form,
+  setForm,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+}) {
   function toggleFocusArea(area: FocusArea) {
     setForm((f) => ({
       ...f,
@@ -782,8 +817,6 @@ function StepExperience({
 
   return (
     <div className="flex flex-col gap-5">
-      <SectionTitle title="קצת על הניסיון שלך" subtitle="מתאמנים פעילים יקבלו תוכנית מותאמת אישית יותר" />
-
       <div className="glass-card p-5 sm:p-6">
         <FieldLabel icon={Activity} text="האם אתה מתאמן כרגע באופן פעיל?" />
         <div className="grid grid-cols-2 gap-3">

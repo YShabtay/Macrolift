@@ -793,6 +793,7 @@ function DashboardTab({
           isCustomPlan={!!workoutPlan.isCustom}
           currentSplit={workoutPlan.splitType}
           currentDays={profile.metrics.trainingDaysPerWeek}
+          location={profile.metrics.trainingLocation}
           onApply={onApplyProgram}
           onClose={() => setIsProgramModalOpen(false)}
         />

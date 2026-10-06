@@ -31,8 +31,8 @@ import type {
 } from './types/fitness';
 import type { NutritionPlan, WorkoutPlan } from './types/fitness';
 import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
-import { getWorkoutTemplate, suggestSplitType } from './data/workoutTemplates';
-import { adaptWorkoutPlan } from './utils/workoutAdaptation';
+import { suggestSplitType } from './data/workoutTemplates';
+import { buildWorkoutProgram, trainingSetupChanged } from './utils/programSelection';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
@@ -65,7 +65,7 @@ function applyProgramToState(
   metricsUpdates: Partial<UserMetrics> = {},
 ): AppState {
   const updatedMetrics: UserMetrics = { ...prev.profile.metrics, ...metricsUpdates, trainingDaysPerWeek: daysPerWeek };
-  const { plan: newWorkoutPlan } = adaptWorkoutPlan(getWorkoutTemplate(splitType, daysPerWeek), updatedMetrics.experience, updatedMetrics.targetFocus, updatedMetrics.gender);
+  const newWorkoutPlan = buildWorkoutProgram(updatedMetrics, splitType, daysPerWeek);
 
   // The old plan's day ids/exercises are about to disappear, so completed days are remembered by date.
   const completed = new Set(prev.completedWorkoutDates ?? []);
@@ -490,6 +490,11 @@ export default function App() {
       // A plan the user built by hand is never regenerated behind their back: only the profile and the calorie targets change.
       if (prev.workoutPlan.isCustom) {
         return { ...prev, profile: { ...prev.profile, metrics: updatedMetrics }, nutritionPlan: newNutritionPlan };
+      }
+
+      // Another training place, equipment or level means a different program, even at the same frequency.
+      if (trainingSetupChanged(prev.profile.metrics, updatedMetrics)) {
+        return applyProgramToState(prev, suggestSplitType(updatedMetrics.trainingDaysPerWeek), updatedMetrics.trainingDaysPerWeek, updates);
       }
 
       if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {

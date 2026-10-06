@@ -18,6 +18,7 @@ const EQUIPMENT_LABELS: Record<Equipment, string> = {
   cable: 'כבלים',
   bodyweight: 'משקל גוף',
   kettlebell: 'קטלבל',
+  band: 'גומיה',
 };
 
 const PICKER_MUSCLES: MuscleGroup[] = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 'core'];

@@ -62,7 +62,7 @@ Most tracking apps share the same weaknesses:
 - Logging by search, barcode (camera, via Open Food Facts), voice, or a photo of the meal.
 
 **Training**
-- Built-in programs plus a custom plan builder, with a weekly volume view per muscle group.
+- Built-in gym programs plus **home programs** (no equipment, or dumbbells and bands) at three levels, where the level picks a harder variation of each movement. Plus a custom plan builder, with a weekly volume view per muscle group.
 - Guided workout mode: per-set logging, warm-up sets, plate calculator, rest timer (works in the background and with notifications).
 - Exercise swap, exercise videos, workout calendar, streaks and a weekly summary with week navigation.
 
@@ -122,7 +122,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-114 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+187 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -131,6 +131,7 @@ npm test
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
 | Data safety (`dataMigration`, `backupValidation`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored |
+| Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |
 | Utilities (`plates`, `chatFormat`) | Plate loading and warm-up ramps, Markdown clean-up for coach replies |
 
 The tests were checked for real sensitivity by temporarily breaking the code (for example changing the lean-bulk surplus or the week start day) and confirming the right tests fail. Dates are pinned to one time zone so results don't depend on the machine.

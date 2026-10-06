@@ -38,6 +38,7 @@ import type {
   WorkoutSplitType,
 } from '../types/fitness';
 import { orderExercisesByBlock, type ExerciseBlock } from '../utils/exerciseOrdering';
+import { findHomeExercise, getHomeExerciseLibrary } from './homeWorkoutTemplates';
 
 // ---------------------------------------------------------------------------
 // Exercise technique demos (YouTube short-form tutorials + execution cues)
@@ -989,7 +990,8 @@ export function findExerciseTemplate(
       };
     }
   }
-  return undefined;
+  // Home-program exercises (bodyweight and dumbbell variations): they carry their own cues and no verified video.
+  return findHomeExercise(name);
 }
 
 const FALLBACK_ALTERNATIVE_COUNT = 3;
@@ -1068,6 +1070,7 @@ export function getExerciseLibrary(): LibraryExercise[] {
     for (const a of list) add({ name: a.name, nameEn: a.nameEn, muscleGroup: a.muscleGroup, equipment: a.equipment });
   }
   for (const [name, info] of Object.entries(EXTRA_EXERCISES)) add({ name, nameEn: EXERCISE_NAMES_EN[name], ...info });
+  for (const e of getHomeExerciseLibrary()) add(e);
   libraryCache = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, 'he'));
   return libraryCache;
 }

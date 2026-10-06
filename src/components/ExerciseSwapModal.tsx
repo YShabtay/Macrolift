@@ -11,6 +11,7 @@ const EQUIPMENT_LABELS: Record<Equipment, string> = {
   cable: 'פולי',
   bodyweight: 'משקל גוף',
   kettlebell: 'קטלבל',
+  band: 'גומיה',
 };
 
 const DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
