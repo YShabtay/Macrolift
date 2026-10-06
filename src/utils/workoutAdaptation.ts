@@ -252,30 +252,6 @@ function substituteExercise(exercise: Exercise, injuries: InjuryArea[], dayExerc
 }
 
 // ---------------------------------------------------------------------------
-// Plateau / deload adjustment
-// ---------------------------------------------------------------------------
-
-/** Main compound lifts whose rep range shifts heavier (6-8) during a deload week. */
-const DELOAD_HEAVY_LIFTS = new Set([
-  'סקוואט מוט',
-  'דדליפט רומני',
-  'לחיצת חזה במוט שטוח',
-  'חתירת מוט חבוק',
-  'לחיצת כתפיים בעמידה',
-  'מתח באחיזה רחבה (או מכונת עזר)',
-]);
-
-function applyDeload(exercise: Exercise): Exercise {
-  const reducedSets = Math.max(exercise.sets - 1, 2);
-  const isHeavyLift = DELOAD_HEAVY_LIFTS.has(exercise.name);
-  return {
-    ...exercise,
-    sets: reducedSets,
-    repsRange: isHeavyLift ? '6-8' : exercise.repsRange,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -287,7 +263,8 @@ export interface AdaptedWorkout {
 /**
  * Personalizes a base workout template using the experienced-trainee questionnaire:
  * adds volume for chosen focus areas, swaps in joint-friendly substitutes for
- * declared injuries, and applies a lighter deload week when a plateau is reported.
+ * declared injuries, and - when a plateau is reported - adds a suggestion about it. The plateau never changes the plan itself: a deload is
+ * a one-week choice for when there are real signs of fatigue, and the research on it is thin, so it is offered, not applied.
  */
 export function adaptWorkoutPlan(
   basePlan: WorkoutPlan,
@@ -374,11 +351,11 @@ export function adaptWorkoutPlan(
     }
   }
 
-  // 3. Plateau -> deload week (reduced volume, heavier/lower reps on main lifts).
+  // 3. Plateau: a suggestion only. The plan is left exactly as it is - an automatic deload would have cut the sets and rep ranges for good, not for a week.
+  const suggestions: string[] = [];
   if (trainee?.hasPlateau) {
-    days = days.map((day) => ({ ...day, exercises: day.exercises.map(applyDeload) }));
-    notes.push(
-      'זיהינו תקיעות (פלאטו) שדיווחת עליה - התוכנית הותאמה לשבוע דילואד: נפח מופחת וטווח חזרות כבד יותר (6-8) בתרגילי הליבה, כדי לאפשר התאוששות למערכת העצבים לפני שממשיכים להעלות.',
+    suggestions.push(
+      'דיווחת על תקיעות (פלאטו). לפני שמשנים את התוכנית כדאי לבדוק שלושה דברים: שאתה ישן מספיק, שאתה אוכל מספיק, ושאתה מתעד ומעלה עומס בהדרגה. אם יש גם סימני עייפות אמיתיים (ירידה בביצועים, שינה לא טובה), אפשר לשקול שבוע deload של כ-40% פחות סטים - ראה את המדריך "שבוע Deload". התוכנית לא שונתה אוטומטית.',
     );
   }
 
@@ -394,15 +371,17 @@ export function adaptWorkoutPlan(
     return { ...day, exercises: orderExercisesByBlock(day.exercises, { blockOrder, shouldersFirst: leadFocus === 'shoulders' }) };
   });
 
+  // Only real changes to the plan make it "personalized"; a suggestion alone does not.
   const wasAdapted = notes.length > 0;
+  const allNotes = [...notes, ...suggestions];
 
   return {
     plan: {
       ...basePlan,
       title: wasAdapted ? `${basePlan.title} (מותאם אישית)` : basePlan.title,
       days,
-      adaptationNotes: wasAdapted ? notes : undefined,
+      adaptationNotes: allNotes.length > 0 ? allNotes : undefined,
     },
-    notes,
+    notes: allNotes,
   };
 }
