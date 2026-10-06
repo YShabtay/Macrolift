@@ -674,8 +674,9 @@ const CATALOG: HomeExerciseDef[] = [
 
 /**
  * YouTube technique videos picked from search results (reputable coaches, physical therapists and fitness channels; each id was
- * checked to exist and allow embedding). Variations of one movement share its video where the technique is the same
- * (tempo push-up, feet-elevated pike). An exercise without an entry falls back to a YouTube search on its English name.
+ * checked to exist and allow embedding, but not watched). Only exercises whose video shows that movement are listed: a tempo
+ * push-up shares the push-up video, while variations with no matching video (feet-elevated pike, single-leg calf raise, ...)
+ * are left out on purpose and fall back to a YouTube search on their English name.
  */
 const VIDEO_IDS: Record<string, string> = {
   'שכיבות סמיכה בשיפוע (ידיים על ספה)': 'cfns5VDVVvk',
@@ -686,26 +687,20 @@ const VIDEO_IDS: Record<string, string> = {
   'שכיבות סמיכה בסגנון ארצ׳ר': 'MxVbNel13Ek',
   'לחיצת חזה עם משקולות על הרצפה': 'uUGDRwge4F8',
   'פרפר עם משקולות על הרצפה': 'bgC53-J-6gA',
-  'לחיצת חזה יחידנית על הרצפה': 'uUGDRwge4F8',
-  'לחיצת כתפיים בעמידת V (ידיים על ספה)': 'eG20L9cl81w',
   'לחיצת כתפיים בעמידת V': 'eG20L9cl81w',
-  'לחיצת כתפיים בעמידת V עם רגליים מורמות': 'eG20L9cl81w',
   'לחיצת כתפיים עם משקולות בישיבה': 'rO_iEImwHyo',
   'לחיצת כתפיים בעמידה עם משקולות': 'e_f5oodNEcI',
   'הרחקת כתפיים לצד': 'Kl3LEzQ5Zqs',
   'מקבילים על כיסא': '0326dy_-CzM',
   'שכיבות סמיכה יהלום': 'kGhDnFwMY3E',
-  'מקבילים על כיסא עם רגליים ישרות': '0326dy_-CzM',
   'פשיטת מרפק מעל הראש': 'b5le--KkyH0',
   'פשיטת מרפק בהטיה': '6SS6K3lAwZ8',
   'חתירה הפוכה עם ברכיים כפופות': '5W8F6MzZ8Rk',
   'חתירה הפוכה מתחת לשולחן': 'EIFEKZe4Wm8',
-  'חתירה הפוכה עם רגליים מורמות': '5W8F6MzZ8Rk',
   'סופרמן': 'J9zXkxUAfUA',
   'הרמות Y-T-W בשכיבה': 'QdGTI4Lshg4',
   'חתירה בהטיה עם משקולות': '6gvmcqr226U',
   'חתירת משקולת יחידה (על כיסא)': 'dFzUjzfih7k',
-  'חתירה בהטיה עם משקולות בעצירה': '6gvmcqr226U',
   'משיכת גומיה אופקית': 'LSkyinhmA8k',
   'משיכת גומיה מלמעלה': '8oRWrUxU-6I',
   'כפיפת מרפק עם משקולות': 'XE_pHwbst04',
@@ -721,8 +716,6 @@ const VIDEO_IDS: Record<string, string> = {
   'סקוואט גביע': 'gCESNsDsbqk',
   'מכרעים אחוריים עם משקולות': 'sjlsISvHyZs',
   'מכרעים בולגריים': 'uBSoEWZu07k',
-  'בוקר טוב משקל גוף': '0Syp9iyINZ4',
-  'גשר ישבן עם רגליים רחוקות': 'AfbW11YdWts',
   'גשר ישבן על רגל אחת': 'b1zTCyGJXCQ',
   'דדליפט רומני על רגל אחת': 'gz9l8UA_KXs',
   'כפיפת ברך בהחלקה על מגבת': 'kkkTfzi2gj4',
@@ -731,8 +724,6 @@ const VIDEO_IDS: Record<string, string> = {
   'דדליפט רומני על רגל אחת עם משקולת': 'lI8-igvsnVQ',
   'גשר ישבן': 'PhTDzR0TpZs',
   'הרמת עקבים בעמידה': 'k8ipHzKeAkQ',
-  'הרמת עקבים על רגל אחת': 'k8ipHzKeAkQ',
-  'הרמת עקבים עם משקולות': 'k8ipHzKeAkQ',
   'באג מת': 'GbSC02oU3To',
   'כפיפות בטן': '0t4t3IpiEao',
   'פלאנק': 'pvIjsG5Svck',
