@@ -35,6 +35,7 @@ import {
   UtensilsCrossed,
   Weight,
 } from 'lucide-react';
+import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
 import ExerciseSwapModal from './ExerciseSwapModal';
 import RestTimer from './RestTimer';
@@ -341,55 +342,14 @@ export default function Dashboard({
         <ThemeToggleButton />
       </div>
 
-      {/* Sidebar - desktop / tablet */}
-      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/60 p-6 md:flex">
-        <div className="mb-10 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
-              <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight">MacroLift</span>
-          </div>
-          <ThemeToggleButton />
-        </div>
-
-        <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => selectTab(id)}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-right font-medium transition ${
-                tab === id
-                  ? 'bg-lime-400/10 text-lime-700 dark:text-lime-400'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-900 hover:text-zinc-800 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="mt-auto flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => setIsResetConfirmOpen(true)}
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-right font-medium text-zinc-600 dark:text-zinc-500 transition hover:bg-white dark:hover:bg-zinc-900 hover:text-red-400"
-          >
-            <RotateCcw className="h-5 w-5" />
-            התחלה מחדש
-          </button>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-right font-medium text-zinc-600 dark:text-zinc-500 transition hover:bg-white dark:hover:bg-zinc-900 hover:text-red-400"
-          >
-            <LogOut className="h-5 w-5" />
-            התנתקות
-          </button>
-        </div>
-      </aside>
+      {/* Sidebar - desktop / tablet: an icon rail that opens on hover, or stays open when pinned */}
+      <DesktopSidebar
+        items={NAV_ITEMS}
+        active={tab}
+        onSelect={selectTab}
+        onReset={() => setIsResetConfirmOpen(true)}
+        onLogout={onLogout}
+      />
 
       {/* Main content */}
       <main className="relative flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">

@@ -1,0 +1,146 @@
+import { useState, type ComponentType } from 'react';
+import { Dumbbell, LogOut, Moon, Pin, PinOff, RotateCcw, Sun } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+
+const PINNED_KEY = 'macrolift-sidebar-pinned';
+
+function readPinned(): boolean {
+  try {
+    return localStorage.getItem(PINNED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writePinned(value: boolean) {
+  try {
+    localStorage.setItem(PINNED_KEY, value ? '1' : '0');
+  } catch {
+    // Storage blocked: the choice just lasts for this visit.
+  }
+}
+
+interface NavItem<T extends string> {
+  id: T;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}
+
+interface DesktopSidebarProps<T extends string> {
+  items: NavItem<T>[];
+  active: T;
+  onSelect: (id: T) => void;
+  onReset: () => void;
+  onLogout: () => void;
+}
+
+const ROW =
+  'flex w-full items-center gap-3 overflow-hidden whitespace-nowrap rounded-xl px-[1.0625rem] py-3 text-right font-medium transition-colors';
+
+/**
+ * Desktop navigation rail: icons only by default, expanding over the page while the pointer (or keyboard focus) is on it.
+ * The pin button locks it open, in which case the page makes room for it; the choice is remembered on this device.
+ */
+export default function DesktopSidebar<T extends string>({ items, active, onSelect, onReset, onLogout }: DesktopSidebarProps<T>) {
+  const [pinned, setPinned] = useState(readPinned);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  const expanded = pinned || hovered || focused;
+
+  function togglePinned() {
+    setPinned((p) => {
+      writePinned(!p);
+      return !p;
+    });
+  }
+
+  const label = (text: string) => (
+    <span className={`transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>{text}</span>
+  );
+
+  return (
+    <>
+      {/* Takes the rail's place in the layout; only a pinned sidebar pushes the page aside, a hovered one floats over it. */}
+      <div aria-hidden className={`hidden shrink-0 transition-[width] duration-200 md:block ${pinned ? 'w-64' : 'w-[4.5rem]'}`} />
+
+      <aside
+        aria-label="ניווט ראשי"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+        }}
+        className={`fixed inset-y-0 right-0 z-40 hidden flex-col overflow-hidden border-l border-zinc-200 bg-zinc-50/95 p-3 backdrop-blur-xl transition-[width,box-shadow] duration-200 dark:border-zinc-800 dark:bg-zinc-950/95 md:flex ${
+          expanded ? 'w-64' : 'w-[4.5rem]'
+        } ${expanded && !pinned ? 'shadow-2xl shadow-black/40' : ''}`}
+      >
+        <div className="mb-8 mt-1 flex items-center gap-2.5 px-[0.5625rem]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
+            <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
+          </div>
+          <span className={`flex-1 whitespace-nowrap text-xl font-extrabold tracking-tight transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>
+            MacroLift
+          </span>
+          <button
+            type="button"
+            onClick={togglePinned}
+            aria-pressed={pinned}
+            aria-label={pinned ? 'שחרור הסרגל' : 'נעילת הסרגל פתוח'}
+            title={pinned ? 'שחרור הסרגל' : 'נעילת הסרגל פתוח'}
+            tabIndex={expanded ? 0 : -1}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${
+              expanded ? 'opacity-100' : 'pointer-events-none opacity-0'
+            } ${pinned ? 'bg-lime-400/10 text-lime-700 dark:text-lime-400' : 'text-zinc-500 hover:bg-zinc-200/60 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'}`}
+          >
+            {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <nav className="flex flex-col gap-1">
+          {items.map(({ id, label: text, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSelect(id)}
+              title={text}
+              aria-label={text}
+              aria-current={active === id ? 'page' : undefined}
+              className={`${ROW} ${
+                active === id
+                  ? 'bg-lime-400/10 text-lime-700 dark:text-lime-400'
+                  : 'text-zinc-600 hover:bg-white hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200'
+              }`}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {label(text)}
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
+            aria-label={isDark ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
+            className={`${ROW} text-zinc-600 hover:bg-white hover:text-zinc-800 dark:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-200`}
+          >
+            {isDark ? <Sun className="h-5 w-5 shrink-0" /> : <Moon className="h-5 w-5 shrink-0" />}
+            {label(isDark ? 'מצב בהיר' : 'מצב כהה')}
+          </button>
+          <button type="button" onClick={onReset} title="התחלה מחדש" aria-label="התחלה מחדש" className={`${ROW} text-zinc-600 hover:bg-white hover:text-red-400 dark:text-zinc-500 dark:hover:bg-zinc-900`}>
+            <RotateCcw className="h-5 w-5 shrink-0" />
+            {label('התחלה מחדש')}
+          </button>
+          <button type="button" onClick={onLogout} title="התנתקות" aria-label="התנתקות" className={`${ROW} text-zinc-600 hover:bg-white hover:text-red-400 dark:text-zinc-500 dark:hover:bg-zinc-900`}>
+            <LogOut className="h-5 w-5 shrink-0" />
+            {label('התנתקות')}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
