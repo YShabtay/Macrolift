@@ -3,20 +3,36 @@ import type { UserMetrics } from '../types/fitness';
 import { calculateBMR, calculateMacros, calculateNutritionPlan, calculatePreciseNutrition, getActivityMultiplier } from './calculations';
 
 describe('getActivityMultiplier', () => {
-  it('steps through the step bands at their exact boundaries', () => {
+  it('hits the reference levels exactly and holds the ends flat', () => {
     expect(getActivityMultiplier(0, 0)).toBe(1.2);
-    expect(getActivityMultiplier(3999, 0)).toBe(1.2);
-    expect(getActivityMultiplier(4000, 0)).toBe(1.35);
-    expect(getActivityMultiplier(6499, 0)).toBe(1.35);
-    expect(getActivityMultiplier(6500, 0)).toBe(1.45);
-    expect(getActivityMultiplier(9499, 0)).toBe(1.45);
-    expect(getActivityMultiplier(9500, 0)).toBe(1.55);
+    expect(getActivityMultiplier(2000, 0)).toBe(1.2);
+    expect(getActivityMultiplier(5250, 0)).toBeCloseTo(1.35, 10);
+    expect(getActivityMultiplier(8000, 0)).toBeCloseTo(1.45, 10);
+    expect(getActivityMultiplier(11000, 0)).toBeCloseTo(1.55, 10);
+    expect(getActivityMultiplier(30000, 0)).toBeCloseTo(1.55, 10);
+  });
+
+  it('rises with every step count in between, with no jumps', () => {
+    // 4,500 -> 5,300 steps stayed in one band before and changed nothing; it must move the estimate now.
+    expect(getActivityMultiplier(5300, 0)).toBeGreaterThan(getActivityMultiplier(4500, 0));
+    let previous = getActivityMultiplier(0, 0);
+    for (let steps = 100; steps <= 15000; steps += 100) {
+      const current = getActivityMultiplier(steps, 0);
+      expect(current).toBeGreaterThanOrEqual(previous);
+      expect(current - previous).toBeLessThan(0.01);
+      previous = current;
+    }
+  });
+
+  it('is a straight line between two reference levels', () => {
+    expect(getActivityMultiplier(6625, 0)).toBeCloseTo((1.35 + 1.45) / 2, 10);
+    expect(getActivityMultiplier(9500, 0)).toBeCloseTo(1.5, 10);
   });
 
   it('adds 0.05 only for a heavy training week (4+ sessions)', () => {
-    expect(getActivityMultiplier(6500, 3)).toBe(1.45);
-    expect(getActivityMultiplier(6500, 4)).toBeCloseTo(1.5, 10);
-    expect(getActivityMultiplier(9500, 6)).toBeCloseTo(1.6, 10);
+    expect(getActivityMultiplier(8000, 3)).toBeCloseTo(1.45, 10);
+    expect(getActivityMultiplier(8000, 4)).toBeCloseTo(1.5, 10);
+    expect(getActivityMultiplier(11000, 6)).toBeCloseTo(1.6, 10);
   });
 });
 

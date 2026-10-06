@@ -5,14 +5,35 @@ import type { Gender, Goal, GoalIntensity, MacroGrams, NutritionPlan, UserMetric
 // ---------------------------------------------------------------------------
 
 /**
- * Activity multiplier from the daily step level, plus 0.05 for a heavy training week (4+ sessions):
- * under 4,000 steps 1.20, 4,000-6,499 1.35, 6,500-9,499 1.45, 9,500+ 1.55.
+ * Activity multiplier from the daily step level, plus 0.05 for a heavy training week (4+ sessions).
+ *
+ * The base value follows four reference levels - 1.20 up to 2,000 steps, 1.35 at 5,250, 1.45 at 8,000 and 1.55 from 11,000 up - which are the
+ * middle of the older fixed bands (under 4,000 / 4,000-6,499 / 6,500-9,499 / 9,500+), and rises in a straight line between them. So every step
+ * count moves the estimate a little, instead of nothing happening until a band edge is crossed and then a jump of 0.1 (about 170 kcal).
  */
+const STEP_ACTIVITY_POINTS: ReadonlyArray<readonly [steps: number, pal: number]> = [
+  [2000, 1.2],
+  [5250, 1.35],
+  [8000, 1.45],
+  [11000, 1.55],
+];
+
 export function getActivityMultiplier(dailySteps: number, workoutDaysPerWeek: number): number {
-  let pal = 1.2;
-  if (dailySteps >= 4000 && dailySteps < 6500) pal = 1.35;
-  else if (dailySteps >= 6500 && dailySteps < 9500) pal = 1.45;
-  else if (dailySteps >= 9500) pal = 1.55;
+  const first = STEP_ACTIVITY_POINTS[0];
+  const last = STEP_ACTIVITY_POINTS[STEP_ACTIVITY_POINTS.length - 1];
+  let pal = last[1];
+  if (dailySteps <= first[0]) {
+    pal = first[1];
+  } else if (dailySteps < last[0]) {
+    for (let i = 1; i < STEP_ACTIVITY_POINTS.length; i++) {
+      const [toSteps, toPal] = STEP_ACTIVITY_POINTS[i];
+      if (dailySteps <= toSteps) {
+        const [fromSteps, fromPal] = STEP_ACTIVITY_POINTS[i - 1];
+        pal = fromPal + ((toPal - fromPal) * (dailySteps - fromSteps)) / (toSteps - fromSteps);
+        break;
+      }
+    }
+  }
 
   if (workoutDaysPerWeek >= 4) pal += 0.05;
   return pal;

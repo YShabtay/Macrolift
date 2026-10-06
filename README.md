@@ -122,11 +122,11 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-196 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+198 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
-| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, activity-multiplier boundaries, every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
+| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, a smooth activity multiplier from the step count, every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
 | Weekly balance (`weeklyBalance`) | Rebalancing a one-time overshoot across the remaining days, the safe-reduction cap, calories-to-steps conversion and step credits, the last day of the week |
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |

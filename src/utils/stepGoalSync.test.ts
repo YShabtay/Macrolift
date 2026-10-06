@@ -38,7 +38,7 @@ describe('applyStepGoal', () => {
     expect(after.stepGoal).toBe(10000);
     expect(after.stepGoalMode).toBe('weekly');
     expect(after.profile.metrics.averageDailySteps).toBe(10000);
-    // 4,500 -> 10,000 steps crosses two activity tiers, so the maintenance and target calories rise.
+    // More daily steps means a higher activity level, so the maintenance and target calories rise.
     expect(after.nutritionPlan.tdee).toBeGreaterThan(before.nutritionPlan.tdee);
     expect(after.nutritionPlan.targetCalories).toBeGreaterThan(before.nutritionPlan.targetCalories);
     expect(after.nutritionPlan).toEqual(calculateNutritionPlan({ ...METRICS, averageDailySteps: 10000 }));
@@ -52,11 +52,12 @@ describe('applyStepGoal', () => {
     expect({ ...after.profile.metrics, averageDailySteps: 12000 }).toEqual(before.profile.metrics);
   });
 
-  it('does not change the calories for a goal inside the same activity tier', () => {
-    const before = stateWith({ ...METRICS, averageDailySteps: 7000 });
-    const after = applyStepGoal(before, 8500, 'weekly');
-    expect(after.nutritionPlan.tdee).toBe(before.nutritionPlan.tdee);
-    expect(after.stepGoal).toBe(8500);
+  it('moves the calories even for a small change in steps', () => {
+    const before = stateWith(METRICS); // 4,500 steps
+    const after = applyStepGoal(before, 5300, 'weekly');
+    expect(after.nutritionPlan.tdee).toBeGreaterThan(before.nutritionPlan.tdee);
+    expect(after.nutritionPlan.targetCalories).toBeGreaterThan(before.nutritionPlan.targetCalories);
+    expect(after.stepGoal).toBe(5300);
   });
 });
 
