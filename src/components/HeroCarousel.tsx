@@ -9,6 +9,8 @@ export interface HeroSlide {
   body?: string;
   tags?: string[];
   /** Omit both to render a plain photo header with no call-to-action (e.g. a tab's static hero banner). */
+  /** CSS object-position for the photo, to keep its subject in frame (default: centred, a little above the middle). */
+  focus?: string;
   ctaLabel?: string;
   onCta?: () => void;
 }
@@ -90,7 +92,13 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
                 maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
               }}
             >
-              <img src={slide.imageUrl} alt="" aria-hidden="true" className="h-full w-full object-cover object-[50%_42%]" />
+              <img
+                src={slide.imageUrl}
+                alt=""
+                aria-hidden="true"
+                className="h-full w-full object-cover"
+                style={{ objectPosition: slide.focus ?? '50% 42%' }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 from-15% via-black/50 via-55% to-transparent" />
             </div>
 

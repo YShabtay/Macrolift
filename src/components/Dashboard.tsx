@@ -837,9 +837,9 @@ function ProgramCard({
 const DASHBOARD_HERO_IMAGE = '/images/dashboard-hero.jpg';
 
 // Static single-slide hero banners for the other tabs (see WorkoutPlanTab / ProgressTab / ProfileTab below).
-const TAB_HERO_WORKOUT_IMAGE = 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1600&q=80';
-const TAB_HERO_PROGRESS_IMAGE = 'https://images.unsplash.com/photo-1576243345690-4e4b79b63288?auto=format&fit=crop&w=1600&q=80';
-const TAB_HERO_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&w=1600&q=80';
+const TAB_HERO_WORKOUT_IMAGE = '/images/hero-workout.jpg';
+const TAB_HERO_PROGRESS_IMAGE = '/images/hero-progress.jpg';
+const TAB_HERO_PROFILE_IMAGE = '/images/hero-profile.jpg';
 
 // ---------------------------------------------------------------------------
 // Quick-complete "סיימתי אימון היום!" button
@@ -1236,6 +1236,7 @@ function WorkoutPlanTab({
           {
             id: 'workout-header',
             imageUrl: TAB_HERO_WORKOUT_IMAGE,
+            focus: '55% 40%',
             eyebrow: 'תוכנית אימונים',
             headline: 'זמן לתת עבודה',
             body: workoutPlan.title,
@@ -1623,6 +1624,7 @@ function ProgressTab({
           {
             id: 'progress-header',
             imageUrl: TAB_HERO_PROGRESS_IMAGE,
+            focus: '64% 40%',
             eyebrow: 'מעקב התקדמות',
             headline: 'עקביות מנצחת הכל',
             body: 'שקילות, ממוצעים שבועיים ותמונות התקדמות במקום אחד',
