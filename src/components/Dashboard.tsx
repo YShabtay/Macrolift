@@ -1934,8 +1934,8 @@ function ProfileTab({
           <BookOpen className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">MacroLift Academy</h2>
-          <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-500">מדריכים וטיפים מקצועיים לתזונה, אימון והתאוששות</p>
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-100">מדריכים</h2>
+          <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-500">טיפים והסברים מקצועיים לתזונה, אימון והתאוששות</p>
         </div>
         <ChevronLeft className="h-5 w-5 shrink-0 text-zinc-400" />
       </button>

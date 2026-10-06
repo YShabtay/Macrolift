@@ -219,8 +219,8 @@ export default function Academy() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100">MacroLift Academy</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">מדריכים וטיפים מקצועיים שיעזרו לך להבין את המספרים שמאחורי התוכנית</p>
+        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100">מדריכים</h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">טיפים והסברים שיעזרו לך להבין את המספרים שמאחורי התוכנית</p>
       </div>
 
       <div className="relative">
