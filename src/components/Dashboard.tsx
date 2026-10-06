@@ -360,9 +360,9 @@ export default function Dashboard({
       {/* Main content */}
       <main className="relative flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
         {TAB_BACKDROPS[tab] && (
-          <TabBackdrop key={tab} src={TAB_BACKDROPS[tab].src} focus={TAB_BACKDROPS[tab].focus} compact={TAB_BACKDROPS[tab].compact} />
+          <TabBackdrop key={`backdrop-${tab}`} src={TAB_BACKDROPS[tab].src} focus={TAB_BACKDROPS[tab].focus} compact={TAB_BACKDROPS[tab].compact} />
         )}
-        <div key={tab} className="relative mx-auto max-w-5xl animate-tab-in motion-reduce:animate-none">
+        <div key={`screen-${tab}`} className="relative mx-auto max-w-5xl animate-tab-in motion-reduce:animate-none">
           {/* One boundary per screen (keyed by tab): a crash stays on that screen while the navigation and the other tabs keep working. */}
           <SectionErrorBoundary key={tab} section={tab}>
           {tab === 'dashboard' && (
