@@ -21,7 +21,9 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
   return (
     <div
       className={`relative -mt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] flex flex-col justify-end gap-2 pb-2 md:mt-0 ${
-        compact ? 'min-h-[calc(220px+env(safe-area-inset-top))] md:min-h-[270px]' : 'min-h-[calc(300px+env(safe-area-inset-top))] md:min-h-[390px]'
+        compact
+          ? 'min-h-[calc(220px+env(safe-area-inset-top))] md:min-h-[clamp(250px,22vw,400px)]'
+          : 'min-h-[calc(300px+env(safe-area-inset-top))] md:min-h-[clamp(330px,30vw,540px)]'
       }`}
     >
       <div>
