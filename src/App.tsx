@@ -33,6 +33,7 @@ import type { NutritionPlan, WorkoutPlan } from './types/fitness';
 import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
 import { suggestSplitType } from './data/workoutTemplates';
 import { buildWorkoutProgram, trainingSetupChanged } from './utils/programSelection';
+import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
@@ -422,7 +423,7 @@ export default function App() {
   }
 
   function handleSaveStepGoal(goal: number, mode: 'weekly' | 'daily') {
-    setAppState((prev) => (prev ? { ...prev, stepGoal: goal, stepGoalMode: mode } : prev));
+    setAppState((prev) => (prev ? applyStepGoal(prev, goal, mode) : prev));
   }
 
   /** Upserts a circumference check-in for one date (replaces any existing entry for that date). */
@@ -482,35 +483,39 @@ export default function App() {
 
   /** Full profile edit from the Profile tab - recalculates nutrition targets immediately, and regenerates the workout plan when the weekly training frequency changed. */
   function handleUpdateProfileFull(updates: Partial<UserMetrics>) {
-    setAppState((prev) => {
-      if (!prev) return prev;
-      const updatedMetrics = { ...prev.profile.metrics, ...updates };
-      const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
+    setAppState((current) => {
+      if (!current) return current;
+      const compute = (prev: AppState): AppState => {
+        const updatedMetrics = { ...prev.profile.metrics, ...updates };
+        const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
 
-      // A plan the user built by hand is never regenerated behind their back: only the profile and the calorie targets change.
-      if (prev.workoutPlan.isCustom) {
-        return { ...prev, profile: { ...prev.profile, metrics: updatedMetrics }, nutritionPlan: newNutritionPlan };
-      }
+        // A plan the user built by hand is never regenerated behind their back: only the profile and the calorie targets change.
+        if (prev.workoutPlan.isCustom) {
+          return { ...prev, profile: { ...prev.profile, metrics: updatedMetrics }, nutritionPlan: newNutritionPlan };
+        }
 
-      // Another training place, equipment or level means a different program, even at the same frequency.
-      if (trainingSetupChanged(prev.profile.metrics, updatedMetrics)) {
-        return applyProgramToState(prev, suggestSplitType(updatedMetrics.trainingDaysPerWeek), updatedMetrics.trainingDaysPerWeek, updates);
-      }
+        // Another training place, equipment or level means a different program, even at the same frequency.
+        if (trainingSetupChanged(prev.profile.metrics, updatedMetrics)) {
+          return applyProgramToState(prev, suggestSplitType(updatedMetrics.trainingDaysPerWeek), updatedMetrics.trainingDaysPerWeek, updates);
+        }
 
-      if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
-        return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
-      }
+        if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
+          return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
+        }
 
-      // A new muscle emphasis rebuilds the current program (same split and frequency) with the emphasis applied.
-      if (updates.targetFocus !== undefined && updates.targetFocus !== (prev.profile.metrics.targetFocus ?? 'balanced')) {
-        return applyProgramToState(prev, prev.workoutPlan.splitType, prev.workoutPlan.daysPerWeek, updates);
-      }
+        // A new muscle emphasis rebuilds the current program (same split and frequency) with the emphasis applied.
+        if (updates.targetFocus !== undefined && updates.targetFocus !== (prev.profile.metrics.targetFocus ?? 'balanced')) {
+          return applyProgramToState(prev, prev.workoutPlan.splitType, prev.workoutPlan.daysPerWeek, updates);
+        }
 
-      return {
-        ...prev,
-        profile: { ...prev.profile, metrics: updatedMetrics },
-        nutritionPlan: newNutritionPlan,
+        return {
+          ...prev,
+          profile: { ...prev.profile, metrics: updatedMetrics },
+          nutritionPlan: newNutritionPlan,
+        };
       };
+      const next = compute(current);
+      return followProfileSteps(current, next);
     });
   }
 

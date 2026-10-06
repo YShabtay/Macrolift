@@ -1,6 +1,5 @@
 import type { StepLog } from '../types/fitness';
 
-export const DEFAULT_STEP_GOAL = 10000;
 export const MAX_STEPS_PER_DAY = 100000;
 
 /** Returns the step history with `date` set to `steps` (replacing that day's entry, if any); every other day is left untouched. */

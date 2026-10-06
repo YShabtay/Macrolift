@@ -48,7 +48,7 @@ import FoodTracker from './FoodTracker';
 import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
 import StepsTracker from './StepsTracker';
-import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
+import { getBaseStepGoal } from '../utils/stepGoalSync';
 import { formatMacro } from '../utils/formatMacro';
 import RestTimerWidget from './RestTimerWidget';
 import RestFinishedAlert from './RestFinishedAlert';
@@ -541,7 +541,7 @@ function DashboardTab({
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
-  const baseStepGoal = appState.stepGoal ?? DEFAULT_STEP_GOAL;
+  const baseStepGoal = getBaseStepGoal(appState);
   const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, todayIso(), stepLogs);
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);

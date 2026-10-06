@@ -5,7 +5,7 @@ import { useToday } from '../hooks/useToday';
 import { buildWeeklySummary } from '../utils/weeklySummary';
 import { getDoneWorkoutDates, getLoggingStreakDays, getWorkoutMilestone, getWorkoutStreakWeeks } from '../utils/streaks';
 import { addDaysIso } from '../utils/dateMath';
-import { DEFAULT_STEP_GOAL } from '../utils/stepsCalculations';
+import { getBaseStepGoal } from '../utils/stepGoalSync';
 import { formatDateDisplay } from '../utils/weightCalculations';
 
 /** How far back the week navigation goes. */
@@ -32,9 +32,9 @@ export default function WeeklySummaryCard({ appState }: { appState: AppState }) 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const weekDate = addDaysIso(today, -7 * offset);
 
-  const summary = useMemo(() => buildWeeklySummary(appState, weekDate, today, DEFAULT_STEP_GOAL), [appState, weekDate, today]);
+  const summary = useMemo(() => buildWeeklySummary(appState, weekDate, today, getBaseStepGoal(appState)), [appState, weekDate, today]);
   const history = useMemo(
-    () => (isHistoryOpen ? Array.from({ length: HISTORY_WEEKS }, (_, i) => buildWeeklySummary(appState, addDaysIso(today, -7 * i), today, DEFAULT_STEP_GOAL)) : []),
+    () => (isHistoryOpen ? Array.from({ length: HISTORY_WEEKS }, (_, i) => buildWeeklySummary(appState, addDaysIso(today, -7 * i), today, getBaseStepGoal(appState))) : []),
     [appState, today, isHistoryOpen],
   );
   const streaks = useMemo(
