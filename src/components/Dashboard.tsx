@@ -841,7 +841,7 @@ const TAB_BACKDROPS: Partial<Record<Tab, { src: string; focus: string; compact: 
   dashboard: { src: '/images/dashboard-hero.jpg', focus: '50% 18%', compact: false },
   workout: { src: '/images/hero-workout.jpg', focus: '55% 14%', compact: true },
   nutrition: { src: '/images/hero-nutrition.jpg', focus: '58% 40%', compact: true },
-  progress: { src: '/images/hero-progress.jpg', focus: '64% 0%', compact: true },
+  progress: { src: '/images/hero-progress.jpg', focus: '20% 0%', compact: true },
   profile: { src: '/images/hero-profile.jpg', focus: '50% 8%', compact: true },
 };
 

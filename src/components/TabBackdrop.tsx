@@ -1,6 +1,6 @@
 interface TabBackdropProps {
   src: string;
-  /** CSS object-position that keeps the subject in frame (the vertical part matters on wide screens, where the photo is cropped top and bottom). */
+  /** CSS object-position that keeps the subject in frame. The horizontal part also decides where on a phone the subject sits relative to the camera cutout. */
   focus?: string;
   /** The shorter backdrop used by tabs that only have a title. */
   compact?: boolean;
@@ -9,6 +9,7 @@ interface TabBackdropProps {
 /**
  * The photo that is the background of the top of a screen: it spans the full width of the page area (edge to edge, up under the status bar),
  * has no frame or rounded corners, and dissolves into the page colour below, so the title and the cards simply sit on it. It scrolls away with the page.
+ * On desktop the lower part is also softly blurred, so the picture melts into the page instead of just fading.
  */
 export default function TabBackdrop({ src, focus = '50% 18%', compact = false }: TabBackdropProps) {
   return (
@@ -22,18 +23,18 @@ export default function TabBackdrop({ src, focus = '50% 18%', compact = false }:
         maskImage: 'linear-gradient(to bottom, #000 58%, transparent 100%)',
       }}
     >
-      {/* The picture sits a little lower on phones with a camera cutout (safe-area inset; 0 elsewhere), so a head is never behind the island.
-          The small strip that opens up at the top is filled with a mirrored copy of the photo's own top edge: sharp and the same colours. */}
-      <div className="absolute inset-x-0 bottom-0" style={{ top: 'calc(env(safe-area-inset-top) * 0.55)' }}>
-        <img src={src} alt="" className="h-full w-full object-cover" style={{ objectPosition: focus }} />
-        <img
-          src={src}
-          alt=""
-          className="absolute left-0 h-full w-full -scale-y-100 object-cover"
-          // 1px overlap with the sharp picture, so no hairline shows at the seam.
-          style={{ objectPosition: focus, bottom: 'calc(100% - 1px)' }}
-        />
-      </div>
+      <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: focus }} />
+      {/* Desktop: a blurred copy of the same picture, faded in from the middle down - the lower part goes soft, like depth of field. */}
+      <img
+        src={src}
+        alt=""
+        className="absolute inset-0 hidden h-full w-full scale-110 object-cover blur-xl md:block"
+        style={{
+          objectPosition: focus,
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 30%, #000 80%)',
+          maskImage: 'linear-gradient(to bottom, transparent 30%, #000 80%)',
+        }}
+      />
       {/* Darkens the lower part, behind the text, so white text stays readable on a bright photo. */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 from-20% via-black/40 via-60% to-transparent" />
     </div>
