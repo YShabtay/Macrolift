@@ -84,24 +84,36 @@ export default function HeroCarousel({ slides, compact = false }: { slides: Hero
               isActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
             }`}
           >
-            {/* The picture and its dark scrim fade out together at the bottom, so there is no hard edge against the page colour. The text sits above that fade. */}
+            {/* The picture, its scrim and a blurred copy fade out together at the bottom, so there is no hard edge against the page colour.
+                The text sits above that fade. */}
             <div
-              className="absolute inset-x-0 bottom-0"
+              className="absolute inset-0"
               style={{
-                // Below the camera cutout / status bar (safe-area inset; 0 on devices without one), so a head is never hidden behind the island.
-                // The picture fades in from the top edge over that zone and out at the bottom; the text sits above the bottom fade.
-                top: 'env(safe-area-inset-top)',
-                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.6), #000 62%, transparent 100%)',
-                maskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.6), #000 62%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
               }}
             >
-              <img
-                src={slide.imageUrl}
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-cover"
-                style={{ objectPosition: slide.focus ?? '50% 42%' }}
-              />
+              {/* A blurred copy fills the whole hero, including the strip behind the status bar / camera cutout, so the colours of the photo run
+                  right up to the edge of the screen instead of ending in a black band. */}
+              <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />
+              {/* The sharp picture starts below the cutout (safe-area inset; 0 on devices without one) so a head is never hidden behind the island,
+                  and fades in softly over the blurred copy. */}
+              <div
+                className="absolute inset-x-0 bottom-0"
+                style={{
+                  top: 'env(safe-area-inset-top)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.5 + 1px))',
+                  maskImage: 'linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) * 0.5 + 1px))',
+                }}
+              >
+                <img
+                  src={slide.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: slide.focus ?? '50% 42%' }}
+                />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 from-15% via-black/50 via-55% to-transparent" />
             </div>
 
