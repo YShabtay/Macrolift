@@ -50,7 +50,6 @@ import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalcul
 import { formatMacro } from '../utils/formatMacro';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
-const NUTRITION_HEADER_IMAGE = '/images/hero-nutrition.jpg';
 
 const MEAL_ICONS: Record<Meal, typeof Coffee> = {
   breakfast: Coffee,
@@ -121,8 +120,6 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
         slides={[
           {
             id: 'nutrition-header',
-            imageUrl: NUTRITION_HEADER_IMAGE,
-            focus: '58% 45%',
             eyebrow: 'יומן תזונה',
             headline: 'הדלק של הגוף שלך',
             body: 'תיעוד ארוחות ומעקב יתרת קלוריות ומאקרו בזמן אמת',

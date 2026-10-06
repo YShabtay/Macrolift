@@ -74,6 +74,7 @@ import { hasSeenTour, markTourSeen } from '../utils/tourState';
 import { DEMO_USER_ID } from '../utils/demoData';
 import { useRestTimer } from '../context/restTimerContext';
 import HeroCarousel, { type HeroSlide } from './HeroCarousel';
+import TabBackdrop from './TabBackdrop';
 import DailyMealsModal from './DailyMealsModal';
 import CircumferenceTracker from './CircumferenceTracker';
 import ResetConfirmModal from './ResetConfirmModal';
@@ -391,8 +392,11 @@ export default function Dashboard({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
-        <div className="mx-auto max-w-5xl">
+      <main className="relative flex-1 overflow-y-auto px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[max(calc(env(safe-area-inset-top)+1rem),3rem)] sm:px-6 md:pb-10 md:pt-6 lg:px-10 lg:pt-10">
+        {TAB_BACKDROPS[tab] && (
+          <TabBackdrop src={TAB_BACKDROPS[tab].src} focus={TAB_BACKDROPS[tab].focus} compact={TAB_BACKDROPS[tab].compact} />
+        )}
+        <div className="relative mx-auto max-w-5xl">
           {/* One boundary per screen (keyed by tab): a crash stays on that screen while the navigation and the other tabs keep working. */}
           <SectionErrorBoundary key={tab} section={tab}>
           {tab === 'dashboard' && (
@@ -618,7 +622,6 @@ function DashboardTab({
     return [
       {
         id: 'today',
-        imageUrl: DASHBOARD_HERO_IMAGE,
         eyebrow: todaysDay.dayLabel,
         headline: 'אימון היום מחכה לך',
         ctaLabel: 'התחל אימון',
@@ -834,12 +837,13 @@ function ProgramCard({
 // ---------------------------------------------------------------------------
 
 // The dashboard hero: one photo, with today's workout on top of it.
-const DASHBOARD_HERO_IMAGE = '/images/dashboard-hero.jpg';
-
-// Static single-slide hero banners for the other tabs (see WorkoutPlanTab / ProgressTab / ProfileTab below).
-const TAB_HERO_WORKOUT_IMAGE = '/images/hero-workout.jpg';
-const TAB_HERO_PROGRESS_IMAGE = '/images/hero-progress.jpg';
-const TAB_HERO_PROFILE_IMAGE = '/images/hero-profile.jpg';
+const TAB_BACKDROPS: Partial<Record<Tab, { src: string; focus: string; compact: boolean }>> = {
+  dashboard: { src: '/images/dashboard-hero.jpg', focus: '50% 28%', compact: false },
+  workout: { src: '/images/hero-workout.jpg', focus: '55% 22%', compact: true },
+  nutrition: { src: '/images/hero-nutrition.jpg', focus: '58% 45%', compact: true },
+  progress: { src: '/images/hero-progress.jpg', focus: '64% 12%', compact: true },
+  profile: { src: '/images/hero-profile.jpg', focus: '50% 18%', compact: true },
+};
 
 // ---------------------------------------------------------------------------
 // Quick-complete "סיימתי אימון היום!" button
@@ -1235,8 +1239,6 @@ function WorkoutPlanTab({
         slides={[
           {
             id: 'workout-header',
-            imageUrl: TAB_HERO_WORKOUT_IMAGE,
-            focus: '55% 22%',
             eyebrow: 'תוכנית אימונים',
             headline: 'זמן לתת עבודה',
             body: workoutPlan.title,
@@ -1623,8 +1625,6 @@ function ProgressTab({
         slides={[
           {
             id: 'progress-header',
-            imageUrl: TAB_HERO_PROGRESS_IMAGE,
-            focus: '64% 12%',
             eyebrow: 'מעקב התקדמות',
             headline: 'עקביות מנצחת הכל',
             body: 'שקילות, ממוצעים שבועיים ותמונות התקדמות במקום אחד',
@@ -1876,8 +1876,6 @@ function ProfileTab({
         slides={[
           {
             id: 'profile-header',
-            imageUrl: TAB_HERO_PROFILE_IMAGE,
-            focus: '50% 18%',
             eyebrow: profile.name,
             headline: 'פרופיל אישי והאקדמיה',
           },
