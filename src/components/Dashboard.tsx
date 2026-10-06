@@ -35,6 +35,7 @@ import {
   UtensilsCrossed,
   Weight,
 } from 'lucide-react';
+import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import { describeCoverage, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import DesktopSidebar from './DesktopSidebar';
@@ -1078,15 +1079,23 @@ function NutritionCard({
         <h2 className="font-bold text-zinc-900 dark:text-zinc-100">{isCovered ? 'היעד היומי' : isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
       </div>
 
-      <p
-        className={`font-extrabold tracking-tight ${isCovered ? 'text-4xl' : 'text-5xl'} ${isOver && !isCovered ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}
-      >
-        {isCovered ? '✓ כוסתה' : formatMacro(Math.abs(remainingCalories))}
-      </p>
-      <p className="text-xs text-zinc-600 dark:text-zinc-500">
-        {isCovered ? 'החריגה כוסתה' : isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
-      </p>
-      {isCovered && <p className="mt-1 text-[11px] leading-relaxed text-lime-700 dark:text-lime-400">עברת את היעד היומי ב-{formatMacro(Math.abs(remainingCalories))} קק״ל, אבל {describeCoverage(coverage)}.</p>}
+      {isCovered ? (
+        <div className="flex items-center gap-4">
+          <BalancedRing eaten={eaten.calories} target={targetCalories} className="h-28 w-28" />
+          <p className="text-xs leading-relaxed text-lime-700 dark:text-lime-400">
+            עברת את היעד היומי ב-{formatMacro(Math.abs(remainingCalories))} קק״ל, אבל {describeCoverage(coverage)}.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className={`text-5xl font-extrabold tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
+            {formatMacro(Math.abs(remainingCalories))}
+          </p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-500">
+            {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
+          </p>
+        </>
+      )}
       <div className="mb-3 mt-1.5">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
@@ -1106,12 +1115,14 @@ function NutritionCard({
         )}
       </div>
 
-      <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${isOver ? 100 : progressPercent}%`, backgroundColor: isOver && !isCovered ? '#fb923c' : '#a3e635' }}
-        />
-      </div>
+      {!isCovered && (
+        <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${isOver ? 100 : progressPercent}%`, backgroundColor: isOver ? '#fb923c' : '#a3e635' }}
+          />
+        </div>
+      )}
 
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
         <MacroStat color="#a3e635" label="חלבון" eatenG={eaten.proteinG} targetG={macros.proteinG} calm={isCovered} />

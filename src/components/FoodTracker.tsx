@@ -34,6 +34,7 @@ import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
 import { describeCoverage, getOvershootCoverage } from '../utils/overshoot';
+import BalancedRing from './BalancedRing';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
@@ -193,7 +194,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          ✓ החריגה של {Math.abs(Math.round(remaining.calories))} קק״ל כוסתה: {describeCoverage(coverage)}. אין צורך באיזון.
+          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. אין צורך באיזון.
         </p>
       )}
       {!isCovered && coverage && coverage.overshootKcal > 0 && (
@@ -364,8 +365,9 @@ function SummaryCard({
 }
 
 function CalorieRing({ target, eaten, remaining, covered }: { target: number; eaten: number; remaining: number; covered: boolean }) {
+  if (covered) return <BalancedRing eaten={eaten} target={target} />;
   const progress = target > 0 ? Math.min(eaten / target, 1) : 0;
-  const isOver = remaining < 0 && !covered;
+  const isOver = remaining < 0;
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - progress);
@@ -389,9 +391,9 @@ function CalorieRing({ target, eaten, remaining, covered }: { target: number; ea
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className={`text-2xl font-extrabold ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
-          {covered ? '✓' : formatMacro(Math.abs(remaining))}
+          {formatMacro(Math.abs(remaining))}
         </span>
-        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{covered ? 'החריגה כוסתה' : isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
+        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
         <span className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-600">
           {formatMacro(eaten)}/{formatMacro(target)}
         </span>
