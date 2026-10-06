@@ -5,15 +5,25 @@ import { calculateNutritionPlan } from './calculations';
  * Personal calibration of the daily energy expenditure (TDEE).
  *
  * A formula gives the average person's TDEE; yours can differ by roughly 10%. The weight trend shows what really happens: eating
- * `avgIntake` per day while the weight moves `slope` kg per day means the body spends avgIntake - slope x 7,700 kcal (about 7,700 kcal per
- * kg of body weight change - a common approximation, since the mix of fat, muscle and water varies). This module measures that over the
- * last four weeks and decides how far to move the formula towards it.
+ * `avgIntake` per day while the weight moves `slope` kg per day means the body spends avgIntake - slope x (energy per kg of the change).
+ * This module measures that over the last four weeks and decides how far to move the formula towards it.
+ *
+ * Two honest limits. (1) The energy in a kilo of change depends on what it is made of: lost weight is mostly fat (about 7,700 kcal/kg, the
+ * usual figure, which already overstates a little because the body's own spending falls as it shrinks), but gained weight is part lean tissue,
+ * which stores far less (fat is about 9,300 kcal/kg, lean mass a fraction of that), so a gain is valued lower. Using 7,700 for a gain would
+ * read the body as burning too little and push the target down - the wrong way for someone building muscle. (2) People under-report what they
+ * eat, often by 10-20%. That is not corrected for: if the user logs the same way every day, the result is the intake that keeps them steady
+ * *as they log it*, which is the number they need to hit.
  */
 
 /** Largest personal correction the app will apply, in kcal per day. */
 export const MAX_TDEE_ADJUSTMENT_KCAL = 500;
 
-const KCAL_PER_KG_BODY_WEIGHT = 7700;
+/** Energy per kg of weight lost (mostly fat) and of weight gained (a mix of lean tissue and fat), with how uncertain each figure is. */
+const KCAL_PER_KG_LOST = 7700;
+const KCAL_PER_KG_GAINED = 5500;
+const KCAL_PER_KG_LOST_SD = 800;
+const KCAL_PER_KG_GAINED_SD = 1500;
 const WINDOW_DAYS = 28;
 /** Food days needed: fewer and the average intake says little about a typical day. */
 export const MIN_LOGGED_DAYS = 14;
@@ -44,12 +54,12 @@ export interface CalibrationProgress {
 
 export interface CalibrationObservation {
   status: 'ready';
-  /** TDEE implied by what was eaten and how the weight moved. */
+  /** TDEE implied by what was eaten (as logged) and how the weight moved. */
   observedTdee: number;
   avgIntake: number;
   /** Weight change per week over the window (negative when losing). */
   slopeKgPerWeek: number;
-  /** One standard deviation of the observed TDEE, from how scattered the weigh-ins are. */
+  /** One standard deviation of the observed TDEE: how scattered the weigh-ins are, and what the weight change is made of. */
   uncertaintyKcal: number;
   loggedDays: number;
   weighIns: number;
@@ -90,12 +100,16 @@ export function observeTdee(foodLog: FoodEntry[], weightLogs: WeightLog[], today
   const slopeSe = Math.sqrt(sse / (n - 2) / sxx);
 
   const avgIntake = fullDays.reduce((a, b) => a + b, 0) / fullDays.length;
+  const kcalPerKg = slope > 0 ? KCAL_PER_KG_GAINED : KCAL_PER_KG_LOST;
+  const kcalPerKgSd = slope > 0 ? KCAL_PER_KG_GAINED_SD : KCAL_PER_KG_LOST_SD;
+  // Two independent sources of doubt: how scattered the weigh-ins are, and what the weight change is made of.
+  const uncertainty = Math.sqrt((slopeSe * kcalPerKg) ** 2 + (slope * kcalPerKgSd) ** 2);
   return {
     status: 'ready',
-    observedTdee: Math.round(avgIntake - slope * KCAL_PER_KG_BODY_WEIGHT),
+    observedTdee: Math.round(avgIntake - slope * kcalPerKg),
     avgIntake: Math.round(avgIntake),
     slopeKgPerWeek: Math.round(slope * 7 * 100) / 100,
-    uncertaintyKcal: Math.round(slopeSe * KCAL_PER_KG_BODY_WEIGHT),
+    uncertaintyKcal: Math.round(uncertainty),
     loggedDays: fullDays.length,
     weighIns: n,
   };

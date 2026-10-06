@@ -36,21 +36,33 @@ const ready = (o: ReturnType<typeof observeTdee>): CalibrationObservation => {
 };
 
 describe('observeTdee', () => {
-  it('works out what the body really spends: intake minus the weight change (7,700 kcal per kg)', () => {
-    const { foodLog, weightLogs } = fourWeeks(2800, 0.4);
-    const o = ready(observeTdee(foodLog, weightLogs, TODAY));
-    expect(o.slopeKgPerWeek).toBeCloseTo(0.4, 2);
-    expect(o.observedTdee).toBeGreaterThan(2355);
-    expect(o.observedTdee).toBeLessThan(2365); // 2,800 - 0.4 kg/week x 7,700 / 7
-    expect(o.avgIntake).toBe(2800);
-    expect(o.uncertaintyKcal).toBeLessThan(5);
+  it('works out what the body spends: intake minus the energy in the weight change', () => {
+    const gaining = ready(observeTdee(...Object.values(fourWeeks(2800, 0.4)) as [FoodEntry[], WeightLog[]], TODAY));
+    expect(gaining.slopeKgPerWeek).toBeCloseTo(0.4, 2);
+    expect(gaining.observedTdee).toBeGreaterThan(2480);
+    expect(gaining.observedTdee).toBeLessThan(2490); // 2,800 - 0.4 kg/week x 5,500 / 7: a gain is part lean tissue, so a kilo holds less than fat does
+    expect(gaining.avgIntake).toBe(2800);
+
+    const losing = ready(observeTdee(...Object.values(fourWeeks(2000, -0.5)) as [FoodEntry[], WeightLog[]], TODAY));
+    expect(losing.observedTdee).toBeGreaterThan(2545);
+    expect(losing.observedTdee).toBeLessThan(2555); // 2,000 + 0.5 kg/week x 7,700 / 7
+  });
+
+  it('values a kilo gained lower than a kilo lost, so a bulk is not read as burning too little', () => {
+    const gain = ready(observeTdee(...Object.values(fourWeeks(2800, 0.4)) as [FoodEntry[], WeightLog[]], TODAY)).observedTdee;
+    const asIfFat = 2800 - (0.4 / 7) * 7700;
+    expect(gain - asIfFat).toBeGreaterThan(100);
+  });
+
+  it('adds doubt about what the weight change is made of, even when the weigh-ins sit on a perfect line', () => {
+    const o = ready(observeTdee(...Object.values(fourWeeks(2800, 0.4)) as [FoodEntry[], WeightLog[]], TODAY));
+    expect(o.uncertaintyKcal).toBeGreaterThan(70);
+    expect(o.uncertaintyKcal).toBeLessThan(100); // 0.4 kg/week x 1,500 kcal/kg / 7
   });
 
   it('reads a stable weight as eating at maintenance, and a falling weight as spending more than eaten', () => {
     const flat = ready(observeTdee(...Object.values(fourWeeks(2500, 0)) as [FoodEntry[], WeightLog[]], TODAY));
     expect(flat.observedTdee).toBeCloseTo(2500, -1);
-    const losing = fourWeeks(2000, -0.5);
-    expect(ready(observeTdee(losing.foodLog, losing.weightLogs, TODAY)).observedTdee).toBeGreaterThan(2400);
   });
 
   it('is less certain when the weigh-ins scatter', () => {

@@ -107,7 +107,7 @@ export default function CalibrationCard({ foodLog, weightLogs, metrics, nutritio
               value={`${observation.slopeKgPerWeek > 0 ? '+' : ''}${observation.slopeKgPerWeek}`}
               unit="ק״ג בשבוע"
             />
-            <Stat label="שריפה בפועל" value={observation.observedTdee.toLocaleString('he-IL')} unit="קק״ל ביום" />
+            <Stat label="שריפה לפי התיעוד" value={observation.observedTdee.toLocaleString('he-IL')} unit="קק״ל ביום" />
           </div>
           <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
             הנוסחה מעריכה {formulaTdee.toLocaleString('he-IL')} קק״ל ביום{currentAdjustment !== 0 ? `, ועם ההתאמה שלך ${nutritionPlan.tdee.toLocaleString('he-IL')}` : ''}. ההערכה לפי הנתונים
@@ -149,7 +149,7 @@ export default function CalibrationCard({ foodLog, weightLogs, metrics, nutritio
       )}
 
       <p className="text-[11px] leading-relaxed text-zinc-500">
-        ההערכה נשענת על תיעוד האוכל. אם לא רשמת הכל, היא תצא נמוכה מהאמת, ושקילות עקביות באותו שעה משפרות אותה. התאמה לא עולה על {500} קק״ל.
+        ההערכה נמדדת בקלוריות כפי שאתה מתעד אותן. אנשים נוטים לרשום קצת פחות ממה שאכלו, ולכן מה שחשוב הוא לתעד באותה דרך כל יום: אז היעד מתאים בדיוק לדרך התיעוד שלך. שקילות עקביות באותו שעה משפרות אותה. התאמה לא עולה על 500 קק״ל.
       </p>
 
       {currentAdjustment !== 0 && (

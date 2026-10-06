@@ -57,7 +57,7 @@ Most tracking apps share the same weaknesses:
 
 **Nutrition**
 - Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from daily life + walking (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros.
-- **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the weight trend x 7,700 kcal/kg) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
+- **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
 - Weekly calorie budget and rebalancing options after an overshoot.
 - Logging by search, barcode (camera, via Open Food Facts), voice, or a photo of the meal.
@@ -123,7 +123,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-214 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+216 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
