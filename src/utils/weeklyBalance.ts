@@ -4,7 +4,7 @@ import { daysBetween, formatIsoDate, getWeekEnd, getWeekStart, parseIsoDate } fr
 import { sumTotals } from './nutritionLog';
 
 /** Rough walking energy cost used to convert calories to steps (~40 kcal per 1,000 steps). */
-const KCAL_PER_1000_STEPS = 40;
+export const KCAL_PER_1000_STEPS = 40;
 /** Moderate walking cadence, used to turn steps into minutes. */
 const STEPS_PER_MINUTE = 100;
 /** Gentle limits: never trim more than this share of the daily target, never go below BMR / this floor. */

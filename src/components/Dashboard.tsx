@@ -36,6 +36,7 @@ import {
   Weight,
 } from 'lucide-react';
 import CalibrationCard from './CalibrationCard';
+import { describeCoverage, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
 import ExerciseSwapModal from './ExerciseSwapModal';
@@ -409,6 +410,9 @@ export default function Dashboard({
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
               weeklyBalance={appState.weeklyBalance}
+              stepLogs={appState.stepLogs}
+              baseStepGoal={getBaseStepGoal(appState)}
+              onOpenRebalance={() => selectTab('dashboard')}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
               savedMeals={appState.savedMeals ?? NO_SAVED_MEALS}
@@ -550,7 +554,12 @@ function DashboardTab({
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
-  const showRebalanceButton = overshootKcal > 0;
+  const overshootCoverage = useMemo(
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: todayIso() }),
+    [foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+  );
+  // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
+  const showRebalanceButton = overshootKcal > 0 && !overshootCoverage.isCovered;
   // Steps walked above the daily goal (today, or earlier this week - even logged afterwards) already burned part of the overshoot.
   const bonusStepDays = useMemo(
     () => getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, todayIso()),
@@ -693,6 +702,7 @@ function DashboardTab({
           nutritionPlan={nutritionPlan}
           targets={todayTargets}
           overshootKcal={showRebalanceButton ? overshootKcal : 0}
+          coverage={overshootCoverage}
           tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
           eaten={eatenToday}
@@ -1034,6 +1044,7 @@ function NutritionCard({
   nutritionPlan,
   targets,
   overshootKcal,
+  coverage,
   tomorrowReductionKcal,
   onOpenRebalance,
   eaten,
@@ -1045,6 +1056,8 @@ function NutritionCard({
   targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number };
   /** Calories over today's target when a rebalance suggestion should show (0 hides it). */
   overshootKcal: number;
+  /** Whether today's overshoot is already covered by the week's steps or its calorie balance (then it is shown as covered). */
+  coverage: OvershootCoverage;
   /** Calories the weekly rebalance will take off tomorrow's target (0 if none). */
   tomorrowReductionKcal: number;
   onOpenRebalance: () => void;
@@ -1055,23 +1068,25 @@ function NutritionCard({
   const macros = targets.macros;
   const remainingCalories = targetCalories - eaten.calories;
   const isOver = remainingCalories < 0;
+  const isCovered = isOver && coverage.isCovered;
   const progressPercent = targetCalories > 0 ? Math.min((eaten.calories / targetCalories) * 100, 100) : 0;
 
   return (
     <div className="glass-card flex flex-col p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
       <div className="mb-4 flex items-center gap-2">
         <Flame className="h-5 w-5 text-orange-700 dark:text-orange-400" />
-        <h2 className="font-bold text-zinc-900 dark:text-zinc-100">{isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
+        <h2 className="font-bold text-zinc-900 dark:text-zinc-100">{isCovered ? 'היעד היומי' : isOver ? 'חריגה מהיעד' : 'נשארו להיום'}</h2>
       </div>
 
       <p
-        className={`text-5xl font-extrabold tracking-tight ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}
+        className={`font-extrabold tracking-tight ${isCovered ? 'text-4xl' : 'text-5xl'} ${isOver && !isCovered ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}
       >
-        {formatMacro(Math.abs(remainingCalories))}
+        {isCovered ? '✓ כוסתה' : formatMacro(Math.abs(remainingCalories))}
       </p>
       <p className="text-xs text-zinc-600 dark:text-zinc-500">
-        {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
+        {isCovered ? 'החריגה כוסתה' : isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
       </p>
+      {isCovered && <p className="mt-1 text-[11px] leading-relaxed text-lime-700 dark:text-lime-400">עברת את היעד היומי ב-{formatMacro(Math.abs(remainingCalories))} קק״ל, אבל {describeCoverage(coverage)}.</p>}
       <div className="mb-3 mt-1.5">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
@@ -1094,14 +1109,14 @@ function NutritionCard({
       <div className="mb-3 h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${isOver ? 100 : progressPercent}%`, backgroundColor: isOver ? '#fb923c' : '#a3e635' }}
+          style={{ width: `${isOver ? 100 : progressPercent}%`, backgroundColor: isOver && !isCovered ? '#fb923c' : '#a3e635' }}
         />
       </div>
 
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-        <MacroStat color="#a3e635" label="חלבון" eatenG={eaten.proteinG} targetG={macros.proteinG} />
-        <MacroStat color="#fb923c" label="שומן" eatenG={eaten.fatG} targetG={macros.fatG} />
-        <MacroStat color="#a1a1aa" label="פחמימה" eatenG={eaten.carbsG} targetG={macros.carbsG} />
+        <MacroStat color="#a3e635" label="חלבון" eatenG={eaten.proteinG} targetG={macros.proteinG} calm={isCovered} />
+        <MacroStat color="#fb923c" label="שומן" eatenG={eaten.fatG} targetG={macros.fatG} calm={isCovered} />
+        <MacroStat color="#a1a1aa" label="פחמימה" eatenG={eaten.carbsG} targetG={macros.carbsG} calm={isCovered} />
       </div>
 
       <button
@@ -1121,14 +1136,17 @@ function MacroStat({
   label,
   eatenG,
   targetG,
+  calm = false,
 }: {
   color: string;
   label: string;
   eatenG: number;
   targetG: number;
+  /** When today's overshoot is covered, a macro that went over is not flagged in orange. */
+  calm?: boolean;
 }) {
   const progressPercent = targetG > 0 ? Math.min((eatenG / targetG) * 100, 100) : 0;
-  const isOver = formatMacro(eatenG) > formatMacro(targetG);
+  const isOver = !calm && formatMacro(eatenG) > formatMacro(targetG);
 
   return (
     <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-2 min-[360px]:p-2.5">

@@ -59,7 +59,7 @@ Most tracking apps share the same weaknesses:
 - Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from daily life + walking (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
-- Weekly calorie budget and rebalancing options after an overshoot.
+- Weekly calorie budget and rebalancing options after an overshoot. An overshoot that the week's extra steps, or the week's calorie balance so far, already cover is shown as covered instead of as a problem.
 - Logging by search, barcode (camera, via Open Food Facts), voice, or a photo of the meal.
 
 **Training**
@@ -123,7 +123,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-216 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+224 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -132,6 +132,7 @@ npm test
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
 | Data safety (`dataMigration`, `backupValidation`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored |
+| Overshoot coverage (`overshoot`) | An overshoot covered by bonus steps, by the weekly balance, or by both together; not covered when the week is over and the steps fall short; steps walked today count too |
 | Calibration (`calibration`) | Measuring maintenance from intake and the weight trend, ignoring partly logged days and out-of-window data, asking for more data instead of guessing, trusting a noisy trend less, capping the correction |
 | Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |
 | Utilities (`plates`, `chatFormat`) | Plate loading and warm-up ramps, Markdown clean-up for coach replies |

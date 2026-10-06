@@ -22,7 +22,7 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import QuickFoodShortcuts from './QuickFoodShortcuts';
 import WeekStrip, { type WeekStripDay } from './WeekStrip';
 import WeeklyCalorieCard from './WeeklyCalorieCard';
@@ -33,6 +33,7 @@ import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
+import { describeCoverage, getOvershootCoverage } from '../utils/overshoot';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
@@ -63,6 +64,11 @@ interface FoodTrackerProps {
   nutritionPlan: NutritionPlan;
   /** Temporary weekly rebalance, which can lower the target on the days it covers. */
   weeklyBalance?: WeeklyBalanceAdjustment;
+  /** Step history and the base daily step goal: steps walked above the goal count against a day's overshoot. */
+  stepLogs: StepLog[];
+  baseStepGoal: number;
+  /** Opens the screen where an overshoot can be rebalanced. */
+  onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   favoriteFoods: FavoriteFood[];
   savedMeals: SavedMeal[];
@@ -85,7 +91,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIso());
@@ -112,6 +118,12 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
   const eaten = useMemo(() => sumTotals(entriesForDate), [entriesForDate]);
   const targets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, selectedDate), [nutritionPlan, weeklyBalance, selectedDate]);
   const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
+  // Only today can be rebalanced (the steps and the week it is judged against are today's), so other days keep showing the plain numbers.
+  const coverage = useMemo(
+    () => (selectedDate === today ? getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today }) : null),
+    [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+  );
+  const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
 
   return (
     <div className="flex flex-col gap-5">
@@ -177,7 +189,22 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, onA
         </div>
       </div>
 
-      <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} />
+      <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} covered={isCovered} />
+
+      {isCovered && coverage && (
+        <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
+          ✓ החריגה של {Math.abs(Math.round(remaining.calories))} קק״ל כוסתה: {describeCoverage(coverage)}. אין צורך באיזון.
+        </p>
+      )}
+      {!isCovered && coverage && coverage.overshootKcal > 0 && (
+        <button
+          type="button"
+          onClick={onOpenRebalance}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
+        >
+          ⚖️ חרגת ב-{coverage.overshootKcal} קק״ל • לאפשרויות האיזון השבועי בדשבורד
+        </button>
+      )}
 
       <WeeklyCalorieCard budget={calorieBudget} />
 
@@ -294,15 +321,18 @@ function SummaryCard({
   targetMacros,
   eaten,
   remaining,
+  covered,
 }: {
   targetCalories: number;
   targetMacros: { proteinG: number; fatG: number; carbsG: number };
   eaten: { calories: number; proteinG: number; fatG: number; carbsG: number };
   remaining: { calories: number; proteinG: number; fatG: number; carbsG: number };
+  /** Today's overshoot is already covered: shown calmly, not as a problem. */
+  covered: boolean;
 }) {
   return (
     <div className="glass-card flex flex-col items-center gap-5 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
-      <CalorieRing target={targetCalories} eaten={eaten.calories} remaining={remaining.calories} />
+      <CalorieRing target={targetCalories} eaten={eaten.calories} remaining={remaining.calories} covered={covered} />
       <div className="flex w-full flex-1 flex-col gap-3">
         <MacroRemainingBar
           icon={Beef}
@@ -310,6 +340,7 @@ function SummaryCard({
           color="#a3e635"
           targetG={targetMacros.proteinG}
           remainingG={remaining.proteinG}
+          calm={covered}
         />
         <MacroRemainingBar
           icon={Droplet}
@@ -317,6 +348,7 @@ function SummaryCard({
           color="#fb923c"
           targetG={targetMacros.fatG}
           remainingG={remaining.fatG}
+          calm={covered}
         />
         <MacroRemainingBar
           icon={Wheat}
@@ -324,15 +356,16 @@ function SummaryCard({
           color="#a1a1aa"
           targetG={targetMacros.carbsG}
           remainingG={remaining.carbsG}
+          calm={covered}
         />
       </div>
     </div>
   );
 }
 
-function CalorieRing({ target, eaten, remaining }: { target: number; eaten: number; remaining: number }) {
+function CalorieRing({ target, eaten, remaining, covered }: { target: number; eaten: number; remaining: number; covered: boolean }) {
   const progress = target > 0 ? Math.min(eaten / target, 1) : 0;
-  const isOver = remaining < 0;
+  const isOver = remaining < 0 && !covered;
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - progress);
@@ -356,9 +389,9 @@ function CalorieRing({ target, eaten, remaining }: { target: number; eaten: numb
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className={`text-2xl font-extrabold ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
-          {formatMacro(Math.abs(remaining))}
+          {covered ? '✓' : formatMacro(Math.abs(remaining))}
         </span>
-        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
+        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{covered ? 'החריגה כוסתה' : isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
         <span className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-600">
           {formatMacro(eaten)}/{formatMacro(target)}
         </span>
@@ -373,12 +406,15 @@ function MacroRemainingBar({
   color,
   targetG,
   remainingG,
+  calm = false,
 }: {
   icon: typeof Beef;
   label: string;
   color: string;
   targetG: number;
   remainingG: number;
+  /** Today's overshoot is covered: a macro over its target is noted, not flagged in orange. */
+  calm?: boolean;
 }) {
   const isOver = remainingG < 0;
   const eatenG = targetG - remainingG;
@@ -391,8 +427,8 @@ function MacroRemainingBar({
           <Icon className="h-3.5 w-3.5" style={{ color }} />
           {label}
         </span>
-        <span className={`truncate whitespace-nowrap font-semibold tabular-nums ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
-          {isOver ? `חריגה ${formatMacro(Math.abs(remainingG))} גר׳` : `נותרו ${formatMacro(remainingG)} גר׳`}
+        <span className={`truncate whitespace-nowrap font-semibold tabular-nums ${isOver && !calm ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+          {isOver ? `${calm ? 'מעל היעד' : 'חריגה'} ${formatMacro(Math.abs(remainingG))} גר׳` : `נותרו ${formatMacro(remainingG)} גר׳`}
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
