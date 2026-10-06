@@ -35,6 +35,7 @@ import {
   UtensilsCrossed,
   Weight,
 } from 'lucide-react';
+import CalibrationCard from './CalibrationCard';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
 import ExerciseSwapModal from './ExerciseSwapModal';
@@ -155,6 +156,7 @@ interface DashboardProps {
   onDeletePhoto: (id: string) => void;
   onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
+  onSetTdeeAdjustment: (adjustmentKcal: number) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
@@ -268,6 +270,7 @@ export default function Dashboard({
   onDeletePhoto,
   onUpdatePhoto,
   onApplyCalorieAdjustment,
+  onSetTdeeAdjustment,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
@@ -431,6 +434,7 @@ export default function Dashboard({
               onUpdatePhoto={onUpdatePhoto}
               appState={appState}
               onApplyCalorieAdjustment={onApplyCalorieAdjustment}
+              onSetTdeeAdjustment={onSetTdeeAdjustment}
             />
           )}
           {tab === 'academy' && <Academy />}
@@ -1570,6 +1574,7 @@ function ProgressTab({
   onDeletePhoto,
   onUpdatePhoto,
   onApplyCalorieAdjustment,
+  onSetTdeeAdjustment,
   appState,
 }: {
   weightLogs: WeightLog[];
@@ -1583,6 +1588,7 @@ function ProgressTab({
   onDeletePhoto: (id: string) => void;
   onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
+  onSetTdeeAdjustment: (adjustmentKcal: number) => void;
   appState: AppState;
 }) {
   return (
@@ -1608,6 +1614,14 @@ function ProgressTab({
         onSave={onSaveWeightLog}
         onDelete={onDeleteWeightLog}
         onBulkImport={onBulkImportWeightLogs}
+      />
+
+      <CalibrationCard
+        foodLog={appState.foodLog}
+        weightLogs={weightLogs}
+        metrics={appState.profile.metrics}
+        nutritionPlan={appState.nutritionPlan}
+        onSetAdjustment={onSetTdeeAdjustment}
       />
 
       <div className="mt-2 flex items-center gap-2">

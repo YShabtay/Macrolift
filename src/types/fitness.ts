@@ -128,6 +128,8 @@ export interface UserMetrics {
   experience?: ExperienceProfile;
   /** Optional planned bulking period (duration + circumference gain targets); only meaningful when goal === 'gain_muscle'. */
   bulkingPlan?: BulkingPlan;
+  /** Personal correction (kcal per day, positive or negative) added to the formula's TDEE after calibrating against the user's weight trend; omitted means none. */
+  tdeeAdjustmentKcal?: number;
   /** Where the user trains; omitted (older profiles) means the gym. */
   trainingLocation?: TrainingLocation;
   /** Home trainees only: the equipment they have; defaults to none. */

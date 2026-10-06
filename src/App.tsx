@@ -34,6 +34,7 @@ import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
 import { suggestSplitType } from './data/workoutTemplates';
 import { buildWorkoutProgram, trainingSetupChanged } from './utils/programSelection';
 import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
+import { applyTdeeAdjustment } from './utils/calibration';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
@@ -316,6 +317,11 @@ export default function App() {
         },
       };
     });
+  }
+
+  /** Sets (or clears, with 0) the personal TDEE correction from the calibration card and recalculates the calorie and macro targets. */
+  function handleSetTdeeAdjustment(adjustmentKcal: number) {
+    setAppState((prev) => (prev ? applyTdeeAdjustment(prev, adjustmentKcal) : prev));
   }
 
   /** Bulk-marks every exercise of a plan day as fully completed on the given date (defaults to today). */
@@ -612,6 +618,7 @@ export default function App() {
         onDeletePhoto={handleDeletePhoto}
         onUpdatePhoto={handleUpdatePhoto}
         onApplyCalorieAdjustment={handleApplyCalorieAdjustment}
+        onSetTdeeAdjustment={handleSetTdeeAdjustment}
         onQuickCompleteDay={handleQuickCompleteDay}
         onUndoCompleteDay={handleUndoCompleteDay}
         onSetSchedule={handleSetSchedule}

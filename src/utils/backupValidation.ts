@@ -1,6 +1,7 @@
 import type { AppState, FoodEntry, Meal, UserMetrics, UserProfile, WeightLog, WorkoutPlan } from '../types/fitness';
 import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
 import { calculateNutritionPlan } from './calculations';
+import { MAX_TDEE_ADJUSTMENT_KCAL } from './calibration';
 import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
 
@@ -112,6 +113,10 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
   if (typeof raw.goal === 'string' && GOALS.includes(raw.goal)) merged.goal = raw.goal as UserMetrics['goal'];
   if (typeof raw.goalIntensity === 'string' && GOAL_INTENSITIES.includes(raw.goalIntensity)) {
     merged.goalIntensity = raw.goalIntensity as UserMetrics['goalIntensity'];
+  }
+  const adjustment = Number(raw.tdeeAdjustmentKcal);
+  if (raw.tdeeAdjustmentKcal !== null && raw.tdeeAdjustmentKcal !== '' && Number.isFinite(adjustment) && adjustment !== 0) {
+    merged.tdeeAdjustmentKcal = Math.max(-MAX_TDEE_ADJUSTMENT_KCAL, Math.min(MAX_TDEE_ADJUSTMENT_KCAL, Math.round(adjustment)));
   }
   if (raw.trainingLocation === 'gym' || raw.trainingLocation === 'home') merged.trainingLocation = raw.trainingLocation;
   if (raw.homeEquipment === 'none' || raw.homeEquipment === 'dumbbells') merged.homeEquipment = raw.homeEquipment;

@@ -1,5 +1,5 @@
 import { formatMacro } from '../utils/formatMacro';
-import { getActivityMultiplier } from '../utils/calculations';
+import { estimateEnergyExpenditure } from '../utils/calculations';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Flame, GraduationCap, PieChart, Target, X } from 'lucide-react';
@@ -10,6 +10,19 @@ interface TransparencyModalProps {
   nutritionPlan: NutritionPlan;
   /** 'button' renders a full primary-style trigger; 'link' renders a small inline text link. */
   variant?: 'button' | 'link';
+}
+
+function getEnergyExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan): string {
+  const energy = estimateEnergyExpenditure({
+    bmr: nutritionPlan.bmr,
+    weightKg: metrics.weightKg,
+    dailySteps: metrics.averageDailySteps,
+    trainingDaysPerWeek: metrics.trainingDaysPerWeek,
+  });
+  const adjustment = Math.round(metrics.tdeeAdjustmentKcal ?? 0);
+  const parts = `חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. לזה מוסיפים את החיים הרגילים (${energy.baseKcal} במצב ישיבתי), הליכה של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים (כ-${energy.stepsKcal}) ו-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע (כ-${energy.trainingKcal} ליום בממוצע): ${energy.tdee} קק״ל.`;
+  const personal = adjustment !== 0 ? ` בנוסף יש התאמה אישית (${adjustment > 0 ? 'תוספת' : 'הפחתה'} של ${Math.abs(adjustment)} קק״ל), לפי מה שאכלת ואיך המשקל שלך השתנה.` : '';
+  return `${parts}${personal} אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך. זו הערכה: חילוף החומרים של אנשים שונה בכ-10%, ולכן מומלץ לבדוק אותה מול המשקל שלך (ראה "כיול אישי" בעמוד ההתקדמות).`;
 }
 
 function getGoalExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan): string {
@@ -84,7 +97,7 @@ export default function TransparencyModal({ metrics, nutritionPlan, variant = 'b
                 <ExplanationSection
                   icon={Flame}
                   title="חישוב ה-TDEE"
-                  text={`חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. בהתחשב ב-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע ובממוצע של כ-${metrics.averageDailySteps.toLocaleString('he-IL')} צעדים (מקדם פעילות של כ-${getActivityMultiplier(metrics.averageDailySteps, metrics.trainingDaysPerWeek).toFixed(2)}), אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך.`}
+                  text={getEnergyExplanation(metrics, nutritionPlan)}
                 />
                 <ExplanationSection
                   icon={Target}

@@ -1,42 +1,45 @@
 import type { Gender, Goal, GoalIntensity, MacroGrams, NutritionPlan, UserMetrics } from '../types/fitness';
+import { estimateStepCalories } from './stepsCalculations';
 
 // ---------------------------------------------------------------------------
-// Activity multiplier (PAL)
+// Daily energy expenditure (TDEE)
 // ---------------------------------------------------------------------------
+
+/** Everyday life without walking or training (sitting, standing, digestion): 1.2 x BMR, the usual "sedentary" factor. */
+const BASE_ACTIVITY_FACTOR = 1.2;
+
+/** Net energy of one strength session (about an hour, rest periods included), a conventional estimate rather than a measurement. */
+export const KCAL_PER_TRAINING_SESSION = 250;
+
+/** Steps beyond this are not counted: the step average comes from a typed-in number, and an extreme one would swamp the estimate. */
+const MAX_COUNTED_STEPS = 30000;
+
+export interface EnergyBreakdown {
+  /** BMR x 1.2: daily life without walking or training. */
+  baseKcal: number;
+  /** Walking, from the daily step average and body weight (the same per-step cost the step tracker uses). */
+  stepsKcal: number;
+  /** The training sessions of the week, averaged per day. */
+  trainingKcal: number;
+  /** The sum, rounded. */
+  tdee: number;
+}
 
 /**
- * Activity multiplier from the daily step level, plus 0.05 for a heavy training week (4+ sessions).
- *
- * The base value follows four reference levels - 1.20 up to 2,000 steps, 1.35 at 5,250, 1.45 at 8,000 and 1.55 from 11,000 up - which are the
- * middle of the older fixed bands (under 4,000 / 4,000-6,499 / 6,500-9,499 / 9,500+), and rises in a straight line between them. So every step
- * count moves the estimate a little, instead of nothing happening until a band edge is crossed and then a jump of 0.1 (about 170 kcal).
+ * Estimated daily energy expenditure as three parts that add up: daily life, walking and training. Each step and each weekly session
+ * therefore moves the estimate a little, and one thousand steps are worth the same here as in the step tracker and the weekly balance.
+ * Like every formula it is an average: individual metabolism differs by roughly 10%, which is what the personal calibration corrects.
  */
-const STEP_ACTIVITY_POINTS: ReadonlyArray<readonly [steps: number, pal: number]> = [
-  [2000, 1.2],
-  [5250, 1.35],
-  [8000, 1.45],
-  [11000, 1.55],
-];
-
-export function getActivityMultiplier(dailySteps: number, workoutDaysPerWeek: number): number {
-  const first = STEP_ACTIVITY_POINTS[0];
-  const last = STEP_ACTIVITY_POINTS[STEP_ACTIVITY_POINTS.length - 1];
-  let pal = last[1];
-  if (dailySteps <= first[0]) {
-    pal = first[1];
-  } else if (dailySteps < last[0]) {
-    for (let i = 1; i < STEP_ACTIVITY_POINTS.length; i++) {
-      const [toSteps, toPal] = STEP_ACTIVITY_POINTS[i];
-      if (dailySteps <= toSteps) {
-        const [fromSteps, fromPal] = STEP_ACTIVITY_POINTS[i - 1];
-        pal = fromPal + ((toPal - fromPal) * (dailySteps - fromSteps)) / (toSteps - fromSteps);
-        break;
-      }
-    }
-  }
-
-  if (workoutDaysPerWeek >= 4) pal += 0.05;
-  return pal;
+export function estimateEnergyExpenditure(params: { bmr: number; weightKg: number; dailySteps: number; trainingDaysPerWeek: number }): EnergyBreakdown {
+  const baseKcal = params.bmr * BASE_ACTIVITY_FACTOR;
+  const stepsKcal = estimateStepCalories(Math.min(Math.max(params.dailySteps, 0), MAX_COUNTED_STEPS), params.weightKg);
+  const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION) / 7;
+  return {
+    baseKcal: Math.round(baseKcal),
+    stepsKcal,
+    trainingKcal: Math.round(trainingKcal),
+    tdee: Math.round(baseKcal + stepsKcal + trainingKcal),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -87,7 +90,7 @@ export type CalorieGoal = 'lean_bulk' | 'bulk' | 'maintenance' | 'cut' | 'aggres
 const RECOMP_DEFICIT_FRACTION = 0.05;
 
 /**
- * BMR (Mifflin-St Jeor, by gender) -> TDEE (activity multiplier) -> goal calories -> gender-aware macros.
+ * BMR (Mifflin-St Jeor, by gender) -> TDEE (daily life + walking + training, plus the user's personal calibration) -> goal calories -> gender-aware macros.
  *  lean_bulk: TDEE + 220 (a stable 200-250 kcal; 120 is lost in NEAT swings and food-label error)
  *  bulk: TDEE + 400
  *  maintenance: TDEE
@@ -102,11 +105,15 @@ export function calculatePreciseNutrition(params: {
   dailyStepGoal: number;
   workoutDaysPerWeek: number;
   goal: CalorieGoal;
+  /** Personal correction added to the formula's TDEE (from the calibration against the user's own weight trend). */
+  tdeeAdjustmentKcal?: number;
 }) {
-  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal } = params;
+  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal, tdeeAdjustmentKcal = 0 } = params;
 
   const bmr = mifflinStJeor(gender, weightKg, heightCm, age);
-  const tdee = Math.round(bmr * getActivityMultiplier(dailyStepGoal, workoutDaysPerWeek));
+  const energy = estimateEnergyExpenditure({ bmr, weightKg, dailySteps: dailyStepGoal, trainingDaysPerWeek: workoutDaysPerWeek });
+  const formulaTdee = energy.tdee;
+  const tdee = formulaTdee + Math.round(tdeeAdjustmentKcal);
 
   let targetCalories = tdee;
   if (goal === 'lean_bulk') {
@@ -126,6 +133,8 @@ export function calculatePreciseNutrition(params: {
   return {
     bmr: Math.round(bmr),
     tdee,
+    formulaTdee,
+    energy,
     targetCalories,
     proteinGrams: proteinG,
     carbGrams: carbsG,
@@ -158,6 +167,7 @@ export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
     dailyStepGoal: metrics.averageDailySteps,
     workoutDaysPerWeek: metrics.trainingDaysPerWeek,
     goal: toCalorieGoal(metrics.goal, metrics.goalIntensity),
+    tdeeAdjustmentKcal: metrics.tdeeAdjustmentKcal,
   });
 
   return {

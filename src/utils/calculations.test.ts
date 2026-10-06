@@ -1,38 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import type { UserMetrics } from '../types/fitness';
-import { calculateBMR, calculateMacros, calculateNutritionPlan, calculatePreciseNutrition, getActivityMultiplier } from './calculations';
+import { calculateBMR, calculateMacros, calculateNutritionPlan, calculatePreciseNutrition, estimateEnergyExpenditure } from './calculations';
+import { estimateStepCalories } from './stepsCalculations';
 
-describe('getActivityMultiplier', () => {
-  it('hits the reference levels exactly and holds the ends flat', () => {
-    expect(getActivityMultiplier(0, 0)).toBe(1.2);
-    expect(getActivityMultiplier(2000, 0)).toBe(1.2);
-    expect(getActivityMultiplier(5250, 0)).toBeCloseTo(1.35, 10);
-    expect(getActivityMultiplier(8000, 0)).toBeCloseTo(1.45, 10);
-    expect(getActivityMultiplier(11000, 0)).toBeCloseTo(1.55, 10);
-    expect(getActivityMultiplier(30000, 0)).toBeCloseTo(1.55, 10);
+describe('estimateEnergyExpenditure', () => {
+  const base = { bmr: 1700, weightKg: 70, dailySteps: 8000, trainingDaysPerWeek: 3 };
+
+  it('adds daily life (BMR x 1.2), walking (0.04 kcal per step at 70 kg) and the weekly training', () => {
+    const e = estimateEnergyExpenditure(base);
+    expect(e.baseKcal).toBe(2040);
+    expect(e.stepsKcal).toBe(320);
+    expect(e.trainingKcal).toBe(107); // 3 x 250 / 7
+    expect(e.tdee).toBe(2467);
   });
 
-  it('rises with every step count in between, with no jumps', () => {
-    // 4,500 -> 5,300 steps stayed in one band before and changed nothing; it must move the estimate now.
-    expect(getActivityMultiplier(5300, 0)).toBeGreaterThan(getActivityMultiplier(4500, 0));
-    let previous = getActivityMultiplier(0, 0);
-    for (let steps = 100; steps <= 15000; steps += 100) {
-      const current = getActivityMultiplier(steps, 0);
-      expect(current).toBeGreaterThanOrEqual(previous);
-      expect(current - previous).toBeLessThan(0.01);
-      previous = current;
-    }
+  it('moves with every step count, including small changes (4,500 -> 5,300 steps)', () => {
+    const low = estimateEnergyExpenditure({ ...base, dailySteps: 4500 }).tdee;
+    const high = estimateEnergyExpenditure({ ...base, dailySteps: 5300 }).tdee;
+    expect(high - low).toBe(32); // 800 steps x 0.04
   });
 
-  it('is a straight line between two reference levels', () => {
-    expect(getActivityMultiplier(6625, 0)).toBeCloseTo((1.35 + 1.45) / 2, 10);
-    expect(getActivityMultiplier(9500, 0)).toBeCloseTo(1.5, 10);
+  it('values 1,000 steps the same as the step tracker does, and scales walking with body weight', () => {
+    const at70 = estimateEnergyExpenditure({ ...base, dailySteps: 1000 }).stepsKcal - estimateEnergyExpenditure({ ...base, dailySteps: 0 }).stepsKcal;
+    expect(at70).toBe(estimateStepCalories(1000, 70));
+    expect(estimateEnergyExpenditure({ ...base, weightKg: 105 }).stepsKcal).toBe(480); // 1.5 x the 70 kg cost
   });
 
-  it('adds 0.05 only for a heavy training week (4+ sessions)', () => {
-    expect(getActivityMultiplier(8000, 3)).toBeCloseTo(1.45, 10);
-    expect(getActivityMultiplier(8000, 4)).toBeCloseTo(1.5, 10);
-    expect(getActivityMultiplier(11000, 6)).toBeCloseTo(1.6, 10);
+  it('counts each training session, and caps absurd step counts', () => {
+    expect(estimateEnergyExpenditure({ ...base, trainingDaysPerWeek: 6 }).trainingKcal).toBe(214);
+    expect(estimateEnergyExpenditure({ ...base, trainingDaysPerWeek: 0 }).trainingKcal).toBe(0);
+    expect(estimateEnergyExpenditure({ ...base, dailySteps: 90000 }).stepsKcal).toBe(estimateEnergyExpenditure({ ...base, dailySteps: 30000 }).stepsKcal);
+  });
+
+  it('never goes below sedentary living', () => {
+    expect(estimateEnergyExpenditure({ ...base, dailySteps: 0, trainingDaysPerWeek: 0 }).tdee).toBe(2040);
   });
 });
 
@@ -73,31 +74,39 @@ describe('calculateMacros', () => {
 describe('calculatePreciseNutrition', () => {
   const man = { gender: 'male', weightKg: 80, heightCm: 180, age: 30, dailyStepGoal: 8000, workoutDaysPerWeek: 3 } as const;
 
-  it('derives TDEE from BMR x the activity multiplier', () => {
+  it('derives TDEE from BMR: daily life, walking and training', () => {
     const result = calculatePreciseNutrition({ ...man, goal: 'maintenance' });
     expect(result.bmr).toBe(1780);
-    expect(result.tdee).toBe(2581); // 1780 x 1.45
-    expect(result.targetCalories).toBe(2581);
+    expect(result.tdee).toBe(2609); // 1780 x 1.2 + 8,000 steps at 80 kg (366) + 3 sessions (107)
+    expect(result.formulaTdee).toBe(2609);
+    expect(result.targetCalories).toBe(2609);
   });
 
   it('applies the goal offsets: lean bulk +220, bulk +400, cut -400, aggressive cut -550', () => {
     const target = (goal: Parameters<typeof calculatePreciseNutrition>[0]['goal']) => calculatePreciseNutrition({ ...man, goal }).targetCalories;
-    expect(target('lean_bulk')).toBe(2581 + 220);
-    expect(target('bulk')).toBe(2581 + 400);
-    expect(target('cut')).toBe(2581 - 400);
-    expect(target('aggressive_cut')).toBe(2581 - 550);
+    expect(target('lean_bulk')).toBe(2609 + 220);
+    expect(target('bulk')).toBe(2609 + 400);
+    expect(target('cut')).toBe(2609 - 400);
+    expect(target('aggressive_cut')).toBe(2609 - 550);
   });
 
   it('never cuts below BMR, however deep the deficit', () => {
     const smallWoman = { gender: 'female', weightKg: 50, heightCm: 160, age: 40, dailyStepGoal: 2000, workoutDaysPerWeek: 2 } as const;
     const bmr = 1139;
-    expect(calculatePreciseNutrition({ ...smallWoman, goal: 'maintenance' }).tdee).toBe(1367);
+    expect(calculatePreciseNutrition({ ...smallWoman, goal: 'maintenance' }).tdee).toBe(1495);
     expect(calculatePreciseNutrition({ ...smallWoman, goal: 'cut' }).targetCalories).toBe(bmr);
     expect(calculatePreciseNutrition({ ...smallWoman, goal: 'aggressive_cut' }).targetCalories).toBe(bmr);
   });
 
   it('recomp is a ~5% deficit from TDEE', () => {
-    expect(calculatePreciseNutrition({ ...man, goal: 'recomp' }).targetCalories).toBe(Math.round(2581 * 0.95));
+    expect(calculatePreciseNutrition({ ...man, goal: 'recomp' }).targetCalories).toBe(Math.round(2609 * 0.95));
+  });
+
+  it('adds the personal calibration to the TDEE before the goal offset, and keeps the formula value separate', () => {
+    const calibrated = calculatePreciseNutrition({ ...man, goal: 'lean_bulk', tdeeAdjustmentKcal: -150 });
+    expect(calibrated.formulaTdee).toBe(2609);
+    expect(calibrated.tdee).toBe(2459);
+    expect(calibrated.targetCalories).toBe(2459 + 220);
   });
 
   it('returns macros whose calories match the target', () => {
