@@ -8,7 +8,7 @@ import { estimateStepCalories } from './stepsCalculations';
 /** Everyday life without walking or training (sitting, standing, digestion): 1.2 x BMR, the usual "sedentary" factor. */
 const BASE_ACTIVITY_FACTOR = 1.2;
 
-/** Net energy of one strength session (about an hour, rest periods included), a conventional estimate rather than a measurement. */
+/** Net energy of one strength session (about an hour, rest periods included) for a 70 kg person, a conventional estimate rather than a measurement; it scales with body weight like walking does. */
 export const KCAL_PER_TRAINING_SESSION = 250;
 
 /** Steps beyond this are not counted: the step average comes from a typed-in number, and an extreme one would swamp the estimate. */
@@ -28,12 +28,14 @@ export interface EnergyBreakdown {
 /**
  * Estimated daily energy expenditure as three parts that add up: daily life, walking and training. Each step and each weekly session
  * therefore moves the estimate a little, and one thousand steps are worth the same here as in the step tracker and the weekly balance.
- * Like every formula it is an average: individual metabolism differs by roughly 10%, which is what the personal calibration corrects.
+ * Walking and training both scale with body weight, which is what the research on men and women supports: the net cost of walking is the same
+ * for both sexes once body mass is accounted for, and the difference in total expenditure between the sexes is mostly lean mass, which the
+ * BMR formula already captures with its sex-specific constant. Like every formula it is an average: individual metabolism differs by roughly 10%, which is what the personal calibration corrects.
  */
 export function estimateEnergyExpenditure(params: { bmr: number; weightKg: number; dailySteps: number; trainingDaysPerWeek: number }): EnergyBreakdown {
   const baseKcal = params.bmr * BASE_ACTIVITY_FACTOR;
   const stepsKcal = estimateStepCalories(Math.min(Math.max(params.dailySteps, 0), MAX_COUNTED_STEPS), params.weightKg);
-  const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION) / 7;
+  const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION * (params.weightKg / 70)) / 7;
   return {
     baseKcal: Math.round(baseKcal),
     stepsKcal,
