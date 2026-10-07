@@ -320,15 +320,20 @@ export default function Auth({ onAuthenticated }: AuthProps) {
           <ArrowRight className="h-4 w-4" />
           חזרה
         </button>
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 shadow-glow">
+        <button
+          type="button"
+          onClick={() => setView('welcome')}
+          aria-label="MacroLift - חזרה למסך הפתיחה"
+          className="mb-8 flex w-full flex-col items-center gap-3 text-center"
+        >
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 shadow-glow">
             <Dumbbell className="h-7 w-7" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">MacroLift</h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">כושר ותזונה אישית, בנוי בשבילך</p>
-          </div>
-        </div>
+          </span>
+          <span>
+            <span className="block text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">MacroLift</span>
+            <span className="mt-1 block text-sm text-zinc-600 dark:text-zinc-500">כושר ותזונה אישית, בנוי בשבילך</span>
+          </span>
+        </button>
 
         {isFreshDevice && (
           <div className="mb-4 flex items-start gap-3 rounded-2xl border border-lime-400/30 bg-lime-400/5 p-4">

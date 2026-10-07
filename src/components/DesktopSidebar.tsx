@@ -29,6 +29,8 @@ interface NavItem<T extends string> {
 interface DesktopSidebarProps<T extends string> {
   items: NavItem<T>[];
   active: T;
+  /** The screen the logo leads to (the home screen). */
+  homeId: T;
   onSelect: (id: T) => void;
   onReset: () => void;
   onLogout: () => void;
@@ -41,7 +43,7 @@ const ROW =
  * Desktop navigation rail: icons only by default, opening (and pushing the page aside) while the pointer or keyboard focus is on it.
  * The pin button keeps it open; the choice is remembered on this device.
  */
-export default function DesktopSidebar<T extends string>({ items, active, onSelect, onReset, onLogout }: DesktopSidebarProps<T>) {
+export default function DesktopSidebar<T extends string>({ items, active, homeId, onSelect, onReset, onLogout }: DesktopSidebarProps<T>) {
   const [pinned, setPinned] = useState(readPinned);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -89,12 +91,20 @@ export default function DesktopSidebar<T extends string>({ items, active, onSele
         }`}
       >
         <div className="mb-8 mt-1 flex items-center gap-2.5 px-[0.5625rem]">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
-            <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
-          </div>
-          <span className={`flex-1 whitespace-nowrap text-xl font-extrabold tracking-tight transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>
-            MacroLift
-          </span>
+          <button
+            type="button"
+            onClick={() => onSelect(homeId)}
+            aria-label="MacroLift - למסך הבית"
+            title="למסך הבית"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-right"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
+              <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
+            </span>
+            <span className={`flex-1 whitespace-nowrap text-xl font-extrabold tracking-tight transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>
+              MacroLift
+            </span>
+          </button>
           <button
             type="button"
             onClick={togglePinned}

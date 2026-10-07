@@ -362,6 +362,7 @@ export default function Dashboard({
       <DesktopSidebar
         items={NAV_ITEMS}
         active={tab}
+        homeId="dashboard"
         onSelect={selectTab}
         onReset={() => setIsResetConfirmOpen(true)}
         onLogout={onLogout}
