@@ -100,31 +100,71 @@ describe('calculatePreciseNutrition', () => {
     expect(result.targetCalories).toBe(2797);
   });
 
-  it('applies the goal offsets: lean bulk +220, bulk +400, cut -400, aggressive cut -550', () => {
-    const target = (goal: Parameters<typeof calculatePreciseNutrition>[0]['goal']) => calculatePreciseNutrition({ ...man, goal }).targetCalories;
-    expect(target('lean_bulk')).toBe(2797 + 220);
-    expect(target('bulk')).toBe(2797 + 400);
-    expect(target('cut')).toBe(2797 - 400);
-    expect(target('aggressive_cut')).toBe(2797 - 550);
+  it('starts a surplus goal from the LOW end of the maintenance range, so a too-high estimate cannot push anyone into a bigger surplus', () => {
+    // tdee 2,797 with an 8% band: low 2,573, high 3,021.
+    const lean = calculatePreciseNutrition({ ...man, goal: 'lean_bulk' });
+    expect(lean.targetCalories).toBe(2573 + 220);
+    expect(lean.targetMin).toBe(2573 + 220);
+    expect(lean.targetMax).toBe(2797 + 220); // the top of the range is the surplus on the central estimate
+    expect(lean.intendedOffsetKcal).toBe(220);
+    const bulk = calculatePreciseNutrition({ ...man, goal: 'bulk' });
+    expect(bulk.targetCalories).toBe(2573 + 400);
+    expect(bulk.targetMax).toBe(2797 + 400);
   });
 
-  it('never cuts below BMR, however deep the deficit', () => {
+  it('starts a deficit goal from the HIGH end, so a too-low estimate cannot push anyone into a deeper deficit', () => {
+    const cut = calculatePreciseNutrition({ ...man, goal: 'cut' });
+    expect(cut.targetCalories).toBe(3021 - 400);
+    expect(cut.targetMax).toBe(3021 - 400);
+    expect(cut.targetMin).toBe(2797 - 400); // the deepest it goes is the deficit on the central estimate
+    expect(cut.intendedOffsetKcal).toBe(-400);
+    const hard = calculatePreciseNutrition({ ...man, goal: 'aggressive_cut' });
+    expect(hard.targetCalories).toBe(3021 - 550);
+    expect(hard.targetMin).toBe(2797 - 550);
+  });
+
+  it('keeps maintenance and recomp centred, with the range around them', () => {
+    const keep = calculatePreciseNutrition({ ...man, goal: 'maintenance' });
+    expect(keep.targetCalories).toBe(2797);
+    expect(keep.targetMin).toBe(Math.round(2797 * 0.96));
+    expect(keep.targetMax).toBe(Math.round(2797 * 1.04));
+    const recomp = calculatePreciseNutrition({ ...man, goal: 'recomp' });
+    expect(recomp.targetCalories).toBe(Math.round(2797 * 0.95));
+    expect(recomp.targetMin).toBeLessThan(recomp.targetCalories);
+    expect(recomp.targetMax).toBeGreaterThan(recomp.targetCalories);
+  });
+
+  it('puts the start inside the range, and every range between the safe end and the central estimate, for every goal', () => {
+    for (const goal of ['lean_bulk', 'bulk', 'maintenance', 'cut', 'aggressive_cut', 'recomp'] as const) {
+      const r = calculatePreciseNutrition({ ...man, goal });
+      expect(r.targetMin, goal).toBeLessThanOrEqual(r.targetCalories);
+      expect(r.targetCalories, goal).toBeLessThanOrEqual(r.targetMax);
+    }
+  });
+
+  it('never cuts below BMR, however deep the deficit, at the start or anywhere in the range', () => {
     const smallWoman = { gender: 'female', weightKg: 50, heightCm: 160, age: 40, dailyStepGoal: 2000, workoutDaysPerWeek: 2 } as const;
     const bmr = 1139;
     expect(calculatePreciseNutrition({ ...smallWoman, goal: 'maintenance' }).tdee).toBe(1646);
-    expect(calculatePreciseNutrition({ ...smallWoman, goal: 'cut' }).targetCalories).toBe(1646 - 400); // still above BMR
-    expect(calculatePreciseNutrition({ ...smallWoman, goal: 'aggressive_cut' }).targetCalories).toBe(bmr); // 1,646 - 550 would be below it
+    const cut = calculatePreciseNutrition({ ...smallWoman, goal: 'cut' });
+    expect(cut.targetCalories).toBe(1778 - 400); // high end 1,778 - 400, still above BMR
+    expect(cut.targetMin).toBe(1646 - 400);
+    const hard = calculatePreciseNutrition({ ...smallWoman, goal: 'aggressive_cut' });
+    expect(hard.targetCalories).toBe(1778 - 550);
+    expect(hard.targetMin).toBe(bmr); // 1,646 - 550 would be below it
   });
 
-  it('recomp is a ~5% deficit from TDEE', () => {
-    expect(calculatePreciseNutrition({ ...man, goal: 'recomp' }).targetCalories).toBe(Math.round(2797 * 0.95));
+  it('narrows the range once the TDEE has been corrected against the user\'s own weight trend', () => {
+    const plain = calculatePreciseNutrition({ ...man, goal: 'lean_bulk' });
+    const calibrated = calculatePreciseNutrition({ ...man, goal: 'lean_bulk', tdeeAdjustmentKcal: 100 });
+    expect(calibrated.targetMax - calibrated.targetMin).toBeLessThan(plain.targetMax - plain.targetMin);
   });
 
   it('adds the personal calibration to the TDEE before the goal offset, and keeps the formula value separate', () => {
     const calibrated = calculatePreciseNutrition({ ...man, goal: 'lean_bulk', tdeeAdjustmentKcal: -150 });
     expect(calibrated.formulaTdee).toBe(2797);
     expect(calibrated.tdee).toBe(2647);
-    expect(calibrated.targetCalories).toBe(2647 + 220);
+    expect(calibrated.targetMax).toBe(2647 + 220);
   });
 
   it('returns macros whose calories match the target', () => {
@@ -146,22 +186,25 @@ describe('calculateNutritionPlan', () => {
     goal: 'maintain',
   };
 
-  it('gives a man of 69 kg, 170 cm, 29 with 4,500 steps and 3 sessions a TDEE of about 2,380 (PAL 1.48) and a lean-bulk target 220 above it', () => {
+  it('gives a man of 69 kg, 170 cm, 29 with 4,500 steps and 3 sessions a TDEE of about 2,380 and a lean-bulk range of 2,412 to 2,603', () => {
     const plan = calculateNutritionPlan({ ...metrics, age: 29, heightCm: 170, weightKg: 69, averageDailySteps: 4500, goal: 'gain_muscle', goalIntensity: 'moderate' });
     expect(plan.bmr).toBe(1613);
     expect(plan.tdee).toBe(2383);
-    expect(plan.targetCalories).toBe(2603);
+    expect(plan.targetCalories).toBe(2412); // starts at the low end: maintenance as low as 2,192, plus 220
+    expect(plan.targetMin).toBe(2412);
+    expect(plan.targetMax).toBe(2603); // the central estimate plus 220
+    expect(plan.intendedOffsetKcal).toBe(220);
   });
 
-  it('reports the surplus/deficit relative to TDEE for each goal', () => {
-    expect(calculateNutritionPlan({ ...metrics, goal: 'maintain' }).calorieDeficitOrSurplus).toBe(0);
-    expect(calculateNutritionPlan({ ...metrics, goal: 'lose_weight' }).calorieDeficitOrSurplus).toBe(-400);
-    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle' }).calorieDeficitOrSurplus).toBe(220);
+  it('keeps the intended surplus or deficit separate from where in the range the start sits', () => {
+    expect(calculateNutritionPlan({ ...metrics, goal: 'maintain' }).intendedOffsetKcal).toBe(0);
+    expect(calculateNutritionPlan({ ...metrics, goal: 'lose_weight' }).intendedOffsetKcal).toBe(-400);
+    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle' }).intendedOffsetKcal).toBe(220);
   });
 
   it('gains faster at the aggressive intensity (+400 instead of +220)', () => {
-    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle', goalIntensity: 'moderate' }).calorieDeficitOrSurplus).toBe(220);
-    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle', goalIntensity: 'aggressive' }).calorieDeficitOrSurplus).toBe(400);
+    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle', goalIntensity: 'moderate' }).intendedOffsetKcal).toBe(220);
+    expect(calculateNutritionPlan({ ...metrics, goal: 'gain_muscle', goalIntensity: 'aggressive' }).intendedOffsetKcal).toBe(400);
   });
 
   it('keeps bmr, tdee and target consistent', () => {

@@ -158,7 +158,11 @@ describe('applyTdeeAdjustment', () => {
     const after = applyTdeeAdjustment(state, -150);
     expect(after.profile.metrics.tdeeAdjustmentKcal).toBe(-150);
     expect(after.nutritionPlan.tdee).toBe(state.nutritionPlan.tdee - 150);
-    expect(after.nutritionPlan.targetCalories).toBe(state.nutritionPlan.targetCalories - 150);
+    expect(after.nutritionPlan.targetCalories).toBeLessThan(state.nutritionPlan.targetCalories);
+    // Corrected against the user's own data, the estimate is trusted more: the range tightens.
+    expect((after.nutritionPlan.targetMax ?? 0) - (after.nutritionPlan.targetMin ?? 0)).toBeLessThan(
+      (state.nutritionPlan.targetMax ?? 0) - (state.nutritionPlan.targetMin ?? 0),
+    );
     expect(calculateNutritionPlan(after.profile.metrics)).toEqual(after.nutritionPlan);
   });
 

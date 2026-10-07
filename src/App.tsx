@@ -314,6 +314,8 @@ export default function App() {
           targetCalories,
           macros,
           calorieDeficitOrSurplus: Math.round(targetCalories - prev.nutritionPlan.tdee),
+          ...(prev.nutritionPlan.targetMin !== undefined ? { targetMin: Math.max(prev.nutritionPlan.targetMin + deltaKcal, 0) } : {}),
+          ...(prev.nutritionPlan.targetMax !== undefined ? { targetMax: Math.max(prev.nutritionPlan.targetMax + deltaKcal, 0) } : {}),
         },
       };
     });

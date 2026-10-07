@@ -35,6 +35,7 @@ import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '
 import { getDailyTargets } from '../utils/weeklyBalance';
 import { describeCoverage, getOvershootCoverage } from '../utils/overshoot';
 import BalancedRing from './BalancedRing';
+import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
 import { QUICK_FOODS } from '../data/commonFoods';
@@ -190,6 +191,9 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </div>
       </div>
 
+      {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (
+        <p className="-mb-2 text-center text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>
+      )}
       <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} covered={isCovered} />
 
       {isCovered && coverage && (

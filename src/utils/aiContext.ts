@@ -1,4 +1,5 @@
 import { getDailyTargets } from './weeklyBalance';
+import { getCalorieRange } from './calorieRange';
 import type { AppState, UserMetrics } from '../types/fitness';
 import { calculateRemaining, getEntriesForDate, sumTotals } from './nutritionLog';
 import { countCompletedWorkoutsThisWeek } from './workoutStats';
@@ -13,6 +14,13 @@ const GOAL_LABELS: Record<string, string> = {
   gain_muscle: 'מסה מבוקרת (Lean Bulk)',
   recomp: 'שיפור הרכב גוף (Recomp)',
 };
+
+function rangeLine(plan: AppState['nutritionPlan']): string {
+  const range = getCalorieRange(plan);
+  if (!range) return '';
+  const start = range.start === 'low' ? 'מתחילים מהקצה הנמוך ועולים לפי המשקל השבועי' : range.start === 'high' ? 'מתחילים מהקצה הגבוה ויורדים לפי המשקל השבועי' : 'מתחילים מהאמצע';
+  return `- טווח קלורי מומלץ: ${range.min}-${range.max} קק"ל (${start})\n`;
+}
 
 const HOME_LEVEL_LABELS = { beginner: 'מתחיל', intermediate: 'בינוני', advanced: 'מתקדם' } as const;
 
@@ -52,7 +60,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
 ${metrics.tdeeAdjustmentKcal ? `- התאמה אישית של השריפה (TDEE) לפי המשקל והאכילה שלו: ${metrics.tdeeAdjustmentKcal > 0 ? '+' : ''}${metrics.tdeeAdjustmentKcal} קק"ל ביום\n` : ''}- ממוצע צעדים יומי: ${metrics.averageDailySteps}, צעדים שנצברו היום: ${stepsToday}
 
 ## יעד תזונתי יומי (מחושב אוטומטית לפי הפרופיל)
-- קלוריות להיום: ${todayTargets.calories}${todayTargets.reductionKcal > 0 ? ` (יעד בסיס ${nutritionPlan.targetCalories}, מופחת זמנית באיזון שבועי)` : ''} (BMR: ${nutritionPlan.bmr}, TDEE: ${nutritionPlan.tdee})
+${rangeLine(nutritionPlan)}- קלוריות להיום: ${todayTargets.calories}${todayTargets.reductionKcal > 0 ? ` (יעד בסיס ${nutritionPlan.targetCalories}, מופחת זמנית באיזון שבועי)` : ''} (BMR: ${nutritionPlan.bmr}, TDEE: ${nutritionPlan.tdee})
 - חלבון: ${todayTargets.macros.proteinG} גר', שומן: ${todayTargets.macros.fatG} גר', פחמימה: ${todayTargets.macros.carbsG} גר'
 
 ## מה נאכל היום (${today}) ומה נשאר

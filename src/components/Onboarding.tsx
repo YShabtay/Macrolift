@@ -38,6 +38,7 @@ import type {
 } from '../types/fitness';
 import { calculateNutritionPlan } from '../utils/calculations';
 import { buildWorkoutProgram } from '../utils/programSelection';
+import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import TrainingSetupPicker from './TrainingSetupPicker';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import InfoTooltip from './InfoTooltip';
@@ -1029,6 +1030,12 @@ function StepResults({
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-500">TDEE: {tdee} קק״ל</p>
         </div>
+
+        {getCalorieRange(nutritionPlan) && (
+          <p className="mb-3 rounded-lg bg-lime-400/10 px-3 py-2 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
+            {describeRangeShort(getCalorieRange(nutritionPlan)!)}. זו הערכה: כדאי לשקול כל בוקר, ואחרי שבועיים להתאים לפי הממוצע השבועי.
+          </p>
+        )}
 
         <div className="mb-3 flex h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
           <div className="bg-lime-400" style={{ width: `${(macroKcal.protein / targetCalories) * 100}%` }} />

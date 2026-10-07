@@ -1,4 +1,5 @@
 import { formatMacro } from '../utils/formatMacro';
+import { getCalorieRange } from '../utils/calorieRange';
 import { estimateEnergyExpenditure } from '../utils/calculations';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -26,21 +27,32 @@ function getEnergyExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan
 }
 
 function getGoalExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan): string {
-  const delta = Math.abs(nutritionPlan.calorieDeficitOrSurplus);
+  const offset = Math.abs(nutritionPlan.intendedOffsetKcal ?? nutritionPlan.calorieDeficitOrSurplus);
+  const range = getCalorieRange(nutritionPlan);
+  const rangeText = range ? `${range.min.toLocaleString('he-IL')}-${range.max.toLocaleString('he-IL')}` : '';
+  const weeklyLow = (metrics.weightKg * 0.0025).toFixed(2);
+  const weeklyHigh = (metrics.weightKg * 0.005).toFixed(2);
   const goal: Goal = metrics.goal;
 
   switch (goal) {
     case 'gain_muscle': {
       const intensityLabel = metrics.goalIntensity === 'aggressive' ? 'אגרסיבית' : 'מתונה ומבוקרת';
-      return `בחרת במסה מבוקרת (Lean Bulk) בעצימות ${intensityLabel} – הוספנו כ-${delta} קק״ל בלבד מעל התחזוקה (TDEE) כדי למקסם בניית שריר ולמנוע צבירת שומן מיותרת.`;
+      const rangeNote = range
+        ? ` מכיוון שהתחזוקה היא הערכה (בטעות של כ-8% לכל כיוון), הטווח הוא ${rangeText} קק״ל, והיעד מתחיל בקצה הנמוך שלו: כך, גם אם התחזוקה שלך נמוכה מההערכה, לא תצבור שומן מהר מדי. אחרי שבועיים, אם הממוצע השבועי של המשקל עולה פחות מ-${weeklyLow} ק״ג בשבוע, אפשר לעלות לכיוון הקצה העליון; אם הוא עולה יותר מ-${weeklyHigh} ק״ג בשבוע, כדאי להישאר בקצה הנמוך.`
+        : '';
+      return `בחרת במסה מבוקרת (Lean Bulk) בעצימות ${intensityLabel} – עודף של כ-${offset} קק״ל מעל התחזוקה (TDEE) כדי למקסם בניית שריר ולמנוע צבירת שומן מיותרת.${rangeNote}`;
     }
-    case 'lose_weight':
-      return `בחרת בירידה במשקל – יצרנו גירעון של כ-${delta} קק״ל ביום מתחת לתחזוקה (ולא מתחת לחילוף החומרים הבסיסי שלך), קצב שנחשב בטוח ובר-קיימא לירידה בשומן תוך שמירה מרבית על מסת השריר.`;
+    case 'lose_weight': {
+      const rangeNote = range
+        ? ` מכיוון שהתחזוקה היא הערכה, הטווח הוא ${rangeText} קק״ל, והיעד מתחיל בקצה הגבוה שלו, כדי שהירידה תהיה מתונה ובטוחה לשריר גם אם התחזוקה שלך גבוהה מההערכה. אחרי שבועיים, אם הממוצע השבועי של המשקל לא יורד, אפשר לרדת לכיוון הקצה הנמוך.`
+        : '';
+      return `בחרת בירידה במשקל – גירעון של כ-${offset} קק״ל ביום מתחת לתחזוקה (ולא מתחת לחילוף החומרים הבסיסי שלך), קצב שנחשב בטוח ובר-קיימא לירידה בשומן תוך שמירה מרבית על מסת השריר.${rangeNote}`;
+    }
     case 'recomp':
-      return `בחרת בשיפור הרכב גוף – גירעון קל של כ-${delta} קק״ל (כ-5% מתחת לתחזוקה) מאפשר ירידה הדרגתית בשומן תוך שמירה על מסת השריר, בשילוב אימוני כוח וחלבון גבוה.`;
+      return `בחרת בשיפור הרכב גוף – גירעון קל של כ-${offset} קק״ל (כ-5% מתחת לתחזוקה) מאפשר ירידה הדרגתית בשומן תוך שמירה על מסת השריר, בשילוב אימוני כוח וחלבון גבוה.${range ? ` הטווח הוא ${rangeText} קק״ל.` : ''}`;
     case 'maintain':
     default:
-      return 'בחרת בשמירה על המשקל – היעד הקלורי שלך נקבע בדיוק לפי התחזוקה (TDEE), כדי לשמר את המשקל הנוכחי תוך שיפור הרגלים ואיכות התזונה.';
+      return `בחרת בשמירה על המשקל – היעד הקלורי שלך נקבע לפי התחזוקה (TDEE), כדי לשמר את המשקל הנוכחי תוך שיפור הרגלים ואיכות התזונה.${range ? ` הטווח הוא ${rangeText} קק״ל.` : ''}`;
   }
 }
 

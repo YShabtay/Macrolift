@@ -38,6 +38,7 @@ import {
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import { describeCoverage, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
+import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
 import ExerciseSwapModal from './ExerciseSwapModal';
@@ -1100,6 +1101,9 @@ function NutritionCard({
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
+        )}
+        {targets.reductionKcal === 0 && getCalorieRange(nutritionPlan) && (
+          <p className="mt-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>
         )}
         {targets.reductionKcal === 0 && tomorrowReductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">מחר: יעד מותאם -{tomorrowReductionKcal} קק״ל (איזון שבועי) ⚖️</p>

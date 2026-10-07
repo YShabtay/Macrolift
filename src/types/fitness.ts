@@ -163,6 +163,14 @@ export interface NutritionPlan {
   targetCalories: number; // Adjusted for goal
   macros: MacroGrams;
   calorieDeficitOrSurplus: number; // Negative = deficit, positive = surplus
+  /**
+   * The calories to eat: a range, not one number, because TDEE is an estimate. Plans stored before the range existed lack these.
+   * For a surplus goal the target starts at the bottom of the range, for a deficit goal at the top (the safe end either way).
+   */
+  targetMin?: number;
+  targetMax?: number;
+  /** What the goal asks for relative to maintenance (+220 lean bulk, -400 cut, ...), before the range shifts the starting point. */
+  intendedOffsetKcal?: number;
 }
 
 // ---------------------------------------------------------------------------

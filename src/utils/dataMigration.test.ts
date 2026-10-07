@@ -93,7 +93,8 @@ describe('sanitizeAppState', () => {
       const state = sanitized({ profile, nutritionPlan: olderPlan });
       expect(state.nutritionFormulaVersion).toBe(NUTRITION_FORMULA_VERSION);
       expect(state.nutritionPlan.tdee).toBe(2383);
-      expect(state.nutritionPlan.targetCalories).toBe(2603);
+      expect(state.nutritionPlan.targetCalories).toBe(2412);
+      expect(state.nutritionPlan.targetMax).toBe(2603);
     });
 
     it('keeps a plan that is already on the current model, even one the user adjusted since', () => {

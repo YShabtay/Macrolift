@@ -56,7 +56,7 @@ Most tracking apps share the same weaknesses:
 ## Features
 
 **Nutrition**
-- Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros.
+- Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros. The calorie target is a **range**, not one number: because TDEE is an estimate (about 8% either way), a surplus goal starts from the low end and a deficit goal from the high end, so following the app cannot push anyone the wrong way if the estimate is off.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
 - Weekly calorie budget and rebalancing options after an overshoot. An overshoot that the week's extra steps, or the week's calorie balance so far, already cover is shown as covered instead of as a problem.
@@ -123,7 +123,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-238 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+244 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |

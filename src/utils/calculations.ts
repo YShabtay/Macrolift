@@ -16,7 +16,15 @@ const BASE_ACTIVITY_FACTOR = 1.4;
 export const BASELINE_DAILY_STEPS = 4000;
 
 /** Bump when the TDEE model changes: stored plans calculated with an older model are recalculated once when the app loads. */
-export const NUTRITION_FORMULA_VERSION = 1;
+export const NUTRITION_FORMULA_VERSION = 2;
+
+/**
+ * How far a person's real TDEE typically sits from the formula (about 8%, from validation studies), and how far once the formula has been
+ * corrected against their own weight trend. The calorie target is given as a range over this band so that, whichever way the estimate is off,
+ * following the app does not push anyone into the wrong direction.
+ */
+export const TDEE_BAND = 0.08;
+export const TDEE_BAND_CALIBRATED = 0.04;
 
 /** Net energy of one strength session (about an hour, rest periods included) for a 70 kg person, a conventional estimate rather than a measurement; it scales with body weight like walking does. */
 export const KCAL_PER_TRAINING_SESSION = 250;
@@ -128,17 +136,35 @@ export function calculatePreciseNutrition(params: {
   const formulaTdee = energy.tdee;
   const tdee = formulaTdee + Math.round(tdeeAdjustmentKcal);
 
+  // The surplus or deficit the goal asks for, and the plausible range of maintenance around the estimate. A surplus is planned from the LOW end of
+  // that range (if maintenance is really lower, the surplus is still not exceeded by much), a deficit from the HIGH end (if maintenance is really
+  // higher, the deficit is not deeper than intended). The user starts at that safe end and moves towards the other as the weekly weight shows.
+  const band = Math.round(tdeeAdjustmentKcal) !== 0 ? TDEE_BAND_CALIBRATED : TDEE_BAND;
+  const tdeeLow = Math.round(tdee * (1 - band));
+  const tdeeHigh = Math.round(tdee * (1 + band));
+  const floor = Math.round(bmr);
+
   let targetCalories = tdee;
-  if (goal === 'lean_bulk') {
-    targetCalories = Math.round(tdee + 220);
-  } else if (goal === 'bulk') {
-    targetCalories = Math.round(tdee + 400);
-  } else if (goal === 'cut') {
-    targetCalories = Math.max(Math.round(tdee - 400), Math.round(bmr));
-  } else if (goal === 'aggressive_cut') {
-    targetCalories = Math.max(Math.round(tdee - 550), Math.round(bmr));
+  let targetMin = Math.round(tdee * (1 - band / 2));
+  let targetMax = Math.round(tdee * (1 + band / 2));
+  let intendedOffsetKcal = 0;
+  if (goal === 'lean_bulk' || goal === 'bulk') {
+    intendedOffsetKcal = goal === 'lean_bulk' ? 220 : 400;
+    targetCalories = tdeeLow + intendedOffsetKcal;
+    targetMin = targetCalories;
+    targetMax = tdee + intendedOffsetKcal;
+  } else if (goal === 'cut' || goal === 'aggressive_cut') {
+    intendedOffsetKcal = goal === 'cut' ? -400 : -550;
+    targetCalories = Math.max(tdeeHigh + intendedOffsetKcal, floor);
+    targetMin = Math.max(tdee + intendedOffsetKcal, floor);
+    targetMax = targetCalories;
   } else if (goal === 'recomp') {
-    targetCalories = Math.max(Math.round(tdee * (1 - RECOMP_DEFICIT_FRACTION)), Math.round(bmr));
+    const center = Math.max(Math.round(tdee * (1 - RECOMP_DEFICIT_FRACTION)), floor);
+    const half = Math.round((tdee * band) / 2);
+    intendedOffsetKcal = center - tdee;
+    targetCalories = center;
+    targetMin = Math.max(center - half, floor);
+    targetMax = center + half;
   }
 
   const { proteinG, fatG, carbsG } = calculateMacros(targetCalories, weightKg, gender);
@@ -149,6 +175,9 @@ export function calculatePreciseNutrition(params: {
     formulaTdee,
     energy,
     targetCalories,
+    targetMin,
+    targetMax,
+    intendedOffsetKcal,
     proteinGrams: proteinG,
     carbGrams: carbsG,
     fatGrams: fatG,
@@ -189,5 +218,8 @@ export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
     targetCalories: result.targetCalories,
     macros: { proteinG: result.proteinGrams, fatG: result.fatGrams, carbsG: result.carbGrams },
     calorieDeficitOrSurplus: result.targetCalories - result.tdee,
+    targetMin: result.targetMin,
+    targetMax: result.targetMax,
+    intendedOffsetKcal: result.intendedOffsetKcal,
   };
 }
