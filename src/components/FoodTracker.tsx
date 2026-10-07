@@ -33,7 +33,8 @@ import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
-import { describeCoverage, describeExtraRoom, describeRoom, getOvershootCoverage } from '../utils/overshoot';
+import { describeCoverage, describeRoom, getOvershootCoverage } from '../utils/overshoot';
+import { describeStepSurplus, getStepSurplus } from '../utils/stepSurplus';
 import BalancedRing from './BalancedRing';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import HeroCarousel from './HeroCarousel';
@@ -69,6 +70,7 @@ interface FoodTrackerProps {
   /** Step history and the base daily step goal: steps walked above the goal count against a day's overshoot. */
   stepLogs: StepLog[];
   baseStepGoal: number;
+  weightKg: number;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
@@ -93,7 +95,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayIso());
@@ -126,6 +128,10 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
     [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
+  const stepSurplus = useMemo(
+    () => (selectedDate === today ? getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg, today }) : null),
+    [selectedDate, today, stepLogs, baseStepGoal, weightKg],
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -201,9 +207,9 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
           מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {describeRoom(coverage)} אין צורך באיזון.
         </p>
       )}
-      {!isCovered && coverage && coverage.overshootKcal === 0 && describeExtraRoom(coverage) && (
+      {stepSurplus && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          {describeExtraRoom(coverage)}
+          {describeStepSurplus(stepSurplus)}
         </p>
       )}
       {!isCovered && coverage && coverage.overshootKcal > 0 && (

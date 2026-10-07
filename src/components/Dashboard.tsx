@@ -38,7 +38,8 @@ import {
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';
-import { describeCoverage, describeExtraRoom, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
+import { describeCoverage, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
+import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
@@ -420,6 +421,7 @@ export default function Dashboard({
               weeklyBalance={appState.weeklyBalance}
               stepLogs={appState.stepLogs}
               baseStepGoal={getBaseStepGoal(appState)}
+              weightKg={appState.profile.metrics.weightKg}
               onOpenRebalance={() => selectTab('dashboard')}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
@@ -571,6 +573,11 @@ function DashboardTab({
   );
   // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
   const showRebalanceButton = overshootKcal > 0 && !overshootCoverage.isCovered;
+  // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
+  const stepSurplus = useMemo(
+    () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: todayIso() }),
+    [stepLogs, baseStepGoal, profile.metrics.weightKg],
+  );
   // Steps walked above the daily goal (today, or earlier this week - even logged afterwards) already burned part of the overshoot.
   const bonusStepDays = useMemo(
     () => getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, todayIso()),
@@ -724,6 +731,7 @@ function DashboardTab({
           targets={todayTargets}
           overshootKcal={showRebalanceButton ? overshootKcal : 0}
           coverage={overshootCoverage}
+          stepSurplus={stepSurplus}
           tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
           eaten={eatenToday}
@@ -1066,6 +1074,7 @@ function NutritionCard({
   targets,
   overshootKcal,
   coverage,
+  stepSurplus,
   tomorrowReductionKcal,
   onOpenRebalance,
   eaten,
@@ -1079,6 +1088,8 @@ function NutritionCard({
   overshootKcal: number;
   /** Whether today's overshoot is already covered by the week's steps or its calorie balance (then it is shown as covered). */
   coverage: OvershootCoverage;
+  /** How this week's walking compares with the step average the target assumes (null when there is nothing to say). */
+  stepSurplus: StepSurplus | null;
   /** Calories the weekly rebalance will take off tomorrow's target (0 if none). */
   tomorrowReductionKcal: number;
   onOpenRebalance: () => void;
@@ -1117,13 +1128,16 @@ function NutritionCard({
           <p className="text-xs text-zinc-600 dark:text-zinc-500">
             {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
           </p>
-          {!isOver && describeExtraRoom(coverage) && <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeExtraRoom(coverage)}</p>}
+
         </>
       )}
       <div className="mb-3 mt-1.5">
         <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
+        )}
+        {stepSurplus && (
+          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeStepSurplus(stepSurplus)}</p>
         )}
         {targets.reductionKcal === 0 && getCalorieRange(nutritionPlan) && (
           <p className="mt-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>

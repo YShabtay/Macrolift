@@ -18,11 +18,6 @@ export interface OvershootCoverage {
   weekBalanceKcal: number;
   /** When covered: how many more kcal can be eaten today and the week still stays in balance. 0 otherwise. */
   roomKcal: number;
-  /**
-   * When today is at or under its target: how many kcal beyond the target the extra steps leave room for if the rest of today is eaten
-   * (0 without extra steps, or when earlier days' overshoot already uses them up).
-   */
-  extraRoomKcal: number;
 }
 
 /**
@@ -54,12 +49,7 @@ export function getOvershootCoverage(params: {
   const coveredBySteps = isCovered && weekBalanceKcal > 0;
   const roomKcal = isCovered ? Math.round(-netWeek) : 0;
 
-  // Under target today: the steps' room beyond the target, if the rest of today is eaten.
-  const remainingToday = Math.max(target - eaten, 0);
-  const weekEndBalance = weekBalanceKcal + remainingToday;
-  const extraRoomKcal = overshootKcal === 0 && stepsKcal > 0 ? Math.max(Math.round(stepsKcal - Math.max(weekEndBalance, 0)), 0) : 0;
-
-  return { overshootKcal, isCovered, bonusSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal, extraRoomKcal };
+  return { overshootKcal, isCovered, bonusSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
 }
 
 /** One line saying what covered the overshoot. */
@@ -71,11 +61,4 @@ export function describeCoverage(c: OvershootCoverage): string {
 /** How much more can be eaten while the week stays in balance (shown when the overshoot is covered); empty when there is no real room. */
 export function describeRoom(c: OvershootCoverage): string {
   return c.isCovered && c.roomKcal >= 10 ? `עוד אפשר לאכול כ-${c.roomKcal.toLocaleString('he-IL')} קק״ל ולהישאר מאוזן השבוע.` : '';
-}
-
-/** The extra room the week's steps leave beyond today's target (shown on a day still under target); empty when it is small or absent. */
-export function describeExtraRoom(c: OvershootCoverage): string {
-  return c.extraRoomKcal >= 50
-    ? `בזכות ${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס יש מרווח של עוד כ-${c.extraRoomKcal.toLocaleString('he-IL')} קק״ל מעבר ליעד היום, בלי לצאת מאיזון.`
-    : '';
 }

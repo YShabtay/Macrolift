@@ -60,7 +60,7 @@ Most tracking apps share the same weaknesses:
 - **Weight-trend check (no food logging needed):** after two to three weeks of weigh-ins, the weekly average is compared with the pace the goal calls for; when it is clearly off, the app suggests adding or removing 100-300 kcal. The user can accept, change the amount or ignore it, and accepting moves the whole calorie range and macros and restarts the check. If logged food shows the target was simply not followed, it says so instead.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
-- Weekly calorie budget and rebalancing options after an overshoot. The week is judged as a whole: an overshoot that the week's calorie balance so far, after crediting the extra steps (counted once against the whole week), already covers is shown as covered, with how many more kcal can be eaten and still stay balanced.
+- Weekly calorie budget and rebalancing options after an overshoot. The week is judged as a whole: an overshoot that the week's calorie balance so far, after crediting the extra steps (counted once against the whole week), already covers is shown as covered, with how many more kcal can be eaten and still stay balanced. The week's average steps are also compared with the step average the target assumes, and the app says how much more (or less) to eat when the person walks more (or less) than planned.
 - Logging by search, barcode (camera, via Open Food Facts), voice, or a photo of the meal.
 
 **Training**
@@ -124,7 +124,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-266 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+271 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -133,7 +133,8 @@ npm test
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
 | Data safety (`dataMigration`, `backupValidation`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored |
-| Overshoot coverage (`overshoot`) | The week judged as a whole, with extra steps credited once: covered by the weekly balance or by steps bringing it back, no double counting of steps, the room left (and the exact point where it runs out), and the extra room steps leave on a day still under target |
+| Overshoot coverage (`overshoot`) | The week judged as a whole, with extra steps credited once: covered by the weekly balance or by steps bringing it back, no double counting of steps, the room left and the exact point where it runs out |
+| Step surplus (`stepSurplus`) | The week's average steps against the average the target assumes: eat more when walking more, less when walking less, in kcal by body weight; quiet without two completed days or when the difference is small; slow days count against fast ones |
 | Weight-trend check (`targetCheck`) | Waiting for enough weigh-ins, suggesting calories for a flat or too-fast weekly average per goal (bulk, cut), leaving an on-pace trend alone, not acting on a noisy one, telling apart a wrong target from an unfollowed one, applying and cancelling a correction |
 | Calibration (`calibration`) | Measuring maintenance from intake and the weight trend, ignoring partly logged days and out-of-window data, asking for more data instead of guessing, trusting a noisy trend less, capping the correction |
 | Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |

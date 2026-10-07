@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { describeCoverage, describeExtraRoom, describeRoom, getOvershootCoverage } from './overshoot';
+import { describeCoverage, describeRoom, getOvershootCoverage } from './overshoot';
 
 // 2026-10-04 is a Sunday, so the week so far is Sunday, Monday and today, Tuesday.
 const SUN = '2026-10-04';
@@ -86,24 +86,6 @@ describe('getOvershootCoverage', () => {
     const room = coverage([...base, meal(TODAY, 2384)], steps174).roomKcal;
     expect(coverage([...base, meal(TODAY, 2384 + room)], steps174).isCovered).toBe(true);
     expect(coverage([...base, meal(TODAY, 2384 + room + 1)], steps174).isCovered).toBe(false);
-  });
-});
-
-describe('extra room beyond the target on a day still under it', () => {
-  it('shows what the bonus steps leave beyond today\'s target when the week is otherwise on target', () => {
-    const c = coverage([meal(SUN, 2341), meal(TODAY, 2141)], [steps(SUN, BASE_GOAL + 4346)]);
-    expect(c.overshootKcal).toBe(0);
-    expect(c.extraRoomKcal).toBe(174); // the rest of today (200) is eaten, the week ends level, and the steps are all spare
-    expect(describeExtraRoom(c)).toContain('174');
-  });
-
-  it('is used up by an overshoot earlier in the week, and is empty without bonus steps', () => {
-    expect(coverage([meal(SUN, 2641), meal(TODAY, 2141)], [steps(SUN, BASE_GOAL + 4346)]).extraRoomKcal).toBe(0);
-    expect(coverage([meal(SUN, 2341), meal(TODAY, 2141)]).extraRoomKcal).toBe(0);
-  });
-
-  it('is not shown when it is small', () => {
-    expect(describeExtraRoom({ ...coverage([meal(TODAY, 2141)]), extraRoomKcal: 30, bonusSteps: 800 })).toBe('');
   });
 });
 
