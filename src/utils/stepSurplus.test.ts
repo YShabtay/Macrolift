@@ -58,4 +58,13 @@ describe('describeStepSurplus', () => {
     const text = describeStepSurplus(surplus([steps('2026-10-04', 3000), steps('2026-10-05', 3500)])!);
     expect(text).toContain('פחות מהיעד');
   });
+
+  it('speaks about the overshoot instead of eating more when the day is already over the target', () => {
+    const more = describeStepSurplus(surplus([steps('2026-10-04', 6770), steps('2026-10-05', 6832)])!, 200);
+    expect(more).toContain('מקזז חלק מהחריגה');
+    expect(more).not.toContain('תצטרך לאכול');
+    const less = describeStepSurplus(surplus([steps('2026-10-04', 3000), steps('2026-10-05', 3500)])!, 200);
+    expect(less).toContain('החריגה של היום משמעותית יותר');
+    expect(less).not.toContain('כדאי לאכול');
+  });
 });

@@ -209,7 +209,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
       )}
       {stepSurplus && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          {describeStepSurplus(stepSurplus)}
+          {describeStepSurplus(stepSurplus, coverage?.overshootKcal ?? 0)}
         </p>
       )}
       {!isCovered && coverage && coverage.overshootKcal > 0 && (

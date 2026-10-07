@@ -1137,7 +1137,7 @@ function NutritionCard({
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
         )}
         {stepSurplus && (
-          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeStepSurplus(stepSurplus)}</p>
+          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeStepSurplus(stepSurplus, isOver ? Math.round(-remainingCalories) : 0)}</p>
         )}
         {targets.reductionKcal === 0 && getCalorieRange(nutritionPlan) && (
           <p className="mt-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>

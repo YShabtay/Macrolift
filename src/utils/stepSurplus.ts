@@ -45,13 +45,21 @@ export function getStepSurplus(params: { stepLogs: StepLog[]; goalSteps: number;
 
 const rounded = (kcal: number) => Math.round(Math.abs(kcal) / 10) * 10;
 
-/** One sentence for a card: what the week's walking means for how much to eat. */
-export function describeStepSurplus(s: StepSurplus): string {
+/**
+ * One sentence for a card: what the week's walking means for how much to eat. On a day already over the target the advice changes: eating more
+ * makes no sense, so it says what the walking does to the overshoot instead.
+ */
+export function describeStepSurplus(s: StepSurplus, overshootKcal = 0): string {
   const avg = s.averageSteps.toLocaleString('he-IL');
   const goal = s.goalSteps.toLocaleString('he-IL');
   const kcal = rounded(s.kcalPerDay).toLocaleString('he-IL');
+  const week = `הלכת בממוצע ${avg} צעדים ביום השבוע`;
   if (s.kcalPerDay > 0) {
-    return `הלכת בממוצע ${avg} צעדים ביום השבוע, יותר מה-${goal} שהגדרת. זה כ-${kcal} קק״ל ביום שהיעד לא לוקח בחשבון, אז כנראה תצטרך לאכול כ-${kcal} קק״ל יותר מהיעד כדי לשמור על הקצב שתוכנן.`;
+    return overshootKcal > 0
+      ? `${week}, יותר מה-${goal} שהגדרת: כ-${kcal} קק״ל ביום שהיעד לא לוקח בחשבון. זה מקזז חלק מהחריגה של היום.`
+      : `${week}, יותר מה-${goal} שהגדרת. זה כ-${kcal} קק״ל ביום שהיעד לא לוקח בחשבון, אז כנראה תצטרך לאכול כ-${kcal} קק״ל יותר מהיעד כדי לשמור על הקצב שתוכנן.`;
   }
-  return `הלכת בממוצע ${avg} צעדים ביום השבוע, פחות מה-${goal} שהגדרת. היעד מניח כ-${kcal} קק״ל ביום יותר ממה ששרפת, אז כדי לשמור על הקצב שתוכנן כדאי לאכול כ-${kcal} קק״ל פחות מהיעד, או להישאר בקצה המתאים של הטווח.`;
+  return overshootKcal > 0
+    ? `${week}, פחות מה-${goal} שהגדרת: היעד מניח כ-${kcal} קק״ל ביום יותר ממה ששרפת, ולכן החריגה של היום משמעותית יותר.`
+    : `${week}, פחות מה-${goal} שהגדרת. היעד מניח כ-${kcal} קק״ל ביום יותר ממה ששרפת, אז כדי לשמור על הקצב שתוכנן כדאי לאכול כ-${kcal} קק״ל פחות מהיעד, או להישאר בקצה המתאים של הטווח.`;
 }
