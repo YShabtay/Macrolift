@@ -5,8 +5,18 @@ import { estimateStepCalories } from './stepsCalculations';
 // Daily energy expenditure (TDEE)
 // ---------------------------------------------------------------------------
 
-/** Everyday life without walking or training (sitting, standing, digestion): 1.2 x BMR, the usual "sedentary" factor. */
-const BASE_ACTIVITY_FACTOR = 1.2;
+/**
+ * Everyday life of a free-living adult: 1.4 x BMR. That is the bottom of the "sedentary or light activity" category (PAL 1.40-1.69) in the FAO/WHO/UNU
+ * energy requirements report, which is built from doubly labeled water measurements of how much people actually spend. The old textbook figure of
+ * 1.2 describes someone who barely moves and is below what free-living adults measure, so building walking and training on top of it fell short.
+ */
+const BASE_ACTIVITY_FACTOR = 1.4;
+
+/** The everyday figure above already includes ordinary walking up to about this many steps a day; only steps beyond it are added. */
+export const BASELINE_DAILY_STEPS = 4000;
+
+/** Bump when the TDEE model changes: stored plans calculated with an older model are recalculated once when the app loads. */
+export const NUTRITION_FORMULA_VERSION = 1;
 
 /** Net energy of one strength session (about an hour, rest periods included) for a 70 kg person, a conventional estimate rather than a measurement; it scales with body weight like walking does. */
 export const KCAL_PER_TRAINING_SESSION = 250;
@@ -15,9 +25,9 @@ export const KCAL_PER_TRAINING_SESSION = 250;
 const MAX_COUNTED_STEPS = 30000;
 
 export interface EnergyBreakdown {
-  /** BMR x 1.2: daily life without walking or training. */
+  /** BMR x 1.4: daily life of a free-living adult, including ordinary walking. */
   baseKcal: number;
-  /** Walking, from the daily step average and body weight (the same per-step cost the step tracker uses). */
+  /** Walking beyond the ordinary, from the steps above the baseline and body weight (the same per-step cost the step tracker uses). */
   stepsKcal: number;
   /** The training sessions of the week, averaged per day. */
   trainingKcal: number;
@@ -26,15 +36,16 @@ export interface EnergyBreakdown {
 }
 
 /**
- * Estimated daily energy expenditure as three parts that add up: daily life, walking and training. Each step and each weekly session
- * therefore moves the estimate a little, and one thousand steps are worth the same here as in the step tracker and the weekly balance.
+ * Estimated daily energy expenditure as three parts that add up: daily life, walking beyond the ordinary, and training. Each step above the
+ * baseline and each weekly session therefore moves the estimate a little, and one thousand steps are worth the same here as in the step tracker and the weekly balance.
  * Walking and training both scale with body weight, which is what the research on men and women supports: the net cost of walking is the same
  * for both sexes once body mass is accounted for, and the difference in total expenditure between the sexes is mostly lean mass, which the
  * BMR formula already captures with its sex-specific constant. Like every formula it is an average: individual metabolism differs by roughly 10%, which is what the personal calibration corrects.
  */
 export function estimateEnergyExpenditure(params: { bmr: number; weightKg: number; dailySteps: number; trainingDaysPerWeek: number }): EnergyBreakdown {
   const baseKcal = params.bmr * BASE_ACTIVITY_FACTOR;
-  const stepsKcal = estimateStepCalories(Math.min(Math.max(params.dailySteps, 0), MAX_COUNTED_STEPS), params.weightKg);
+  const countedSteps = Math.max(Math.min(params.dailySteps, MAX_COUNTED_STEPS) - BASELINE_DAILY_STEPS, 0);
+  const stepsKcal = estimateStepCalories(countedSteps, params.weightKg);
   const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION * (params.weightKg / 70)) / 7;
   return {
     baseKcal: Math.round(baseKcal),

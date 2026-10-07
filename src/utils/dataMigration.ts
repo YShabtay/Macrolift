@@ -14,7 +14,7 @@ import type {
   WorkoutScheduleEntry,
 } from '../types/fitness';
 import { getExerciseAlternatives, getExerciseNameEn, getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
-import { calculateNutritionPlan } from './calculations';
+import { NUTRITION_FORMULA_VERSION, calculateNutritionPlan } from './calculations';
 import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 
@@ -181,7 +181,12 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   const state: AppState = {
     ...(raw as unknown as AppState),
     profile,
-    nutritionPlan: hasValidNutritionPlan(raw.nutritionPlan) ? (raw.nutritionPlan as AppState['nutritionPlan']) : calculateNutritionPlan(metrics),
+    // A stored plan survives unless the TDEE model changed since it was calculated (then it is recalculated once, here).
+    nutritionPlan:
+      raw.nutritionFormulaVersion === NUTRITION_FORMULA_VERSION && hasValidNutritionPlan(raw.nutritionPlan)
+        ? (raw.nutritionPlan as AppState['nutritionPlan'])
+        : calculateNutritionPlan(metrics),
+    nutritionFormulaVersion: NUTRITION_FORMULA_VERSION,
     workoutPlan: normalizeWorkoutPlan(raw.workoutPlan, metrics.trainingDaysPerWeek),
     progress: keep<SetProgressEntry>(raw.progress, (p) => typeof p.dayId === 'string' && typeof p.exerciseId === 'string' && isIsoDate(p.date)).map(normalizeProgressEntry),
     weightLogs: keep<Record<string, unknown>>(raw.weightLogs, (w) => isIsoDate(w.date) && (finite(w.weightKg) ?? 0) > 0).map((w) => ({

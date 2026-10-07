@@ -344,6 +344,8 @@ export interface FoodPer100g {
 }
 
 export interface AppState {
+  /** Which TDEE model calculated nutritionPlan; a plan from an older model is recalculated when the app loads. */
+  nutritionFormulaVersion?: number;
   profile: UserProfile;
   nutritionPlan: NutritionPlan;
   workoutPlan: WorkoutPlan;

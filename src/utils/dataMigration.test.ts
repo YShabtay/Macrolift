@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState } from '../types/fitness';
+import { NUTRITION_FORMULA_VERSION } from './calculations';
 import { SCHEMA_VERSION, sanitizeAppState } from './dataMigration';
 
 function sanitized(raw: unknown): AppState {
@@ -77,5 +78,28 @@ describe('sanitizeAppState', () => {
     expect(state.foodLog[0]).toMatchObject({ name: 'אורז', calories: 130 });
     expect(state.completedWorkoutDates).toEqual(['2026-10-01']);
     expect(state.stepGoal).toBe(9000);
+  });
+
+  describe('the TDEE model version', () => {
+    const profile = {
+      id: 'p',
+      name: 'x',
+      createdAt: '2026-10-02T10:00:00.000Z',
+      metrics: { gender: 'male', age: 29, heightCm: 170, weightKg: 69, averageDailySteps: 4500, trainingDaysPerWeek: 3, bodyState: 'athletic', goal: 'gain_muscle', goalIntensity: 'moderate' },
+    };
+    const olderPlan = { bmr: 1613, tdee: 2218, targetCalories: 2438, macros: { proteinG: 138, fatG: 62, carbsG: 332 }, calorieDeficitOrSurplus: 220 };
+
+    it('recalculates a plan stored by an older model, once, and stamps the current version', () => {
+      const state = sanitized({ profile, nutritionPlan: olderPlan });
+      expect(state.nutritionFormulaVersion).toBe(NUTRITION_FORMULA_VERSION);
+      expect(state.nutritionPlan.tdee).toBe(2383);
+      expect(state.nutritionPlan.targetCalories).toBe(2603);
+    });
+
+    it('keeps a plan that is already on the current model, even one the user adjusted since', () => {
+      const first = sanitized({ profile, nutritionPlan: olderPlan });
+      const adjusted = { ...first, nutritionPlan: { ...first.nutritionPlan, targetCalories: 2500 } };
+      expect(sanitized(adjusted).nutritionPlan.targetCalories).toBe(2500);
+    });
   });
 });

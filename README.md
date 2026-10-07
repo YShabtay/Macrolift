@@ -56,7 +56,7 @@ Most tracking apps share the same weaknesses:
 ## Features
 
 **Nutrition**
-- Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from daily life + walking (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros.
+- Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
 - Weekly calorie budget and rebalancing options after an overshoot. An overshoot that the week's extra steps, or the week's calorie balance so far, already cover is shown as covered instead of as a problem.
@@ -123,11 +123,11 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-233 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+238 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
-| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, TDEE as daily life + walking + training (every step and session counts), every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
+| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, TDEE as everyday life + walking above the baseline + training (every step beyond 4,000 and every session counts), plus a one-time recalculation when the model changes, every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
 | Weekly balance (`weeklyBalance`) | Rebalancing a one-time overshoot across the remaining days, the safe-reduction cap, calories-to-steps conversion and step credits, the last day of the week |
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
