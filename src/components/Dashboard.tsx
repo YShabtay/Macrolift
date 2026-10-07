@@ -88,6 +88,8 @@ import ResetConfirmModal from './ResetConfirmModal';
 import ImportConfirmModal from './ImportConfirmModal';
 import EditProfileModal from './EditProfileModal';
 import Toast from './Toast';
+import AutoBackupCard from './AutoBackupCard';
+import type { Snapshot } from '../services/snapshotStore';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import { buildWeeklySummaries, daysSince, formatDateDisplay, getWeekStart, todayIso } from '../utils/weightCalculations';
 import { countCompletedWorkoutsThisWeek, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
@@ -184,7 +186,9 @@ interface DashboardProps {
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
-  onReset: () => void;
+  userId: string;
+  onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
+  onReset: () => void | Promise<void>;
   onLogout: () => void;
 }
 
@@ -299,6 +303,8 @@ export default function Dashboard({
   onApplyRebalance,
   onUpdateProfileFull,
   onImportAppState,
+  userId,
+  onRestoreSnapshot,
   onReset,
   onLogout,
 }: DashboardProps) {
@@ -462,6 +468,8 @@ export default function Dashboard({
               onDeleteCircumferenceEntry={onDeleteCircumferenceEntry}
               onSaveCircumferenceGoals={onSaveCircumferenceGoals}
               onImportAppState={onImportAppState}
+              userId={userId}
+              onRestoreSnapshot={onRestoreSnapshot}
               onBulkImportWeightLogs={onBulkImportWeightLogs}
               onNavigate={selectTab}
               onRequestReset={() => setIsResetConfirmOpen(true)}
@@ -1818,6 +1826,8 @@ function ProfileTab({
   onDeleteCircumferenceEntry,
   onSaveCircumferenceGoals,
   onImportAppState,
+  userId,
+  onRestoreSnapshot,
   onBulkImportWeightLogs,
   onNavigate,
   onRequestReset,
@@ -1832,6 +1842,8 @@ function ProfileTab({
   onDeleteCircumferenceEntry: (id: string) => void;
   onSaveCircumferenceGoals: (goals: CircumferenceGoals) => void;
   onImportAppState: (data: AppState) => Promise<void>;
+  userId: string;
+  onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
   onBulkImportWeightLogs: (entries: BulkWeightEntry[]) => void;
   onNavigate: (tab: Tab) => void;
   onRequestReset: () => void;
@@ -2191,6 +2203,8 @@ function ProfileTab({
           במסך הבית בלחיצה אחת.
         </p>
       </div>
+
+      <AutoBackupCard userId={userId} refreshKey={appState} onRestore={onRestoreSnapshot} />
 
       <div className="flex flex-wrap gap-3">
         <button

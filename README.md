@@ -80,6 +80,7 @@ Most tracking apps share the same weaknesses:
 - Installable PWA with offline support, an install guide for iOS/Android, and background update checks with a "new version" prompt.
 - Defensive data layer: schema versioning and migrations, sanitising of stored data on boot, per-screen error boundaries, and a recovery path if a chunk fails to load.
 - Backup reminders, JSON export/import and CSV export.
+- Automatic on-device safety copies in IndexedDB (daily, last 7 days, plus a copy before every reset, import or restore). They are offered for restore when the app opens with its data missing, reset can be undone in one tap, and a list in the profile restores any copy. Same-origin by design: they protect against mistakes and bugs, not against clearing all site data.
 
 ---
 
@@ -124,7 +125,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-272 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+280 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -132,7 +133,7 @@ npm test
 | Weekly balance (`weeklyBalance`) | Rebalancing a one-time overshoot across the remaining days, the safe-reduction cap, calories-to-steps conversion and step credits, the last day of the week |
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
-| Data safety (`dataMigration`, `backupValidation`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored |
+| Data safety (`dataMigration`, `backupValidation`, `snapshotStore`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored, snapshots are rate-limited, pruned per profile and skip empty profiles |
 | Overshoot coverage (`overshoot`) | The week judged as a whole, with extra steps credited once: covered by the weekly balance or by steps bringing it back, no double counting of steps, the room left and the exact point where it runs out |
 | Step surplus (`stepSurplus`) | The week's average steps against the average the target assumes: eat more when walking more, less when walking less, in kcal by body weight; quiet without two completed days or when the difference is small; slow days count against fast ones |
 | Weight-trend check (`targetCheck`) | Waiting for enough weigh-ins, suggesting calories for a flat or too-fast weekly average per goal (bulk, cut), leaving an on-pace trend alone, not acting on a noisy one, telling apart a wrong target from an unfollowed one, applying and cancelling a correction |

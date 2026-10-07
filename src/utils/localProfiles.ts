@@ -125,3 +125,25 @@ export async function restoreProfileFromBackup(text: string): Promise<RestoreOnb
     return { ok: false, error: 'לא ניתן היה לשמור את הנתונים במכשיר (ייתכן שהאחסון מלא או חסום). נסו שוב.' };
   }
 }
+
+/**
+ * Brings a profile back from an automatic snapshot when the device has no profile list at all (the user records were lost but the
+ * snapshots survived). The profile keeps its original id, so it lines up with its remaining snapshots. Data is saved first, so a
+ * failure leaves the device as it was.
+ */
+export async function restoreProfileFromSnapshot(userId: string, state: AppState): Promise<void> {
+  await storageService.saveAppState(userId, state);
+  const users = await storageService.getUsers();
+  if (!users.some((u) => u.id === userId)) {
+    const user: AuthUser = {
+      id: userId,
+      fullName: state.profile.name || 'משתמש משוחזר',
+      username: `local-${userId.slice(0, 8)}`,
+      email: '',
+      passwordHash: '',
+      createdAt: new Date().toISOString(),
+    };
+    await storageService.saveUsers([...users, user]);
+  }
+  await storageService.setSessionUserId(userId);
+}

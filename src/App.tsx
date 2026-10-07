@@ -6,7 +6,10 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import AICoachDrawer from './components/AICoachDrawer';
 import { sanitizeAppState } from './utils/dataMigration';
-import { ensureGuestSession } from './utils/localProfiles';
+import { ensureGuestSession, restoreProfileFromSnapshot } from './utils/localProfiles';
+import { hasMeaningfulData, snapshotStore, type Snapshot } from './services/snapshotStore';
+import { markSnapshotsDismissed, pickRestorableSnapshot, stateFromSnapshot } from './utils/snapshotRestore';
+import SnapshotRestorePrompt, { UndoResetBar } from './components/SnapshotRestorePrompt';
 import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { storageService } from './services/storageService';
@@ -117,6 +120,9 @@ export default function App() {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [isStandaloneWelcomeOpen, setIsStandaloneWelcomeOpen] = useState(false);
   const [isWelcomeGuideOpen, setIsWelcomeGuideOpen] = useState(false);
+  /** An automatic snapshot offered because the device's data looks lost, and the pre-reset copy offered for undo. */
+  const [restoreOffer, setRestoreOffer] = useState<Snapshot | null>(null);
+  const [undoResetSnapshot, setUndoResetSnapshot] = useState<Snapshot | null>(null);
 
   // Stored data that can't be read must reach the error screen (with its reset button), not leave the boot spinner up forever.
   const [bootError, setBootError] = useState<Error | null>(null);
@@ -137,10 +143,14 @@ export default function App() {
             loaded = await loadState(sessionUserId);
           }
           setAppState(loaded);
+          if (!hasMeaningfulData(loaded)) setRestoreOffer(pickRestorableSnapshot(await snapshotStore.list(sessionUserId), sessionUserId));
         }
         else if ((await storageService.getUsers()).length === 0) {
+          // No profile on the device: if automatic snapshots survived, offer them before anything else.
+          const offer = pickRestorableSnapshot(await snapshotStore.list());
+          if (offer) setRestoreOffer(offer);
           // First launch of the installed app on a device with no profile yet: offer to load a backup instead of showing an empty app.
-          if (isStandalone() && !hasSeenStandaloneWelcome()) setIsStandaloneWelcomeOpen(true);
+          else if (isStandalone() && !hasSeenStandaloneWelcome()) setIsStandaloneWelcomeOpen(true);
           // A brand-new device in a browser: the short introduction (data stays on the device, install first, how to back up).
           else if (!hasSeenWelcomeGuide()) setIsWelcomeGuideOpen(true);
         }
@@ -170,9 +180,44 @@ export default function App() {
     if (userId && appState) storageService.saveAppState(userId, appState).catch(() => {});
   }, [userId, appState]);
 
+  // Routine automatic copy of the data: a few seconds after the last change (the store itself limits how often it actually writes).
+  useEffect(() => {
+    if (!userId || !appState) return;
+    const timer = setTimeout(() => void snapshotStore.saveDaily(userId, appState).catch(() => undefined), 15_000);
+    return () => clearTimeout(timer);
+  }, [userId, appState]);
+
   async function handleAuthenticated(newUserId: string) {
     setUserId(newUserId);
-    setAppState(await loadState(newUserId));
+    const loaded = await loadState(newUserId);
+    setAppState(loaded);
+    if (!hasMeaningfulData(loaded)) setRestoreOffer(pickRestorableSnapshot(await snapshotStore.list(newUserId), newUserId));
+  }
+
+  /** Puts a snapshot's data back. The current data is copied first, so even a restore can be undone. Resolves false if it failed. */
+  async function handleRestoreSnapshot(snapshot: Snapshot): Promise<boolean> {
+    try {
+      const restored = stateFromSnapshot(snapshot, appState);
+      if (!restored) return false;
+      if (userId && appState) await snapshotStore.saveSafety(userId, appState, 'before-restore').catch(() => undefined);
+      if (userId) {
+        await storageService.saveAppState(userId, restored);
+      } else {
+        await restoreProfileFromSnapshot(snapshot.userId, restored);
+        setUserId(snapshot.userId);
+      }
+      setAppState(restored);
+      setRestoreOffer(null);
+      setUndoResetSnapshot(null);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function declineRestoreOffer() {
+    if (restoreOffer) markSnapshotsDismissed(restoreOffer.userId);
+    setRestoreOffer(null);
   }
 
   /**
@@ -197,6 +242,7 @@ export default function App() {
     nutritionPlan: NutritionPlan,
     workoutPlan: WorkoutPlan,
   ) {
+    setUndoResetSnapshot(null);
     setAppState({
       profile,
       nutritionPlan,
@@ -212,8 +258,14 @@ export default function App() {
     });
   }
 
-  function handleReset() {
-    if (userId) storageService.deleteAppState(userId);
+  async function handleReset() {
+    if (userId && appState) {
+      // Copy first, then delete: if the copy can't be written the reset still proceeds (the user confirmed it), just without undo.
+      const copy = await snapshotStore.saveSafety(userId, appState, 'before-reset').catch(() => null);
+      setUndoResetSnapshot(copy);
+      markSnapshotsDismissed(userId);
+    }
+    if (userId) await storageService.deleteAppState(userId);
     setAppState(null);
   }
 
@@ -538,6 +590,7 @@ export default function App() {
     if (!userId) return;
     const restored = sanitizeAppState(data);
     if (!restored) throw new Error('Backup data is not a valid app state');
+    if (appState) await snapshotStore.saveSafety(userId, appState, 'before-import').catch(() => undefined);
     // Persist before touching React state, so a storage failure (e.g. quota) rejects here
     // and leaves the user's existing data fully intact instead of half-restored.
     await storageService.saveAppState(userId, restored);
@@ -571,11 +624,22 @@ export default function App() {
     return <BootScreen />;
   }
 
+  const restorePrompt = restoreOffer ? (
+    <SnapshotRestorePrompt
+      snapshot={restoreOffer}
+      onRestore={async () => {
+        if (!(await handleRestoreSnapshot(restoreOffer))) throw new Error('restore failed');
+      }}
+      onDecline={declineRestoreOffer}
+    />
+  ) : null;
+
   if (!userId) {
     return (
       <>
         <UpdatePrompt />
         <Auth onAuthenticated={handleAuthenticated} />
+        {restorePrompt}
         {isWelcomeGuideOpen && (
           <WelcomeGuide
             onClose={() => {
@@ -606,6 +670,10 @@ export default function App() {
       <>
         <UpdatePrompt />
         <Onboarding onComplete={handleOnboardingComplete} />
+        {restorePrompt}
+        {!restoreOffer && undoResetSnapshot && <UndoResetBar onUndo={async () => {
+          await handleRestoreSnapshot(undoResetSnapshot);
+        }} />}
       </>
     );
   }
@@ -648,10 +716,13 @@ export default function App() {
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
+        userId={userId}
+        onRestoreSnapshot={handleRestoreSnapshot}
         onReset={handleReset}
         onLogout={handleLogout}
       />
       <AICoachDrawer appState={appState} userId={userId} onAddFood={handleAddFood} />
+      {restorePrompt}
     </PullToRefresh>
   );
 }
