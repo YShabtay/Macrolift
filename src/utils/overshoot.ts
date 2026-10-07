@@ -5,23 +5,31 @@ import { KCAL_PER_1000_STEPS, getBonusStepDays, getDailyTargets, getWeeklyEnergy
 export interface OvershootCoverage {
   /** Calories over today's target; 0 when today is at or under it. */
   overshootKcal: number;
-  /** True when the overshoot needs no action: something already covers it. */
+  /** True when the overshoot needs no action: the week as a whole is still in balance. */
   isCovered: boolean;
   /** Steps walked above the daily goal this week (today and earlier days), and the calories those already burned. */
   bonusSteps: number;
   stepsKcal: number;
-  /** The bonus steps alone burn at least the overshoot. */
-  coveredBySteps: boolean;
-  /** The week so far (days with logged food), after crediting those steps, is at or under its cumulative target. */
+  /** The week so far (days with logged food) is already at or under its cumulative target, with no help from the extra steps. */
   coveredByWeek: boolean;
+  /** The week so far is over its cumulative target, but the extra steps bring it back to balance. */
+  coveredBySteps: boolean;
   /** Eaten minus target for the week so far, before any step credit. */
   weekBalanceKcal: number;
+  /** When covered: how many more kcal can be eaten today and the week still stays in balance. 0 otherwise. */
+  roomKcal: number;
+  /**
+   * When today is at or under its target: how many kcal beyond the target the extra steps leave room for if the rest of today is eaten
+   * (0 without extra steps, or when earlier days' overshoot already uses them up).
+   */
+  extraRoomKcal: number;
 }
 
 /**
- * Whether today's calorie overshoot is already made up for, so it should be shown as covered instead of as a problem to fix. It is covered when
- * the extra steps walked this week burned at least the overshoot, or when the week as a whole - counting the days logged so far and crediting those
- * extra steps - is still within its cumulative target (the body answers to the weekly average, not to one day).
+ * Whether today's calorie overshoot is already made up for, so it should be shown as covered instead of as a problem to fix, and how much room
+ * is left. The body answers to the week, not to one day, so the test is the week: the cumulative eaten-minus-target over the days logged so far,
+ * less the calories the extra steps already burned, is at or below zero. The steps count once against the whole week - not once per day - so
+ * they cannot cover today's overshoot if earlier days' overshoot already uses them up.
  */
 export function getOvershootCoverage(params: {
   foodLog: FoodEntry[];
@@ -39,16 +47,35 @@ export function getOvershootCoverage(params: {
   const bonusSteps = Math.round(getBonusStepDays(stepLogs, baseStepGoal, adjustment, today).reduce((sum, d) => sum + d.steps, 0));
   const stepsKcal = Math.round((bonusSteps * KCAL_PER_1000_STEPS) / 1000);
   const weekBalanceKcal = getWeeklyEnergyBalance(foodLog, plan, adjustment, today).balanceKcal;
+  const netWeek = weekBalanceKcal - stepsKcal;
 
-  const coveredBySteps = overshootKcal > 0 && stepsKcal >= overshootKcal;
-  const coveredByWeek = overshootKcal > 0 && weekBalanceKcal - stepsKcal <= 0;
-  return { overshootKcal, isCovered: coveredBySteps || coveredByWeek, bonusSteps, stepsKcal, coveredBySteps, coveredByWeek, weekBalanceKcal };
+  const isCovered = overshootKcal > 0 && netWeek <= 0;
+  const coveredByWeek = isCovered && weekBalanceKcal <= 0;
+  const coveredBySteps = isCovered && weekBalanceKcal > 0;
+  const roomKcal = isCovered ? Math.round(-netWeek) : 0;
+
+  // Under target today: the steps' room beyond the target, if the rest of today is eaten.
+  const remainingToday = Math.max(target - eaten, 0);
+  const weekEndBalance = weekBalanceKcal + remainingToday;
+  const extraRoomKcal = overshootKcal === 0 && stepsKcal > 0 ? Math.max(Math.round(stepsKcal - Math.max(weekEndBalance, 0)), 0) : 0;
+
+  return { overshootKcal, isCovered, bonusSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal, extraRoomKcal };
 }
 
 /** One line saying what covered the overshoot. */
 export function describeCoverage(c: OvershootCoverage): string {
-  if (c.coveredBySteps && c.coveredByWeek) return `${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס מהשבוע, וגם מאזן השבוע כולו, מכסים אותה`;
-  if (c.coveredBySteps) return `${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס שהלכת השבוע (כ-${c.stepsKcal} קק״ל) כיסו אותה`;
-  if (c.stepsKcal > 0) return `מאזן השבוע, יחד עם צעדי הבונוס שהלכת (כ-${c.stepsKcal} קק״ל), מכסה אותה`;
+  if (c.coveredBySteps) return `${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס שהלכת השבוע (כ-${c.stepsKcal} קק״ל) מאזנים את העודף של השבוע`;
   return 'מאזן השבוע עד כה עדיין מתחת ליעד המצטבר, אז אין צורך באיזון';
+}
+
+/** How much more can be eaten while the week stays in balance (shown when the overshoot is covered); empty when there is no real room. */
+export function describeRoom(c: OvershootCoverage): string {
+  return c.isCovered && c.roomKcal >= 10 ? `עוד אפשר לאכול כ-${c.roomKcal.toLocaleString('he-IL')} קק״ל ולהישאר מאוזן השבוע.` : '';
+}
+
+/** The extra room the week's steps leave beyond today's target (shown on a day still under target); empty when it is small or absent. */
+export function describeExtraRoom(c: OvershootCoverage): string {
+  return c.extraRoomKcal >= 50
+    ? `בזכות ${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס יש מרווח של עוד כ-${c.extraRoomKcal.toLocaleString('he-IL')} קק״ל מעבר ליעד היום, בלי לצאת מאיזון.`
+    : '';
 }

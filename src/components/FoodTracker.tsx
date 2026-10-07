@@ -33,7 +33,7 @@ import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
-import { describeCoverage, getOvershootCoverage } from '../utils/overshoot';
+import { describeCoverage, describeExtraRoom, describeRoom, getOvershootCoverage } from '../utils/overshoot';
 import BalancedRing from './BalancedRing';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import HeroCarousel from './HeroCarousel';
@@ -198,7 +198,12 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. אין צורך באיזון.
+          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {describeRoom(coverage)} אין צורך באיזון.
+        </p>
+      )}
+      {!isCovered && coverage && coverage.overshootKcal === 0 && describeExtraRoom(coverage) && (
+        <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
+          {describeExtraRoom(coverage)}
         </p>
       )}
       {!isCovered && coverage && coverage.overshootKcal > 0 && (

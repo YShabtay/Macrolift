@@ -38,7 +38,7 @@ import {
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';
-import { describeCoverage, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
+import { describeCoverage, describeExtraRoom, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
@@ -1102,9 +1102,12 @@ function NutritionCard({
       {isCovered ? (
         <div className="flex items-center gap-4">
           <BalancedRing eaten={eaten.calories} target={targetCalories} className="h-28 w-28" />
-          <p className="text-xs leading-relaxed text-lime-700 dark:text-lime-400">
-            עברת את היעד היומי ב-{formatMacro(Math.abs(remainingCalories))} קק״ל, אבל {describeCoverage(coverage)}.
-          </p>
+          <div className="text-xs leading-relaxed text-lime-700 dark:text-lime-400">
+            <p>
+              עברת את היעד היומי ב-{formatMacro(Math.abs(remainingCalories))} קק״ל, אבל {describeCoverage(coverage)}.
+            </p>
+            {describeRoom(coverage) && <p className="mt-1 font-bold">{describeRoom(coverage)}</p>}
+          </div>
         </div>
       ) : (
         <>
@@ -1114,6 +1117,7 @@ function NutritionCard({
           <p className="text-xs text-zinc-600 dark:text-zinc-500">
             {isOver ? 'קק״ל מעל היעד' : 'קק״ל שנותרו'} · נצרכו {formatMacro(eaten.calories)} מתוך {formatMacro(targetCalories)} קק״ל
           </p>
+          {!isOver && describeExtraRoom(coverage) && <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeExtraRoom(coverage)}</p>}
         </>
       )}
       <div className="mb-3 mt-1.5">
