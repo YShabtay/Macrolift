@@ -550,6 +550,7 @@ function DashboardTab({
   /** Opens the add-to-home-screen guide. */
   onOpenInstallGuide: () => void;
 }) {
+  const today = useToday();
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
@@ -567,52 +568,52 @@ function DashboardTab({
     appState.progress.length === 0 &&
     appState.progressPhotos.length === 0 &&
     appState.stepLogs.length === 0;
-  const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === todayIso()), [foodLog]);
+  const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === today), [foodLog, today]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
   const weeklyBalance = appState.weeklyBalance;
   const baseStepGoal = getBaseStepGoal(appState);
-  const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, todayIso(), stepLogs);
-  const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, todayIso()), [nutritionPlan, weeklyBalance]);
+  const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, today, stepLogs);
+  const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, today), [nutritionPlan, weeklyBalance, today]);
   const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
   const overshootCoverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: todayIso() }),
-    [foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: today }),
+    [foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, today],
   );
   // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
   const showRebalanceButton = overshootKcal > 0 && !overshootCoverage.isCovered;
   // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
   const stepSurplus = useMemo(
-    () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: todayIso() }),
-    [stepLogs, baseStepGoal, profile.metrics.weightKg],
+    () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: today }),
+    [stepLogs, baseStepGoal, profile.metrics.weightKg, today],
   );
   // Steps walked above the daily goal (today, or earlier this week - even logged afterwards) already burned part of the overshoot.
   const bonusStepDays = useMemo(
-    () => getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, todayIso()),
-    [stepLogs, baseStepGoal, weeklyBalance],
+    () => getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, today),
+    [stepLogs, baseStepGoal, weeklyBalance, today],
   );
   const rebalanceOptions = useMemo(
-    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, todayIso(), bonusStepDays) : null),
-    [isRebalanceOpen, overshootKcal, nutritionPlan, bonusStepDays],
+    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, today, bonusStepDays) : null),
+    [isRebalanceOpen, overshootKcal, nutritionPlan, bonusStepDays, today],
   );
   const weeklyEnergyBalance = useMemo(
-    () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, todayIso()) : null),
-    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance],
+    () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, today) : null),
+    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance, today],
   );
-  const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
+  const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule, today), [workoutPlan, schedule, today]);
   const todaysDayCompleted = useMemo(
-    () => completedDates.includes(todayIso()) || isDayCompleted(workoutPlan, progress, todayIso(), todaysDay.id),
-    [workoutPlan, progress, todaysDay, completedDates],
+    () => completedDates.includes(today) || isDayCompleted(workoutPlan, progress, today, todaysDay.id),
+    [workoutPlan, progress, todaysDay, completedDates, today],
   );
 
   // A workout the user planned for today (not rest/custom) and hasn't finished: remind them in-app.
   const plannedToday = useMemo(() => {
-    const entry = getScheduleForDate(schedule, todayIso());
+    const entry = getScheduleForDate(schedule, today);
     if (!entry || entry.dayId === REST_DAY_ID || entry.dayId === CUSTOM_DAY_ID) return undefined;
     const index = workoutPlan.days.findIndex((d) => d.id === entry.dayId);
     return index >= 0 ? { day: workoutPlan.days[index], letter: workoutLetter(workoutPlan.splitType, index) } : undefined;
-  }, [schedule, workoutPlan]);
-  const showWorkoutBanner = !!plannedToday && !todaysDayCompleted && bannerDismissedDate !== todayIso();
+  }, [schedule, workoutPlan, today]);
+  const showWorkoutBanner = !!plannedToday && !todaysDayCompleted && bannerDismissedDate !== today;
 
   const latestPhotoDaysAgo = useMemo(() => {
     if (progressPhotos.length === 0) return null;

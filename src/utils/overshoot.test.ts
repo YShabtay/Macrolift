@@ -101,3 +101,24 @@ describe('describeCoverage and describeRoom', () => {
     expect(describeRoom(coverage([meal(TODAY, 2800)]))).toBe('');
   });
 });
+
+describe('getOvershootCoverage judged as of a past day', () => {
+  // A real week: Sunday-Wednesday eaten against a 2,412 target, goal 4,500 steps. Wednesday ran 278 kcal over.
+  const plan = { ...PLAN, targetCalories: 2412 } as NutritionPlan;
+  const log = [meal('2026-10-04', 2385), meal('2026-10-05', 2329), meal('2026-10-06', 2384), meal('2026-10-07', 2690)];
+  const stepLogs = [steps('2026-10-04', 8846), steps('2026-10-05', 3818), steps('2026-10-06', 5821), steps('2026-10-07', 2344)];
+  const asOf = (today: string) => getOvershootCoverage({ foodLog: log, plan, adjustment: undefined, stepLogs, baseStepGoal: 4500, today });
+
+  it('still reads Wednesday as covered after midnight, when it is looked at as yesterday', () => {
+    const c = asOf('2026-10-07');
+    expect(c.overshootKcal).toBe(278);
+    expect(c.isCovered).toBe(true);
+    expect(c.roomKcal).toBeGreaterThan(0);
+  });
+
+  it('has no overshoot on the new day before anything is eaten', () => {
+    const c = asOf('2026-10-08');
+    expect(c.overshootKcal).toBe(0);
+    expect(c.isCovered).toBe(false);
+  });
+});

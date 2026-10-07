@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useToday } from '../hooks/useToday';
 import { createPortal } from 'react-dom';
 import {
   Beef,
@@ -50,7 +51,7 @@ import PwaInstallBanner from './PwaInstallBanner';
 import { useInstallBanner } from '../hooks/useInstallBanner';
 import { parseDecimal } from '../utils/decimalInput';
 import { calculateRemaining, getEntriesForDate, getEntryTitle, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
-import { formatDateDisplay, parseIsoDate, todayIso } from '../utils/weightCalculations';
+import { formatDateDisplay, parseIsoDate } from '../utils/weightCalculations';
 import { formatMacro } from '../utils/formatMacro';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
@@ -98,13 +99,20 @@ function shiftDate(dateStr: string, days: number): string {
 export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
-  const [selectedDate, setSelectedDate] = useState(todayIso());
+  const today = useToday();
+  // Following "today" (null) rather than a fixed date: a screen left open past midnight moves on to the new day by itself instead of
+  // staying on yesterday, which would be judged as a finished day.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const selectedDate = pickedDate ?? today;
+  const setSelectedDate = (next: string | ((current: string) => string)) => {
+    const date = typeof next === 'function' ? next(selectedDate) : next;
+    setPickedDate(date >= today ? null : date);
+  };
   const [addingMeal, setAddingMeal] = useState<Meal | null>(null);
   const [scanRequest, setScanRequest] = useState<{ meal: Meal; file: File } | null>(null);
   const [scanSourceMeal, setScanSourceMeal] = useState<Meal | null>(null);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const today = todayIso();
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const recentFoods = useMemo(() => getRecentFoods(foodLog), [foodLog]);
@@ -122,15 +130,17 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   const eaten = useMemo(() => sumTotals(entriesForDate), [entriesForDate]);
   const targets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, selectedDate), [nutritionPlan, weeklyBalance, selectedDate]);
   const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
-  // Only today can be rebalanced (the steps and the week it is judged against are today's), so other days keep showing the plain numbers.
+  // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
+  // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
+  const isToday = selectedDate === today;
   const coverage = useMemo(
-    () => (selectedDate === today ? getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today }) : null),
-    [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: selectedDate }),
+    [selectedDate, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
   const stepSurplus = useMemo(
-    () => (selectedDate === today ? getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg, today }) : null),
-    [selectedDate, today, stepLogs, baseStepGoal, weightKg],
+    () => (isToday ? getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg, today }) : null),
+    [isToday, today, stepLogs, baseStepGoal, weightKg],
   );
 
   return (
@@ -204,15 +214,15 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {describeRoom(coverage)} אין צורך באיזון.
+          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isToday && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
         </p>
       )}
       {stepSurplus && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          {describeStepSurplus(stepSurplus, coverage?.overshootKcal ?? 0)}
+          {describeStepSurplus(stepSurplus, coverage.overshootKcal)}
         </p>
       )}
-      {!isCovered && coverage && coverage.overshootKcal > 0 && (
+      {isToday && !isCovered && coverage.overshootKcal > 0 && (
         <button
           type="button"
           onClick={onOpenRebalance}

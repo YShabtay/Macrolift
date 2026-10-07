@@ -45,8 +45,9 @@ export function getScheduleForDate(
 export function getTodaysPlanDay(
   workoutPlan: WorkoutPlan,
   schedule: WorkoutScheduleEntry[],
+  today: string = todayIso(),
 ): WorkoutPlan['days'][number] {
-  const entry = getScheduleForDate(schedule, todayIso());
+  const entry = getScheduleForDate(schedule, today);
   if (entry && entry.dayId !== REST_DAY_ID && entry.dayId !== CUSTOM_DAY_ID) {
     const day = workoutPlan.days.find((d) => d.id === entry.dayId);
     if (day) return day;
