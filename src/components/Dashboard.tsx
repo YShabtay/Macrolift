@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
+import TargetCheckCard from './TargetCheckCard';
 import { describeCoverage, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
@@ -160,6 +161,8 @@ interface DashboardProps {
   onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
   onSetTdeeAdjustment: (adjustmentKcal: number) => void;
+  /** Adds (or removes, if negative) calories from the daily target after the weight trend showed it was off. */
+  onApplyTargetAdjustment: (deltaKcal: number) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
@@ -274,6 +277,7 @@ export default function Dashboard({
   onUpdatePhoto,
   onApplyCalorieAdjustment,
   onSetTdeeAdjustment,
+  onApplyTargetAdjustment,
   onQuickCompleteDay,
   onUndoCompleteDay,
   onSetSchedule,
@@ -374,6 +378,7 @@ export default function Dashboard({
           {tab === 'dashboard' && (
             <DashboardTab
               appState={appState}
+              onApplyTargetAdjustment={onApplyTargetAdjustment}
               onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
@@ -441,6 +446,7 @@ export default function Dashboard({
               appState={appState}
               onApplyCalorieAdjustment={onApplyCalorieAdjustment}
               onSetTdeeAdjustment={onSetTdeeAdjustment}
+              onApplyTargetAdjustment={onApplyTargetAdjustment}
             />
           )}
           {tab === 'academy' && <Academy />}
@@ -500,6 +506,7 @@ export default function Dashboard({
 
 function DashboardTab({
   appState,
+  onApplyTargetAdjustment,
   onApplyProgram,
   onApplyRebalance,
   onQuickCompleteDay,
@@ -514,6 +521,7 @@ function DashboardTab({
   onOpenWorkoutCalendar,
   onOpenInstallGuide,
 }: {
+  onApplyTargetAdjustment: (deltaKcal: number) => void;
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onApplyRebalance: (choice: RebalanceChoice) => void;
@@ -695,6 +703,16 @@ function DashboardTab({
         completedDates={completedDates}
         onSelectDay={setEditingDay}
         onNavigate={onOpenWorkoutCalendar}
+      />
+
+      <TargetCheckCard
+        variant="banner"
+        weightLogs={weightLogs}
+        foodLog={foodLog}
+        metrics={profile.metrics}
+        profileCreatedAt={profile.createdAt}
+        nutritionPlan={nutritionPlan}
+        onApply={onApplyTargetAdjustment}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1608,6 +1626,7 @@ function ProgressTab({
   onUpdatePhoto,
   onApplyCalorieAdjustment,
   onSetTdeeAdjustment,
+  onApplyTargetAdjustment,
   appState,
 }: {
   weightLogs: WeightLog[];
@@ -1622,6 +1641,7 @@ function ProgressTab({
   onUpdatePhoto: (id: string, patch: Partial<Pick<ProgressPhoto, 'date' | 'weightKg'>>) => void;
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
   onSetTdeeAdjustment: (adjustmentKcal: number) => void;
+  onApplyTargetAdjustment: (deltaKcal: number) => void;
   appState: AppState;
 }) {
   return (
@@ -1647,6 +1667,16 @@ function ProgressTab({
         onSave={onSaveWeightLog}
         onDelete={onDeleteWeightLog}
         onBulkImport={onBulkImportWeightLogs}
+      />
+
+      <TargetCheckCard
+        variant="card"
+        weightLogs={weightLogs}
+        foodLog={appState.foodLog}
+        metrics={appState.profile.metrics}
+        profileCreatedAt={appState.profile.createdAt}
+        nutritionPlan={appState.nutritionPlan}
+        onApply={onApplyTargetAdjustment}
       />
 
       <CalibrationCard

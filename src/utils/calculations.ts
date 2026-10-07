@@ -128,8 +128,10 @@ export function calculatePreciseNutrition(params: {
   goal: CalorieGoal;
   /** Personal correction added to the formula's TDEE (from the calibration against the user's own weight trend). */
   tdeeAdjustmentKcal?: number;
+  /** A correction to the whole calorie target and range that the user accepted after the weight trend showed it was off. */
+  targetAdjustmentKcal?: number;
 }) {
-  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal, tdeeAdjustmentKcal = 0 } = params;
+  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal, tdeeAdjustmentKcal = 0, targetAdjustmentKcal = 0 } = params;
 
   const bmr = mifflinStJeor(gender, weightKg, heightCm, age);
   const energy = estimateEnergyExpenditure({ bmr, weightKg, dailySteps: dailyStepGoal, trainingDaysPerWeek: workoutDaysPerWeek });
@@ -165,6 +167,14 @@ export function calculatePreciseNutrition(params: {
     targetCalories = center;
     targetMin = Math.max(center - half, floor);
     targetMax = center + half;
+  }
+
+  // The accepted weight-trend correction moves the start and both ends of the range by the same amount (never below BMR).
+  const shift = Math.round(targetAdjustmentKcal);
+  if (shift !== 0) {
+    targetCalories = Math.max(targetCalories + shift, floor);
+    targetMin = Math.max(targetMin + shift, floor);
+    targetMax = Math.max(targetMax + shift, targetCalories);
   }
 
   const { proteinG, fatG, carbsG } = calculateMacros(targetCalories, weightKg, gender);
@@ -210,6 +220,7 @@ export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
     workoutDaysPerWeek: metrics.trainingDaysPerWeek,
     goal: toCalorieGoal(metrics.goal, metrics.goalIntensity),
     tdeeAdjustmentKcal: metrics.tdeeAdjustmentKcal,
+    targetAdjustmentKcal: metrics.targetAdjustmentKcal,
   });
 
   return {

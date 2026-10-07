@@ -57,7 +57,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
 - מטרה: ${GOAL_LABELS[metrics.goal] ?? metrics.goal}
 - ימי אימון בשבוע: ${metrics.trainingDaysPerWeek}
 - מקום האימון: ${trainingPlaceText(metrics)}
-${metrics.tdeeAdjustmentKcal ? `- התאמה אישית של השריפה (TDEE) לפי המשקל והאכילה שלו: ${metrics.tdeeAdjustmentKcal > 0 ? '+' : ''}${metrics.tdeeAdjustmentKcal} קק"ל ביום\n` : ''}- ממוצע צעדים יומי: ${metrics.averageDailySteps}, צעדים שנצברו היום: ${stepsToday}
+${metrics.targetAdjustmentKcal ? `- התאמת יעד לפי מגמת המשקל: ${metrics.targetAdjustmentKcal > 0 ? 'תוספת' : 'הפחתה'} של ${Math.abs(metrics.targetAdjustmentKcal)} קק"ל ביום\n` : ''}${metrics.tdeeAdjustmentKcal ? `- התאמה אישית של השריפה (TDEE) לפי המשקל והאכילה שלו: ${metrics.tdeeAdjustmentKcal > 0 ? '+' : ''}${metrics.tdeeAdjustmentKcal} קק"ל ביום\n` : ''}- ממוצע צעדים יומי: ${metrics.averageDailySteps}, צעדים שנצברו היום: ${stepsToday}
 
 ## יעד תזונתי יומי (מחושב אוטומטית לפי הפרופיל)
 ${rangeLine(nutritionPlan)}- קלוריות להיום: ${todayTargets.calories}${todayTargets.reductionKcal > 0 ? ` (יעד בסיס ${nutritionPlan.targetCalories}, מופחת זמנית באיזון שבועי)` : ''} (BMR: ${nutritionPlan.bmr}, TDEE: ${nutritionPlan.tdee})

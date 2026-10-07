@@ -35,6 +35,7 @@ import { suggestSplitType } from './data/workoutTemplates';
 import { buildWorkoutProgram, trainingSetupChanged } from './utils/programSelection';
 import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
 import { applyTdeeAdjustment } from './utils/calibration';
+import { applyTargetAdjustment } from './utils/targetCheck';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
 import type { BulkWeightEntry } from './utils/bulkWeightParser';
 import { distributeProgramSchedule, isDayCompleted, pruneStaleSchedule } from './utils/scheduleHelpers';
@@ -319,6 +320,11 @@ export default function App() {
         },
       };
     });
+  }
+
+  /** Accepts a calorie correction suggested by the weight-trend check: recalculates the target, range and macros, and restarts the check from today. */
+  function handleApplyTargetAdjustment(deltaKcal: number) {
+    setAppState((prev) => (prev ? applyTargetAdjustment(prev, deltaKcal, todayIso()) : prev));
   }
 
   /** Sets (or clears, with 0) the personal TDEE correction from the calibration card and recalculates the calorie and macro targets. */
@@ -621,6 +627,7 @@ export default function App() {
         onUpdatePhoto={handleUpdatePhoto}
         onApplyCalorieAdjustment={handleApplyCalorieAdjustment}
         onSetTdeeAdjustment={handleSetTdeeAdjustment}
+        onApplyTargetAdjustment={handleApplyTargetAdjustment}
         onQuickCompleteDay={handleQuickCompleteDay}
         onUndoCompleteDay={handleUndoCompleteDay}
         onSetSchedule={handleSetSchedule}

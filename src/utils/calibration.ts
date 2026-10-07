@@ -1,5 +1,6 @@
 import type { AppState, FoodEntry, WeightLog } from '../types/fitness';
 import { calculateNutritionPlan } from './calculations';
+import { dayIndex, fitWeightTrend, spanDays as spanOf, weighInPoints } from './weightTrend';
 
 /**
  * Personal calibration of the daily energy expenditure (TDEE).
@@ -20,8 +21,8 @@ import { calculateNutritionPlan } from './calculations';
 export const MAX_TDEE_ADJUSTMENT_KCAL = 500;
 
 /** Energy per kg of weight lost (mostly fat) and of weight gained (a mix of lean tissue and fat), with how uncertain each figure is. */
-const KCAL_PER_KG_LOST = 7700;
-const KCAL_PER_KG_GAINED = 5500;
+export const KCAL_PER_KG_LOST = 7700;
+export const KCAL_PER_KG_GAINED = 5500;
 const KCAL_PER_KG_LOST_SD = 800;
 const KCAL_PER_KG_GAINED_SD = 1500;
 const WINDOW_DAYS = 28;
@@ -40,10 +41,8 @@ const ROUND_TO_KCAL = 25;
 /** Smaller changes than this are not worth interrupting the user for. */
 const MIN_WORTH_CHANGE_KCAL = 75;
 
-const dayIndex = (iso: string): number => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
-};
+/** The ISO date for a day number from dayIndex. */
+const isoOf = (day: number): string => new Date(day * 86_400_000).toISOString().slice(0, 10);
 
 export interface CalibrationProgress {
   status: 'collecting';
@@ -77,27 +76,18 @@ export function observeTdee(foodLog: FoodEntry[], weightLogs: WeightLog[], today
   }
   const fullDays = [...intakeByDay.values()].filter((kcal) => kcal >= MIN_FULL_DAY_KCAL);
 
-  const weightByDay = new Map<number, number[]>();
-  for (const w of weightLogs) {
-    const day = dayIndex(w.date);
-    if (day >= start && day <= end) weightByDay.set(day, [...(weightByDay.get(day) ?? []), w.weightKg]);
-  }
-  const points = [...weightByDay.entries()].map(([day, kg]) => ({ t: day, w: kg.reduce((a, b) => a + b, 0) / kg.length }));
-  const spanDays = points.length > 0 ? Math.max(...points.map((p) => p.t)) - Math.min(...points.map((p) => p.t)) : 0;
+  const points = weighInPoints(weightLogs, isoOf(start), isoOf(end));
+  const spanDays = spanOf(points);
 
   if (fullDays.length < MIN_LOGGED_DAYS || points.length < MIN_WEIGH_INS || spanDays < MIN_SPAN_DAYS) {
     return { status: 'collecting', loggedDays: fullDays.length, weighIns: points.length, spanDays };
   }
 
   // Least-squares line through the weigh-ins: its slope is the weight change per day, and the scatter around it gives the uncertainty.
+  const trend = fitWeightTrend(points);
+  if (!trend) return { status: 'collecting', loggedDays: fullDays.length, weighIns: points.length, spanDays };
+  const { slopePerDay: slope, slopeSe } = trend;
   const n = points.length;
-  const meanT = points.reduce((a, p) => a + p.t, 0) / n;
-  const meanW = points.reduce((a, p) => a + p.w, 0) / n;
-  const sxx = points.reduce((a, p) => a + (p.t - meanT) ** 2, 0);
-  const slope = points.reduce((a, p) => a + (p.t - meanT) * (p.w - meanW), 0) / sxx;
-  const intercept = meanW - slope * meanT;
-  const sse = points.reduce((a, p) => a + (p.w - (intercept + slope * p.t)) ** 2, 0);
-  const slopeSe = Math.sqrt(sse / (n - 2) / sxx);
 
   const avgIntake = fullDays.reduce((a, b) => a + b, 0) / fullDays.length;
   const kcalPerKg = slope > 0 ? KCAL_PER_KG_GAINED : KCAL_PER_KG_LOST;
