@@ -58,6 +58,7 @@ Most tracking apps share the same weaknesses:
 **Nutrition**
 - Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros. The calorie target is a **range**, not one number: because TDEE is an estimate (about 8% either way), a surplus goal starts from the low end and a deficit goal from the high end, so following the app cannot push anyone the wrong way if the estimate is off.
 - **Weight-trend check (no food logging needed):** after two to three weeks of weigh-ins, the weekly average is compared with the pace the goal calls for; when it is clearly off, the app suggests adding or removing 100-300 kcal. The user can accept, change the amount or ignore it, and accepting moves the whole calorie range and macros and restarts the check. If logged food shows the target was simply not followed, it says so instead.
+- **Manual calorie adjustment:** the daily target can be nudged by hand in steps of 50 kcal (up to 600 either way, never below BMR) to try a different amount when the weight is not moving. It moves the whole range, the macros, the weekly budget and the coach's context together, shows the adjustment on every screen that offers it, and restarts the weight-trend check from that day so the app can say whether the change worked.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
 - Weekly calorie budget (with a recommended intake for today that uses the same step credit) and rebalancing options after an overshoot. The screens follow the clock, so a day change at midnight moves everything to the new day. The week is judged as a whole: an overshoot that the week's calorie balance so far already covers, after the week's walking is counted against the step goal (steps above it add calories, completed days below it take them away, counted once for the whole week), is shown as covered, with how many more kcal can be eaten and still stay balanced. The week's average steps are also compared with the step average the target assumes, and the app says how much more (or less) to eat when the person walks more (or less) than planned.
@@ -127,7 +128,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-334 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+335 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |

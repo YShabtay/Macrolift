@@ -131,8 +131,8 @@ export interface UserMetrics {
   /** Personal correction (kcal per day, positive or negative) added to the formula's TDEE after calibrating against the user's weight trend; omitted means none. */
   tdeeAdjustmentKcal?: number;
   /**
-   * A correction (kcal per day, positive or negative) the user accepted after the weight trend showed the target was off: it moves the whole calorie
-   * range and the target. Omitted means none. Set together with targetAdjustmentDate, the day it was accepted, from which the next check starts.
+   * A correction (kcal per day, positive or negative) the user accepted after the weight trend showed the target was off, or set by hand to try a
+   * different amount: it moves the whole calorie range and the target. Omitted means none. Set together with targetAdjustmentDate, the day it was accepted, from which the next check starts.
    */
   targetAdjustmentKcal?: number;
   targetAdjustmentDate?: string;

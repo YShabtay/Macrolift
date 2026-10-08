@@ -134,6 +134,15 @@ describe('applyTargetAdjustment', () => {
     expect(undone.nutritionPlan.targetCalories).toBe(state.nutritionPlan.targetCalories);
   });
 
+  it('a manual set to an absolute amount (applied as the difference) lands exactly there and restarts the weight-trend check', () => {
+    const at150 = applyTargetAdjustment(state, 150, '2026-10-01');
+    const to50 = applyTargetAdjustment(at150, 50 - (at150.profile.metrics.targetAdjustmentKcal ?? 0), TODAY);
+    expect(to50.profile.metrics.targetAdjustmentKcal).toBe(50);
+    expect(getCheckStart(to50.profile.metrics, state.profile.createdAt)).toBe(TODAY);
+    const reset = applyTargetAdjustment(to50, 0 - (to50.profile.metrics.targetAdjustmentKcal ?? 0), TODAY);
+    expect(reset.nutritionPlan).toEqual(state.nutritionPlan);
+  });
+
   it('keeps a correction within the limit', () => {
     expect(applyTargetAdjustment(state, 5000, TODAY).profile.metrics.targetAdjustmentKcal).toBe(MAX_TARGET_ADJUSTMENT_KCAL);
   });

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useToday } from '../hooks/useToday';
+import CalorieAdjustControl from './CalorieAdjustControl';
 import { createPortal } from 'react-dom';
 import {
   Beef,
@@ -23,7 +24,7 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, StepLog, UserMetrics, WeeklyBalanceAdjustment } from '../types/fitness';
 import QuickFoodShortcuts from './QuickFoodShortcuts';
 import WeekStrip, { type WeekStripDay } from './WeekStrip';
 import WeeklyCalorieCard from './WeeklyCalorieCard';
@@ -73,6 +74,9 @@ interface FoodTrackerProps {
   stepLogs: StepLog[];
   baseStepGoal: number;
   weightKg: number;
+  /** The profile, for the manual calorie adjustment, and what applies it (adds kcal to the daily target; negative removes). */
+  metrics: UserMetrics;
+  onApplyTargetAdjustment: (deltaKcal: number) => void;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
@@ -97,7 +101,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const today = useToday();
@@ -215,6 +219,11 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (
         <p className="-mb-2 text-center text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>
+      )}
+      {isToday && (
+        <div className="-mb-2 flex justify-center">
+          <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
+        </div>
       )}
       <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} covered={isCovered} />
 

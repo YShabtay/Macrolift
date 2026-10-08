@@ -39,6 +39,7 @@ import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';
 import WeightTargetCard from './WeightTargetCard';
+import CalorieAdjustControl from './CalorieAdjustControl';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { describeCoverage, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
@@ -431,6 +432,8 @@ export default function Dashboard({
               stepLogs={appState.stepLogs}
               baseStepGoal={getBaseStepGoal(appState)}
               weightKg={appState.profile.metrics.weightKg}
+              metrics={appState.profile.metrics}
+              onApplyTargetAdjustment={onApplyTargetAdjustment}
               onOpenRebalance={() => selectTab('dashboard')}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
@@ -765,6 +768,7 @@ function DashboardTab({
           stepSurplus={stepSurplus}
           tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
+          onApplyTargetAdjustment={onApplyTargetAdjustment}
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
         />
@@ -1108,6 +1112,7 @@ function NutritionCard({
   stepSurplus,
   tomorrowReductionKcal,
   onOpenRebalance,
+  onApplyTargetAdjustment,
   eaten,
   onOpenDailyMeals,
 }: {
@@ -1124,6 +1129,7 @@ function NutritionCard({
   /** Calories the weekly rebalance will take off tomorrow's target (0 if none). */
   tomorrowReductionKcal: number;
   onOpenRebalance: () => void;
+  onApplyTargetAdjustment: (deltaKcal: number) => void;
   eaten: DailyTotals;
   onOpenDailyMeals: () => void;
 }) {
@@ -1163,7 +1169,10 @@ function NutritionCard({
         </>
       )}
       <div className="mb-3 mt-1.5">
-        <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
+          <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
+        </div>
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
         )}
@@ -1745,6 +1754,10 @@ function ProgressTab({
         onSetTarget={(targetKg) => onUpdateProfileFull({ targetWeightKg: targetKg ?? undefined })}
         onSwitchToMaintain={() => onUpdateProfileFull({ goal: 'maintain', goalIntensity: undefined, bulkingPlan: undefined })}
       />
+
+      <div className="flex justify-center">
+        <CalorieAdjustControl metrics={progressMetrics} onApply={onApplyTargetAdjustment} />
+      </div>
 
       {!targetReached && (
         <TargetCheckCard

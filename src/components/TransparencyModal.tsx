@@ -114,7 +114,11 @@ export default function TransparencyModal({ metrics, nutritionPlan, variant = 'b
                 <ExplanationSection
                   icon={Target}
                   title="הגירעון / העודף הקלורי"
-                  text={getGoalExplanation(metrics, nutritionPlan)}
+                  text={`${getGoalExplanation(metrics, nutritionPlan)}${
+                    metrics.targetAdjustmentKcal
+                      ? ` בנוסף יש התאמה אישית של ${metrics.targetAdjustmentKcal > 0 ? '+' : '-'}${Math.abs(metrics.targetAdjustmentKcal)} קק״ל ליום, שהתקבלה מהצעת מגמת המשקל או נקבעה ידנית, והיא כבר כלולה ביעד ובטווח.`
+                      : ''
+                  }`}
                 />
                 <ExplanationSection
                   icon={PieChart}
