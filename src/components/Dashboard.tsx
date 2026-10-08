@@ -40,6 +40,7 @@ import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';
 import WeightTargetCard from './WeightTargetCard';
 import CalorieAdjustControl from './CalorieAdjustControl';
+import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { describeCoverage, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
@@ -739,6 +740,13 @@ function DashboardTab({
         completedDates={completedDates}
         onSelectDay={setEditingDay}
         onNavigate={onOpenWorkoutCalendar}
+      />
+
+      <ProfileWeightSyncCard
+        metrics={profile.metrics}
+        weightLogs={weightLogs}
+        nutritionPlan={nutritionPlan}
+        onApply={(weightKg) => onUpdateProfileFull({ weightKg })}
       />
 
       <WeightTargetCard

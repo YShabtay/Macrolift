@@ -29,6 +29,11 @@ Built by a 3rd-year Industrial Engineering & Management student (Information Sys
     <td align="center"><img src="docs/screenshots/05-weight-trend.jpg" width="220" alt="Weight trend"><br><sub><b>Weight trend</b><br>weekly averages instead of daily noise</sub></td>
     <td align="center"><img src="docs/screenshots/06-ai-coach.jpg" width="220" alt="AI coach"><br><sub><b>AI coach</b><br>answers based on your plan and today's intake</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/07-target-weight.jpg" width="220" alt="Target weight and trend check"><br><sub><b>Target weight</b><br>progress on the weekly average and a time estimate</sub></td>
+    <td align="center"><img src="docs/screenshots/08-manual-calories.jpg" width="220" alt="Manual calorie adjustment"><br><sub><b>Calorie experiment</b><br>nudge the target by hand, then let the trend check judge it</sub></td>
+    <td align="center"><img src="docs/screenshots/09-auto-backup.jpg" width="220" alt="Automatic on-device backups"><br><sub><b>Automatic backups</b><br>daily copies on the device, restore in one tap</sub></td>
+  </tr>
 </table>
 
 ---
@@ -58,6 +63,7 @@ Most tracking apps share the same weaknesses:
 **Nutrition**
 - Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros. The calorie target is a **range**, not one number: because TDEE is an estimate (about 8% either way), a surplus goal starts from the low end and a deficit goal from the high end, so following the app cannot push anyone the wrong way if the estimate is off.
 - **Weight-trend check (no food logging needed):** after two to three weeks of weigh-ins, the weekly average is compared with the pace the goal calls for; when it is clearly off, the app suggests adding or removing 100-300 kcal. The user can accept, change the amount or ignore it, and accepting moves the whole calorie range and macros and restarts the check. If logged food shows the target was simply not followed, it says so instead.
+- **Profile weight stays in step with the scale:** targets, protein and the calories from steps are computed from the profile weight, so when two weekly averages in a row sit about 2 kg (or 3%) away from it the app offers to update it and shows what the target would become. It never changes silently, because an automatic update would move the target every week.
 - **Manual calorie adjustment:** the daily target can be nudged by hand in steps of 50 kcal (up to 600 either way, never below BMR) to try a different amount when the weight is not moving. It moves the whole range, the macros, the weekly budget and the coach's context together, shows the adjustment on every screen that offers it, and restarts the weight-trend check from that day so the app can say whether the change worked.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
@@ -128,7 +134,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-335 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+340 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -140,6 +146,7 @@ npm test
 | Overshoot coverage and step credit (`overshoot`, `stepCredit`) | The week judged as a whole with one signed step credit shared by every calorie card: steps above the goal add, finished days below it subtract, the day in progress only adds, days without step data are skipped; covered by the weekly balance or by steps, the room left and the point where it runs out |
 | Step surplus (`stepSurplus`) | The week's average steps against the average the target assumes: eat more when walking more, less when walking less, in kcal by body weight; quiet without two completed days or when the difference is small; slow days count against fast ones |
 | Target weight (`weightTarget`) | Validation against the goal and BMI, progress on the weekly average, start weight bookkeeping, time estimate from the measured pace or the planned one, reached only after two weeks in a row, a trend moving away, survival through backup restore |
+| Profile weight sync (`profileWeightSync`) | Two weekly averages in a row on the same side of the profile weight before suggesting, quiet for one odd week or small drift, the week in progress and single-weigh-in weeks ignored |
 | Weight-trend check (`targetCheck`) | Waiting for enough weigh-ins, suggesting calories for a flat or too-fast weekly average per goal (bulk, cut), leaving an on-pace trend alone, not acting on a noisy one, telling apart a wrong target from an unfollowed one, applying and cancelling a correction |
 | Calibration (`calibration`) | Measuring maintenance from intake and the weight trend, ignoring partly logged days and out-of-window data, asking for more data instead of guessing, trusting a noisy trend less, capping the correction |
 | Gym programs by experience (`workoutAdaptation`, `programSelection`) | Beginner, intermediate and advanced selections differ where intended, a missing experience is left untouched, every beginner swap is a listed beginner-level option, weekly sets per muscle (and the 12-16 range for the big four) stay identical in every template, no exercise repeats in a session, swaps are revertible, injury swaps win, and the current split never changes the program |
