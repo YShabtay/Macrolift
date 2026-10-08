@@ -33,7 +33,7 @@ import BarcodeScanner from './BarcodeScanner';
 import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
-import { getDailyTargets } from '../utils/weeklyBalance';
+import { KCAL_PER_1000_STEPS, getBonusStepDays, getDailyTargets } from '../utils/weeklyBalance';
 import { describeCoverage, describeRoom, getOvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus } from '../utils/stepSurplus';
 import BalancedRing from './BalancedRing';
@@ -116,9 +116,14 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const recentFoods = useMemo(() => getRecentFoods(foodLog), [foodLog]);
+  // Steps walked above the goal this week already burned energy, so the pace for today counts them like the coverage check does.
+  const stepCreditKcal = useMemo(
+    () => (getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, today).reduce((sum, d) => sum + d.steps, 0) * KCAL_PER_1000_STEPS) / 1000,
+    [stepLogs, baseStepGoal, weeklyBalance, today],
+  );
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal),
+    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);

@@ -19,13 +19,15 @@ export interface WeeklyCalorieBudget {
   /** Past days of the week with nothing logged. The suggested pace treats them as days that met their target, so an untracked day never inflates it. */
   unloggedDays: number;
   /** Only for the week containing today: the suggested intake for today - what's left of the budget before today, spread over the days left. */
-  pace: { kcal: number; target: number; daysLeft: number; clamped: 'up' | 'down' | null } | null;
+  pace: { kcal: number; target: number; daysLeft: number; clamped: 'up' | 'down' | null; stepCreditKcal: number } | null;
   isCurrentWeek: boolean;
 }
 
 /**
  * Weekly calorie budget for the week containing `date`. For the current week it also suggests today's intake: the budget left after the
  * days before today, divided by the days remaining, kept within 15% of today's own target and never below the user's BMR.
+ * `stepCreditKcal` is what the week's extra steps already burned: it is added back to the budget, so the pace agrees with the
+ * "overshoot is covered" check, which counts those same steps.
  */
 export function getWeeklyCalorieBudget(
   foodLog: FoodEntry[],
@@ -33,6 +35,7 @@ export function getWeeklyCalorieBudget(
   adjustment: WeeklyBalanceAdjustment | undefined,
   date: string,
   today: string,
+  stepCreditKcal = 0,
 ): WeeklyCalorieBudget {
   const weekStart = getWeekStart(date);
   const weekEnd = getWeekEnd(date);
@@ -64,11 +67,12 @@ export function getWeeklyCalorieBudget(
   if (isCurrentWeek) {
     const daysLeft = 7 - daysBetween(weekStart, today);
     const target = getDailyTargets(plan, adjustment, today).calories;
-    const raw = (weeklyTarget - assumedBeforeToday) / daysLeft;
+    const credit = Math.max(Math.round(stepCreditKcal), 0);
+    const raw = (weeklyTarget - assumedBeforeToday + credit) / daysLeft;
     const low = Math.max(target * (1 - PACE_FLEX), plan.bmr);
     const high = target * (1 + PACE_FLEX);
     const kcal = Math.round(Math.min(Math.max(raw, low), Math.max(high, low)));
-    pace = { kcal, target, daysLeft, clamped: raw < low ? 'down' : raw > high ? 'up' : null };
+    pace = { kcal, target, daysLeft, clamped: raw < low ? 'down' : raw > high ? 'up' : null, stepCreditKcal: credit };
   }
 
   return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };

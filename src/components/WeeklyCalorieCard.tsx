@@ -39,6 +39,7 @@ export default function WeeklyCalorieCard({ budget }: { budget: WeeklyCalorieBud
           <br />
           <span className="text-zinc-600 dark:text-zinc-400">
             מה שנשאר מהתקציב אחרי הימים הקודמים, מחולק על {budget.pace.daysLeft} {budget.pace.daysLeft === 1 ? 'יום' : 'ימים'}.
+            {budget.pace.stepCreditKcal > 0 && ` כולל קיזוז של כ-${budget.pace.stepCreditKcal.toLocaleString()} קק״ל שכבר נשרפו בצעדי בונוס השבוע.`}
             {budget.pace.clamped === 'up' && ' הוגבל ל-15% מעל היעד: לא כדאי "לפצות" על ימי אכילה קלה בבת אחת.'}
             {budget.pace.clamped === 'down' && ' הוגבל כדי לא לרדת מתחת לחילוף החומרים הבסיסי או מתחת ל-85% מהיעד.'}
           </span>
