@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Dumbbell } from 'lucide-react';
 import Auth from './components/Auth';
 import { clearSession, getSessionUserId } from './utils/authStorage';
-import Onboarding from './components/Onboarding';
+const Onboarding = lazy(() => import('./components/Onboarding'));
 import Dashboard from './components/Dashboard';
-import AICoachDrawer from './components/AICoachDrawer';
+const AICoachDrawer = lazy(() => import('./components/AICoachDrawer'));
 import { sanitizeAppState } from './utils/dataMigration';
 import { ensureGuestSession, restoreProfileFromSnapshot } from './utils/localProfiles';
 import { hasMeaningfulData, snapshotStore, type Snapshot } from './services/snapshotStore';
@@ -13,6 +13,7 @@ import SnapshotRestorePrompt, { UndoResetBar } from './components/SnapshotRestor
 import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
+import { useToday } from './hooks/useToday';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -116,6 +117,8 @@ function applyCustomPlanToState(prev: AppState, plan: WorkoutPlan): AppState {
 }
 
 export default function App() {
+  // Re-renders the whole tree when the day changes, so no screen keeps showing yesterday's date-based numbers until something else triggers it.
+  useToday();
   const [isBooting, setIsBooting] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -676,7 +679,9 @@ export default function App() {
     return (
       <>
         <UpdatePrompt />
-        <Onboarding onComplete={handleOnboardingComplete} />
+        <Suspense fallback={<BootScreen />}>
+          <Onboarding onComplete={handleOnboardingComplete} />
+        </Suspense>
         {restorePrompt}
         {!restoreOffer && undoResetSnapshot && <UndoResetBar onUndo={async () => {
           await handleRestoreSnapshot(undoResetSnapshot);
@@ -728,7 +733,9 @@ export default function App() {
         onReset={handleReset}
         onLogout={handleLogout}
       />
-      <AICoachDrawer appState={appState} userId={userId} onAddFood={handleAddFood} />
+      <Suspense fallback={null}>
+        <AICoachDrawer appState={appState} userId={userId} onAddFood={handleAddFood} />
+      </Suspense>
       {restorePrompt}
     </PullToRefresh>
   );

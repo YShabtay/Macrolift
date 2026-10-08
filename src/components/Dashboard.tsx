@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -52,7 +52,7 @@ import WeightTracker from './WeightTracker';
 import ProgressPhotos from './ProgressPhotos';
 import TransparencyModal from './TransparencyModal';
 import WorkoutCalendar from './WorkoutCalendar';
-import Academy from './Academy';
+const Academy = lazy(() => import('./Academy'));
 import FoodTracker from './FoodTracker';
 import Settings from './Settings';
 import { ThemeToggleButton } from './ThemeToggle';
@@ -465,7 +465,11 @@ export default function Dashboard({
               onUpdateProfileFull={onUpdateProfileFull}
             />
           )}
-          {tab === 'academy' && <Academy />}
+          {tab === 'academy' && (
+            <Suspense fallback={null}>
+              <Academy />
+            </Suspense>
+          )}
           {tab === 'profile' && (
             <ProfileTab
               appState={appState}

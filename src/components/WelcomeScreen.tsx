@@ -37,7 +37,7 @@ export default function WelcomeScreen({
   return (
     // Phone: the photo fills the screen behind the content. Desktop (md+): the screen splits in half - content on one side, the photo in a frame on the other.
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-zinc-950 text-white md:grid md:grid-cols-2">
-      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%] md:hidden" fetchPriority="high" />
+      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_30%] md:hidden" {...{ fetchpriority: 'high' }} />
       {/* Darkens the bright windows at the top and builds a calm, readable base for the text and buttons. */}
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/10 to-zinc-950/10 md:hidden" />
       <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent md:hidden" />
