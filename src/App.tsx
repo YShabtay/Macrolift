@@ -14,6 +14,8 @@ import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
 import { useToday } from './hooks/useToday';
+import { chooseStepAllowance } from './utils/stepAllowance';
+import { getBaseStepGoal } from './utils/stepGoalSync';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -622,6 +624,15 @@ export default function App() {
     });
   }
 
+  /** Puts the week's net step credit on today and the next days (days = 1: today only), or with null shares it over every day left. */
+  function handleChooseStepAllowance(days: number | null) {
+    setAppState((prev) =>
+      prev
+        ? { ...prev, weeklyBalance: chooseStepAllowance({ adjustment: prev.weeklyBalance, stepLogs: prev.stepLogs, baseStepGoal: getBaseStepGoal(prev), today: todayIso(), days }) }
+        : prev,
+    );
+  }
+
   function handleSaveCustomPlan(plan: WorkoutPlan) {
     setAppState((prev) => (prev ? applyCustomPlanToState(prev, plan) : prev));
   }
@@ -728,6 +739,7 @@ export default function App() {
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
+        onChooseStepAllowance={handleChooseStepAllowance}
         userId={userId}
         onRestoreSnapshot={handleRestoreSnapshot}
         onReset={handleReset}

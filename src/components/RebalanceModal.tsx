@@ -72,8 +72,9 @@ export default function RebalanceModal({ options, balance, coverage, baseStepGoa
           {(coverage.bonusSteps > 0 || coverage.shortfallSteps > 0) && (
             <p className="mt-1">
               הצעדים השבוע: {coverage.bonusSteps.toLocaleString()} מעל היעד
-              {coverage.shortfallSteps > 0 ? `, ${coverage.shortfallSteps.toLocaleString()} פחות מהיעד בימים אחרים` : ''} - נטו {coverage.stepsKcal >= 0 ? 'קוזזו' : 'נוספו'} כ-
-              {Math.abs(coverage.stepsKcal).toLocaleString()} קק״ל.
+              {coverage.shortfallSteps > 0 ? `, ${coverage.shortfallSteps.toLocaleString()} פחות מהיעד בימים אחרים` : ''} - נטו שווים כ-
+              {Math.abs(coverage.stepsKcal + coverage.stepAllowanceSpentKcal).toLocaleString()} קק״ל
+              {coverage.stepAllowanceSpentKcal > 0 ? `, ומתוכם ${coverage.stepAllowanceSpentKcal.toLocaleString()} כבר הוספת ליעד של הימים שבחרת` : ''}.
             </p>
           )}
           <p className="mt-1 font-bold text-zinc-900 dark:text-zinc-100">נותרו לאזן: {excessKcal.toLocaleString()} קק״ל.</p>

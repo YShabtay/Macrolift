@@ -38,7 +38,21 @@ describe('getDailyTargets', () => {
   const adjustment: WeeklyBalanceAdjustment = { weekStart: SUNDAY, calorie: { reductionKcal: 180, fromDate: TUESDAY } };
 
   it('returns the base plan with no adjustment', () => {
-    expect(getDailyTargets(plan, undefined, WEDNESDAY)).toEqual({ calories: 2500, macros: plan.macros, reductionKcal: 0 });
+    expect(getDailyTargets(plan, undefined, WEDNESDAY)).toEqual({ calories: 2500, macros: plan.macros, reductionKcal: 0, allowanceKcal: 0 });
+  });
+
+  it('adds a step allowance to that day only, all of it to carbs, and ignores one saved for another week', () => {
+    const withAllowance = { weekStart: SUNDAY, stepAllowance: { [WEDNESDAY]: 120 } };
+    const t = getDailyTargets(plan, withAllowance, WEDNESDAY);
+    expect(t).toMatchObject({ calories: 2620, allowanceKcal: 120, reductionKcal: 0 });
+    expect(t.macros).toEqual({ ...plan.macros, carbsG: plan.macros.carbsG + 30 });
+    expect(getDailyTargets(plan, withAllowance, MONDAY).allowanceKcal).toBe(0);
+    expect(getDailyTargets(plan, { ...withAllowance, weekStart: '2026-09-27' }, WEDNESDAY).allowanceKcal).toBe(0);
+  });
+
+  it('stacks with a rebalance reduction instead of replacing it', () => {
+    const both = { weekStart: SUNDAY, calorie: { reductionKcal: 100, fromDate: MONDAY }, stepAllowance: { [WEDNESDAY]: 120 } };
+    expect(getDailyTargets(plan, both, WEDNESDAY).calories).toBe(2500 - 100 + 120);
   });
 
   it('does not touch days before the reduction starts', () => {

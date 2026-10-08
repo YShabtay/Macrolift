@@ -77,6 +77,8 @@ interface FoodTrackerProps {
   /** The profile, for the manual calorie adjustment, and what applies it (adds kcal to the daily target; negative removes). */
   metrics: UserMetrics;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
+  /** Puts the week's step credit on today and the next days (1 = today only), or with null shares it over every day left. */
+  onChooseStepAllowance: (days: number | null) => void;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
@@ -101,7 +103,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, metrics, onApplyTargetAdjustment, onChooseStepAllowance, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const today = useToday();
@@ -126,11 +128,9 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
     () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: today }).netKcal,
     [stepLogs, baseStepGoal, weeklyBalance, today],
   );
-  // Over how many of the days left to use a positive step credit (null = all of them); a view choice, so it is not stored.
-  const [creditSpreadDays, setCreditSpreadDays] = useState<number | null>(null);
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal, creditSpreadDays ?? undefined),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal, creditSpreadDays],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal),
+    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);
@@ -219,6 +219,11 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </div>
       </div>
 
+      {targets.allowanceKcal > 0 && (
+        <p className="-mb-2 text-center text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+          יעד היום כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד
+        </p>
+      )}
       {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (
         <p className="-mb-2 text-center text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>
       )}
@@ -249,7 +254,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </button>
       )}
 
-      <WeeklyCalorieCard budget={calorieBudget} onChangeCreditSpread={setCreditSpreadDays} />
+      <WeeklyCalorieCard budget={calorieBudget} onChooseAllowance={isToday ? onChooseStepAllowance : undefined} />
 
 
       <button

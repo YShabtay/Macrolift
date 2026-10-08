@@ -227,6 +227,15 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   else delete state.completedWorkoutDates;
 
   if (!(isObject(raw.weeklyBalance) && isIsoDate(raw.weeklyBalance.weekStart))) delete state.weeklyBalance;
+  else if (state.weeklyBalance) {
+    // A saved step allowance is a date -> kcal map; anything else (or an entry that is not a sane positive number) is dropped.
+    const allowance = raw.weeklyBalance.stepAllowance;
+    const clean = isObject(allowance)
+      ? Object.fromEntries(Object.entries(allowance).filter((entry): entry is [string, number] => isIsoDate(entry[0]) && typeof entry[1] === 'number' && Number.isFinite(entry[1]) && entry[1] > 0 && entry[1] <= 2000))
+      : {};
+    if (Object.keys(clean).length > 0) state.weeklyBalance = { ...state.weeklyBalance, stepAllowance: clean };
+    else delete state.weeklyBalance.stepAllowance;
+  }
 
   (state as AppState & { schemaVersion?: number }).schemaVersion = SCHEMA_VERSION;
   return state;

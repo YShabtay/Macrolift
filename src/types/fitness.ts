@@ -398,6 +398,12 @@ export interface AppState {
 export interface WeeklyBalanceAdjustment {
   /** Sunday of the week this applies to. */
   weekStart: string;
+  /**
+   * Calories from the week's extra steps that the user chose to eat on specific days (date -> kcal added to that day's target). The extra steps already
+   * burned that energy, so this moves it into the day's target instead of leaving it as a loose credit; the days before today keep their entry so the
+   * past is never rewritten.
+   */
+  stepAllowance?: Record<string, number>;
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */

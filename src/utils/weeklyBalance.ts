@@ -30,30 +30,52 @@ export interface DailyTargets {
   macros: MacroGrams;
   /** How many kcal the temporary rebalance took off this day's base target (0 normally). */
   reductionKcal: number;
+  /** How many kcal of the week's extra steps the user chose to add to this day (0 normally). Already included in `calories` and in the carbs. */
+  allowanceKcal: number;
+}
+
+/** The kcal of extra-step energy the user put on this date (0 when none, or when the saved choice belongs to another week). */
+export function getStepAllowanceKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+  const kcal = getActiveAdjustment(adjustment, date)?.stepAllowance?.[date];
+  return kcal && kcal > 0 ? Math.round(kcal) : 0;
+}
+
+/** The step allowances put on the days from the start of the week through `upTo` (the part of the step credit already spent), or all of the week's when omitted. */
+export function sumStepAllowance(adjustment: WeeklyBalanceAdjustment | undefined, date: string, upTo?: string): number {
+  const active = getActiveAdjustment(adjustment, date);
+  if (!active?.stepAllowance) return 0;
+  return Object.entries(active.stepAllowance).reduce((sum, [day, kcal]) => (kcal > 0 && day >= active.weekStart && (!upTo || day <= upTo) ? sum + Math.round(kcal) : sum), 0);
 }
 
 /**
  * The calorie/macro target for one date. The base plan unless a rebalance reduction covers that date (same week, on or after its
- * start date); the cut comes out of fat and carbs in proportion to their calories, protein stays put.
+ * start date); the cut comes out of fat and carbs in proportion to their calories, protein stays put. A step allowance the user put on
+ * the date is added on top, all of it to carbs (4 kcal/g), since protein and fat are what usually run over.
  */
 export function getDailyTargets(plan: NutritionPlan, adjustment: WeeklyBalanceAdjustment | undefined, date: string): DailyTargets {
   const active = getActiveAdjustment(adjustment, date);
   const reduction = active?.calorie && date >= active.calorie.fromDate ? active.calorie.reductionKcal : 0;
-  if (reduction <= 0) return { calories: plan.targetCalories, macros: plan.macros, reductionKcal: 0 };
+  const allowance = getStepAllowanceKcal(adjustment, date);
 
-  const fatKcal = plan.macros.fatG * 9;
-  const carbKcal = plan.macros.carbsG * 4;
-  const flexKcal = fatKcal + carbKcal;
-  const fatShare = flexKcal > 0 ? fatKcal / flexKcal : 0.5;
-  return {
-    calories: plan.targetCalories - reduction,
-    macros: {
+  let calories = plan.targetCalories;
+  let macros = plan.macros;
+  if (reduction > 0) {
+    const fatKcal = plan.macros.fatG * 9;
+    const carbKcal = plan.macros.carbsG * 4;
+    const flexKcal = fatKcal + carbKcal;
+    const fatShare = flexKcal > 0 ? fatKcal / flexKcal : 0.5;
+    calories = plan.targetCalories - reduction;
+    macros = {
       proteinG: plan.macros.proteinG,
       fatG: Math.max(Math.round(plan.macros.fatG - (reduction * fatShare) / 9), 0),
       carbsG: Math.max(Math.round(plan.macros.carbsG - (reduction * (1 - fatShare)) / 4), 0),
-    },
-    reductionKcal: reduction,
-  };
+    };
+  }
+  if (allowance > 0) {
+    calories += allowance;
+    macros = { ...macros, carbsG: macros.carbsG + Math.round(allowance / 4) };
+  }
+  return { calories, macros, reductionKcal: Math.max(reduction, 0), allowanceKcal: allowance };
 }
 
 export interface StepBoostBreakdown {

@@ -1,7 +1,7 @@
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
 import { addDaysIso } from './dateMath';
 import { sumTotals } from './nutritionLog';
-import { getDailyTargets } from './weeklyBalance';
+import { getDailyTargets, getStepAllowanceKcal } from './weeklyBalance';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
@@ -10,7 +10,7 @@ export const PACE_FLEX = 0.15;
 export interface WeeklyCalorieBudget {
   weekStart: string;
   weekEnd: string;
-  /** The week's total target: the sum of each day's target (a rebalance reduction included). */
+  /** The week's total target: the sum of each day's target (a rebalance reduction and any step allowance put on a day included). */
   weeklyTarget: number;
   /** Calories logged on the days of the week up to and including `today` (the whole week for a past week). */
   eaten: number;
@@ -19,7 +19,17 @@ export interface WeeklyCalorieBudget {
   /** Past days of the week with nothing logged. The suggested pace treats them as days that met their target, so an untracked day never inflates it. */
   unloggedDays: number;
   /** Only for the week containing today: the suggested intake for today - what's left of the budget before today, spread over the days left. */
-  pace: { kcal: number; target: number; daysLeft: number; clamped: 'up' | 'down' | null; stepCreditKcal: number; creditSpreadDays: number } | null;
+  pace: {
+    kcal: number;
+    /** Today's own target, with any step allowance the user put on today. */
+    target: number;
+    daysLeft: number;
+    clamped: 'up' | 'down' | null;
+    /** The week's net step credit in kcal (negative when short of the goal), before any of it is put on a day. */
+    stepCreditKcal: number;
+    /** How many of the days from today on carry a step allowance; 0 means the unspent credit is shared over all the days left. */
+    allowanceDays: number;
+  } | null;
   isCurrentWeek: boolean;
 }
 
@@ -27,7 +37,8 @@ export interface WeeklyCalorieBudget {
  * Weekly calorie budget for the week containing `date`. For the current week it also suggests today's intake: the budget left after the
  * days before today, divided by the days remaining, kept within 15% of today's own target and never below the user's BMR.
  * `stepCreditKcal` is the week's walking against the step goal in calories (negative when short of it): it is added to the budget, so the pace
- * agrees with the "overshoot is covered" check, which reads the same number.
+ * agrees with the "overshoot is covered" check, which reads the same number. Part of a positive credit can already sit on specific days as a step
+ * allowance (the user chose when to eat it): that part goes only to those days, and what is left unallocated is shared over the days left.
  */
 export function getWeeklyCalorieBudget(
   foodLog: FoodEntry[],
@@ -36,8 +47,6 @@ export function getWeeklyCalorieBudget(
   date: string,
   today: string,
   stepCreditKcal = 0,
-  /** How many of the days left (today first) a positive step credit is used over; default all of them. A shortfall is always spread over all the days. */
-  creditSpreadDays?: number,
 ): WeeklyCalorieBudget {
   const weekStart = getWeekStart(date);
   const weekEnd = getWeekEnd(date);
@@ -45,12 +54,19 @@ export function getWeeklyCalorieBudget(
   const lastDay = weekEnd < today ? weekEnd : today;
 
   let weeklyTarget = 0;
+  let allocated = 0;
+  let allowanceBefore = 0;
+  let allowanceDays = 0;
   let eaten = 0;
   let assumedBeforeToday = 0;
   let unloggedDays = 0;
   for (let i = 0; i < 7; i++) {
     const day = addDaysIso(weekStart, i);
     weeklyTarget += getDailyTargets(plan, adjustment, day).calories;
+    const allowance = getStepAllowanceKcal(adjustment, day);
+    allocated += allowance;
+    if (allowance > 0 && day >= today) allowanceDays += 1;
+    if (day < today) allowanceBefore += allowance;
     if (day > lastDay) continue;
     const entries = foodLog.filter((f) => f.date === day);
     const kcal = sumTotals(entries).calories;
@@ -68,15 +84,17 @@ export function getWeeklyCalorieBudget(
   let pace: WeeklyCalorieBudget['pace'] = null;
   if (isCurrentWeek) {
     const daysLeft = 7 - daysBetween(weekStart, today);
+    const todayAllowance = getStepAllowanceKcal(adjustment, today);
     const target = getDailyTargets(plan, adjustment, today).calories;
+    const baseTarget = target - todayAllowance;
     const credit = Math.round(stepCreditKcal);
-    const spread = credit > 0 ? Math.min(Math.max(Math.round(creditSpreadDays ?? daysLeft), 1), daysLeft) : daysLeft;
-    // The rest of the budget is shared over every remaining day; a positive step credit goes to the first `spread` days, today included.
-    const raw = (weeklyTarget - assumedBeforeToday) / daysLeft + credit / spread;
-    const low = Math.max(target * (1 - PACE_FLEX), plan.bmr);
-    const high = target * (1 + PACE_FLEX);
-    const kcal = Math.round(Math.min(Math.max(raw, low), Math.max(high, low)));
-    pace = { kcal, target, daysLeft, clamped: raw < low ? 'down' : raw > high ? 'up' : null, stepCreditKcal: credit, creditSpreadDays: spread };
+    // What is left of the base budget (the targets without the allowances; what earlier days ate on an allowance did not use it up) and the credit
+    // nobody has claimed yet are shared over every remaining day. Today's own allowance goes on top, outside the flex limits.
+    const shared = (weeklyTarget - allocated - assumedBeforeToday + allowanceBefore) / daysLeft + (credit - allocated) / daysLeft;
+    const low = Math.max(baseTarget * (1 - PACE_FLEX), plan.bmr);
+    const high = baseTarget * (1 + PACE_FLEX);
+    const kcal = Math.round(Math.min(Math.max(shared, low), Math.max(high, low)) + todayAllowance);
+    pace = { kcal, target, daysLeft, clamped: shared < low ? 'down' : shared > high ? 'up' : null, stepCreditKcal: credit, allowanceDays };
   }
 
   return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };

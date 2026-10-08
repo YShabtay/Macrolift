@@ -5,11 +5,11 @@ import { formatDateDisplay } from '../utils/weightCalculations';
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
 export default function WeeklyCalorieCard({
   budget,
-  onChangeCreditSpread,
+  onChooseAllowance,
 }: {
   budget: WeeklyCalorieBudget;
-  /** Chooses over how many of the days left (today first) a positive step credit is used. */
-  onChangeCreditSpread?: (days: number) => void;
+  /** Puts the step credit on today and the next days (1 = today only), or with null leaves it shared over every day left. */
+  onChooseAllowance?: (days: number | null) => void;
 }) {
   const percent = budget.weeklyTarget > 0 ? Math.min(Math.round((budget.eaten / budget.weeklyTarget) * 100), 100) : 0;
   const isOver = budget.remaining < 0;
@@ -48,7 +48,11 @@ export default function WeeklyCalorieCard({
             מה שנשאר מהתקציב אחרי הימים הקודמים, מחולק על {budget.pace.daysLeft} {budget.pace.daysLeft === 1 ? 'יום' : 'ימים'}.
             {budget.pace.stepCreditKcal >= 10 &&
               ` כולל תוספת של כ-${budget.pace.stepCreditKcal.toLocaleString()} קק״ל מהצעדים, ${
-                budget.pace.creditSpreadDays === 1 ? 'שמנוצלת היום בלבד' : `שמתחלקת על ${budget.pace.creditSpreadDays} הימים הקרובים (כ-${Math.round(budget.pace.stepCreditKcal / budget.pace.creditSpreadDays).toLocaleString()} ליום)`
+                budget.pace.allowanceDays === 0
+                  ? `שמתחלקת על ${budget.pace.daysLeft} הימים הקרובים (כ-${Math.round(budget.pace.stepCreditKcal / budget.pace.daysLeft).toLocaleString()} ליום)`
+                  : budget.pace.allowanceDays === 1
+                    ? 'שמנוצלת היום בלבד (היא כבר בתוך יעד היום)'
+                    : `שמנוצלת על ${budget.pace.allowanceDays} ימים (היא כבר בתוך יעד כל אחד מהם)`
               }, כי השבוע הלכת נטו יותר מיעד הצעדים.`}
             {budget.pace.stepCreditKcal <= -10 && ` כולל הפחתה של כ-${Math.abs(budget.pace.stepCreditKcal).toLocaleString()} קק״ל לכל שאר השבוע (כ-${Math.round(Math.abs(budget.pace.stepCreditKcal) / budget.pace.daysLeft).toLocaleString()} ליום), כי השבוע הלכת נטו פחות מיעד הצעדים.`}
             {budget.pace.clamped === 'up' && ' הוגבל ל-15% מעל היעד: לא כדאי "לפצות" על ימי אכילה קלה בבת אחת.'}
@@ -56,27 +60,32 @@ export default function WeeklyCalorieCard({
           </span>
         </p>
       )}
-      {budget.pace && budget.pace.stepCreditKcal >= 10 && budget.pace.daysLeft >= 2 && onChangeCreditSpread && (
+      {budget.pace && budget.pace.stepCreditKcal >= 10 && budget.pace.daysLeft >= 2 && onChooseAllowance && (
         <div className="mt-3">
           <p className="mb-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">את התוספת מהצעדים לנצל:</p>
           <div className="flex gap-2" role="radiogroup" aria-label="פיזור התוספת מהצעדים">
-            {Array.from({ length: Math.min(budget.pace.daysLeft, 3) }, (_, i) => (i + 1 === 3 && budget.pace!.daysLeft > 3 ? budget.pace!.daysLeft : i + 1)).map((days) => (
-              <button
-                key={days}
-                type="button"
-                role="radio"
-                aria-checked={budget.pace!.creditSpreadDays === days}
-                onClick={() => onChangeCreditSpread(days)}
-                className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold transition ${
-                  budget.pace!.creditSpreadDays === days
-                    ? 'border-lime-400/50 bg-lime-400/10 text-lime-700 dark:text-lime-400'
-                    : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
-                }`}
-              >
-                {days === 1 ? 'היום בלבד' : days === budget.pace!.daysLeft ? `כל ${days} הימים` : `${days} ימים`}
-              </button>
-            ))}
+            {Array.from({ length: Math.min(budget.pace.daysLeft, 3) }, (_, i) => (i + 1 === 3 && budget.pace!.daysLeft > 3 ? budget.pace!.daysLeft : i + 1)).map((days) => {
+              const isAll = days === budget.pace!.daysLeft;
+              const selected = isAll ? budget.pace!.allowanceDays === 0 : budget.pace!.allowanceDays === days;
+              return (
+                <button
+                  key={days}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onChooseAllowance(isAll ? null : days)}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold transition ${
+                    selected
+                      ? 'border-lime-400/50 bg-lime-400/10 text-lime-700 dark:text-lime-400'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+                  }`}
+                >
+                  {days === 1 ? 'היום בלבד' : isAll ? `כל ${days} הימים` : `${days} ימים`}
+                </button>
+              );
+            })}
           </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">הבחירה מעדכנת את היעד היומי בכל המסכים.</p>
         </div>
       )}
       {budget.unloggedDays > 0 && (

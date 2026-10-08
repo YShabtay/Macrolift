@@ -190,6 +190,7 @@ interface DashboardProps {
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
+  onChooseStepAllowance: (days: number | null) => void;
   userId: string;
   onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
   onReset: () => void | Promise<void>;
@@ -307,6 +308,7 @@ export default function Dashboard({
   onApplyRebalance,
   onUpdateProfileFull,
   onImportAppState,
+  onChooseStepAllowance,
   userId,
   onRestoreSnapshot,
   onReset,
@@ -435,6 +437,7 @@ export default function Dashboard({
               weightKg={appState.profile.metrics.weightKg}
               metrics={appState.profile.metrics}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
+              onChooseStepAllowance={onChooseStepAllowance}
               onOpenRebalance={() => selectTab('dashboard')}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
@@ -1112,7 +1115,7 @@ function NutritionCard({
   metrics: UserMetrics;
   nutritionPlan: NutritionPlan;
   /** Today's targets - the base plan, or lower while a weekly rebalance reduction is active. */
-  targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number };
+  targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number; allowanceKcal: number };
   /** Calories over today's target when a rebalance suggestion should show (0 hides it). */
   overshootKcal: number;
   /** Whether today's overshoot is already covered by the week's steps or its calorie balance (then it is shown as covered). */
@@ -1166,6 +1169,9 @@ function NutritionCard({
           <TransparencyModal metrics={metrics} nutritionPlan={nutritionPlan} variant="link" />
           <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
         </div>
+        {targets.allowanceKcal > 0 && (
+          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">יעד היום כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד</p>
+        )}
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
         )}

@@ -25,17 +25,33 @@ describe('getWeeklyCalorieBudget pace', () => {
     expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -90).pace!.kcal).toBe(2335);
   });
 
-  it('lets the positive credit be used all today, over two days, or over all the days left (the default)', () => {
-    const pace = (days?: number) => getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, 227, days).pace!;
-    expect(pace().kcal).toBe(2441);
-    expect(pace(3).kcal).toBe(2441);
-    expect(pace(2).kcal).toBe(Math.round(7096 / 3 + 227 / 2)); // 2,479
-    expect(pace(1).kcal).toBe(Math.round(7096 / 3 + 227)); // 2,592
-    expect(pace(1).creditSpreadDays).toBe(1);
-  });
+  describe('with a step allowance put on days', () => {
+    const allow = (entries: Record<string, number>) => ({ weekStart: '2026-10-04', stepAllowance: entries });
+    const pace = (adj: ReturnType<typeof allow> | undefined, credit = 169) => getWeeklyCalorieBudget(LOG, PLAN, adj, TODAY, TODAY, credit);
 
-  it('keeps the spread inside the days left, and does not spread a shortfall', () => {
-    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, 227, 9).pace!.creditSpreadDays).toBe(3);
-    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -90, 1).pace!.kcal).toBe(2335);
+    it('keeps the old numbers without one: the credit is shared over the three days left', () => {
+      expect(pace(undefined).pace!.kcal).toBe(2422);
+    });
+    it('gives all the credit to today when it is allocated to today alone, and leaves the other days at their share', () => {
+      const p = pace(allow({ [TODAY]: 169 })).pace!;
+      expect(p.kcal).toBe(2534); // 7,096 / 3 + 169
+      expect(p.target).toBe(2412 + 169); // today's own target carries it
+      expect(p.allowanceDays).toBe(1);
+    });
+    it('gives half to each of two days', () => {
+      const p = pace(allow({ [TODAY]: 85, '2026-10-09': 85 })).pace!;
+      expect(p.kcal).toBe(2450);
+      expect(p.allowanceDays).toBe(2);
+    });
+    it('adds the allowances to the week total shown, but not twice to the pace of a day without one', () => {
+      const budget = pace(allow({ '2026-10-09': 169 }));
+      expect(budget.weeklyTarget).toBe(16884 + 169);
+      expect(budget.pace!.kcal).toBe(2365); // tomorrow carries the credit, not today
+    });
+    it('does not let an allowance eaten on an earlier day shrink the base budget', () => {
+      const budget = getWeeklyCalorieBudget(LOG, PLAN, allow({ '2026-10-07': 100 }), TODAY, TODAY, 169);
+      // Wednesday ate 2,690 against a target raised by 100: only 2,590 of it came out of the base budget.
+      expect(budget.pace!.kcal).toBe(Math.round((16884 - 9788 + 100) / 3 + (169 - 100) / 3));
+    });
   });
 });

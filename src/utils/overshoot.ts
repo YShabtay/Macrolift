@@ -1,6 +1,6 @@
 import type { FoodEntry, NutritionPlan, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { getEntriesForDate, sumTotals } from './nutritionLog';
-import { getDailyTargets, getWeeklyEnergyBalance } from './weeklyBalance';
+import { getDailyTargets, getWeeklyEnergyBalance, sumStepAllowance } from './weeklyBalance';
 import { getStepCredit } from './stepCredit';
 
 /** The calorie estimates are approximate (a few percent on steps, ~10% on the formula), so a week this close to its target counts as in balance. */
@@ -14,7 +14,9 @@ export interface OvershootCoverage {
   /** The week's walking against the step goal: steps above it, steps short of it on completed days, and the net calories (negative when short). */
   bonusSteps: number;
   shortfallSteps: number;
+  /** The net step credit still unspent: what the week's walking is worth, minus the part the user already moved into day targets (`stepAllowanceSpentKcal`). */
   stepsKcal: number;
+  stepAllowanceSpentKcal: number;
   /** The week so far (days with logged food) is already at or under its cumulative target, with no help from the extra steps. */
   coveredByWeek: boolean;
   /** The week so far is over its cumulative target, but the extra steps bring it back to balance. */
@@ -47,7 +49,10 @@ export function getOvershootCoverage(params: {
   const target = getDailyTargets(plan, adjustment, today).calories;
   const overshootKcal = Math.max(Math.round(eaten - target), 0);
 
-  const { bonusSteps, shortfallSteps, netKcal: stepsKcal } = getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment, asOf: today, realToday });
+  const { bonusSteps, shortfallSteps, netKcal } = getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment, asOf: today, realToday });
+  // Days that carry a step allowance already have that credit in their target, so the week balance holds it: counting it again here would spend it twice.
+  const stepAllowanceSpentKcal = sumStepAllowance(adjustment, today, today);
+  const stepsKcal = netKcal - stepAllowanceSpentKcal;
   const weekBalanceKcal = getWeeklyEnergyBalance(foodLog, plan, adjustment, today).balanceKcal;
   const netWeek = weekBalanceKcal - stepsKcal;
 
@@ -56,7 +61,7 @@ export function getOvershootCoverage(params: {
   const coveredBySteps = isCovered && weekBalanceKcal > 0 && stepsKcal > 0;
   const roomKcal = isCovered ? Math.max(Math.round(-netWeek), 0) : 0;
 
-  return { overshootKcal, isCovered, bonusSteps, shortfallSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
+  return { overshootKcal, isCovered, bonusSteps, shortfallSteps, stepsKcal, stepAllowanceSpentKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
 }
 
 /**

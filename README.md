@@ -66,6 +66,7 @@ Most tracking apps share the same weaknesses:
 - Personalised targets: BMR by Mifflin-St Jeor (gender-specific), TDEE built from everyday life (1.4 x BMR, the lower bound of the FAO/WHO activity level for free-living adults) + walking beyond 4,000 steps (per step, scaled by body weight) + training, goal-based surplus/deficit and gender-aware macros. The calorie target is a **range**, not one number: because TDEE is an estimate (about 8% either way), a surplus goal starts from the low end and a deficit goal from the high end, so following the app cannot push anyone the wrong way if the estimate is off.
 - **Weight-trend check (no food logging needed):** after two to three weeks of weigh-ins, the weekly average is compared with the pace the goal calls for; when it is clearly off, the app suggests adding or removing 100-300 kcal. The user can accept, change the amount or ignore it, and accepting moves the whole calorie range and macros and restarts the check. If logged food shows the target was simply not followed, it says so instead.
 - **Profile weight stays in step with the scale:** targets, protein and the calories from steps are computed from the profile weight, so when two weekly averages in a row sit about 2 kg (or 3%) away from it the app offers to update it and shows what the target would become. It never changes silently, because an automatic update would move the target every week.
+- **Choosing when to eat the step credit:** the week's net step credit can be put on today only, on two days, or left shared over the days left. The choice is saved with the week and becomes part of those days' targets, so the ring, the dashboard, the food tab, the weekly budget, the "covered" check and the rebalance screen all show the same number, and the credit is counted once (what is already in a day's target is taken off the unspent credit).
 - **Manual calorie adjustment:** the daily target can be nudged by hand in steps of 50 kcal (up to 600 either way, never below BMR) to try a different amount when the weight is not moving. It moves the whole range, the macros, the weekly budget and the coach's context together, shows the adjustment on every screen that offers it, and restarts the weight-trend check from that day so the app can say whether the change worked.
 - **Personal calibration:** after about four weeks of food logging and weigh-ins, the app measures your real maintenance (average intake minus the energy in the weight change: about 7,700 kcal/kg for weight lost, less for weight gained since part of it is lean tissue) and suggests a correction to the formula, weighting it by how noisy the weight trend is.
 - Food log by meal with per-meal macro summary, editable entries, natural serving units, and day-by-day navigation.
@@ -136,7 +137,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-344 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+358 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
