@@ -12,6 +12,7 @@ import { markSnapshotsDismissed, pickRestorableSnapshot, stateFromSnapshot } fro
 import SnapshotRestorePrompt, { UndoResetBar } from './components/SnapshotRestorePrompt';
 import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
+import { withTargetWeightBookkeeping } from './utils/weightTarget';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -548,10 +549,11 @@ export default function App() {
   }
 
   /** Full profile edit from the Profile tab - recalculates nutrition targets immediately, and regenerates the workout plan when the weekly training frequency changed. */
-  function handleUpdateProfileFull(updates: Partial<UserMetrics>) {
+  function handleUpdateProfileFull(rawUpdates: Partial<UserMetrics>) {
     setAppState((current) => {
       if (!current) return current;
       const compute = (prev: AppState): AppState => {
+        const updates = withTargetWeightBookkeeping(prev.profile.metrics, rawUpdates, prev.weightLogs, todayIso());
         const updatedMetrics = { ...prev.profile.metrics, ...updates };
         const newNutritionPlan = calculateNutritionPlan(updatedMetrics);
 

@@ -136,6 +136,12 @@ export interface UserMetrics {
    */
   targetAdjustmentKcal?: number;
   targetAdjustmentDate?: string;
+  /**
+   * Optional target body weight (kg), judged on weekly averages. targetWeightStartKg is the weight when it was set, the starting point for the progress bar.
+   * Both are omitted when no target is set.
+   */
+  targetWeightKg?: number;
+  targetWeightStartKg?: number;
   /** Where the user trains; omitted (older profiles) means the gym. */
   trainingLocation?: TrainingLocation;
   /** Home trainees only: the equipment they have; defaults to none. */

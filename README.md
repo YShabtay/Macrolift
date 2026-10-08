@@ -71,6 +71,7 @@ Most tracking apps share the same weaknesses:
 **Progress**
 - Weight trend (weekly averages), circumference measurements, progress photos with side-by-side comparison, and an AI progress review.
 - A coach that interprets the trend with conservative rules instead of reacting to noise.
+- **Target weight** (optional): judged on the weekly average, with a progress bar from the starting weight, the kilos left and a rough time range (from the measured pace when the weigh-ins allow it, otherwise from the pace the goal plans). It is checked against the goal (a bulk cannot aim below the current weight), reaching it needs two weeks in a row at the target, and then the app offers to switch to maintenance instead of continuing to push the weight. It is kept in backups and given to the AI coach.
 
 **AI coach** (Gemini)
 - Chat that knows your profile, targets, today's intake, active plan and weight, and that continues the conversation instead of restarting every message.
@@ -125,7 +126,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-288 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+305 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -136,6 +137,7 @@ npm test
 | Data safety (`dataMigration`, `backupValidation`, `snapshotStore`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored, snapshots are rate-limited, pruned per profile and skip empty profiles |
 | Overshoot coverage and step credit (`overshoot`, `stepCredit`) | The week judged as a whole with one signed step credit shared by every calorie card: steps above the goal add, finished days below it subtract, the day in progress only adds, days without step data are skipped; covered by the weekly balance or by steps, the room left and the point where it runs out |
 | Step surplus (`stepSurplus`) | The week's average steps against the average the target assumes: eat more when walking more, less when walking less, in kcal by body weight; quiet without two completed days or when the difference is small; slow days count against fast ones |
+| Target weight (`weightTarget`) | Validation against the goal and BMI, progress on the weekly average, start weight bookkeeping, time estimate from the measured pace or the planned one, reached only after two weeks in a row, a trend moving away, survival through backup restore |
 | Weight-trend check (`targetCheck`) | Waiting for enough weigh-ins, suggesting calories for a flat or too-fast weekly average per goal (bulk, cut), leaving an on-pace trend alone, not acting on a noisy one, telling apart a wrong target from an unfollowed one, applying and cancelling a correction |
 | Calibration (`calibration`) | Measuring maintenance from intake and the weight trend, ignoring partly logged days and out-of-window data, asking for more data instead of guessing, trusting a noisy trend less, capping the correction |
 | Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |

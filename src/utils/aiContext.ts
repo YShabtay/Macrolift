@@ -4,6 +4,7 @@ import type { AppState, UserMetrics } from '../types/fitness';
 import { calculateRemaining, getEntriesForDate, sumTotals } from './nutritionLog';
 import { countCompletedWorkoutsThisWeek } from './workoutStats';
 import { getLatestWeekSummary } from './weightCalculations';
+import { getWeightTargetProgress } from './weightTarget';
 import { getTodaysPlanDay, isDayCompleted } from './scheduleHelpers';
 import { todayIso } from './weightCalculations';
 import { getStepsForDate } from './stepsCalculations';
@@ -44,6 +45,14 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
   const stepsToday = getStepsForDate(stepLogs, today);
 
   const weeklyWeightSummary = getLatestWeekSummary(weightLogs);
+  const targetProgress = getWeightTargetProgress({ metrics, weightLogs, today: todayIso() });
+  const targetLine = targetProgress
+    ? targetProgress.status === 'reached'
+      ? `- משקל יעד: ${targetProgress.targetKg} ק"ג - הושג (הממוצע השבועי עמד ביעד ${targetProgress.weeksAtTarget} שבועות ברצף)`
+      : `- משקל יעד: ${targetProgress.targetKg} ק"ג (התחלה ${targetProgress.startKg}, כעת ${targetProgress.currentKg}, נשארו ${targetProgress.remainingKg} ק"ג, ${targetProgress.percent}% מהדרך${
+          targetProgress.eta ? `, הערכה: ${targetProgress.eta.minWeeks}${targetProgress.eta.maxWeeks === null ? '+' : `-${targetProgress.eta.maxWeeks}`} שבועות` : ''
+        })`
+    : ''
   const workoutsThisWeek = countCompletedWorkoutsThisWeek(workoutPlan, progress, undefined, appState.completedWorkoutDates);
   const todaysDay = getTodaysPlanDay(workoutPlan, schedule);
   const todaysDayCompleted = isDayCompleted(workoutPlan, progress, today, todaysDay.id);
@@ -84,6 +93,7 @@ ${
       }`
     : '- אין עדיין מספיק נתוני שקילה לחישוב ממוצע שבועי'
 }
+${targetLine}
 
 ## איך מנהלים את השיחה
 - זו שיחה רציפה, וההודעות הקודמות מופיעות בהיסטוריה. המשך בדיוק מהנקודה שבה עצרתם, כמו מאמן אנושי שמדבר בצ'אט: בלי להציג את עצמך מחדש ובלי לסכם את מה שכבר נאמר.

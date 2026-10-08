@@ -1,3 +1,4 @@
+import { TARGET_WEIGHT_MAX_KG, TARGET_WEIGHT_MIN_KG } from './weightTarget';
 import type { AppState, FoodEntry, Meal, UserMetrics, UserProfile, WeightLog, WorkoutPlan } from '../types/fitness';
 import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
 import { calculateNutritionPlan } from './calculations';
@@ -124,6 +125,12 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
     merged.targetAdjustmentKcal = Math.max(-MAX_TARGET_ADJUSTMENT_KCAL, Math.min(MAX_TARGET_ADJUSTMENT_KCAL, Math.round(targetShift)));
   }
   if (typeof raw.targetAdjustmentDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.targetAdjustmentDate)) merged.targetAdjustmentDate = raw.targetAdjustmentDate;
+  const targetWeight = Number(raw.targetWeightKg);
+  if (raw.targetWeightKg !== null && raw.targetWeightKg !== '' && Number.isFinite(targetWeight) && targetWeight >= TARGET_WEIGHT_MIN_KG && targetWeight <= TARGET_WEIGHT_MAX_KG) {
+    merged.targetWeightKg = targetWeight;
+    const targetStart = Number(raw.targetWeightStartKg);
+    if (raw.targetWeightStartKg !== null && raw.targetWeightStartKg !== '' && Number.isFinite(targetStart) && targetStart >= TARGET_WEIGHT_MIN_KG && targetStart <= TARGET_WEIGHT_MAX_KG) merged.targetWeightStartKg = targetStart;
+  }
   if (raw.trainingLocation === 'gym' || raw.trainingLocation === 'home') merged.trainingLocation = raw.trainingLocation;
   if (raw.homeEquipment === 'none' || raw.homeEquipment === 'dumbbells') merged.homeEquipment = raw.homeEquipment;
   if (raw.homeLevel === 'beginner' || raw.homeLevel === 'intermediate' || raw.homeLevel === 'advanced') merged.homeLevel = raw.homeLevel;

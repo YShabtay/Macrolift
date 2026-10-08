@@ -6,6 +6,7 @@ import BulkingPlanEditor from './BulkingPlanEditor';
 import TargetFocusPicker from './TargetFocusPicker';
 import TrainingSetupPicker from './TrainingSetupPicker';
 import { draftFromPlan, parseBulkingDraft } from '../utils/bulkingPlan';
+import { validateWeightTarget } from '../utils/weightTarget';
 
 const AGE_MIN = 14;
 const AGE_MAX = 99;
@@ -32,11 +33,13 @@ const GOAL_INTENSITY_OPTIONS: { value: GoalIntensity; label: string }[] = [
 
 interface EditProfileModalProps {
   metrics: UserMetrics;
+  /** The weight the target is judged against (the recent weekly average); falls back to the weight typed in the form. */
+  currentWeightKg?: number;
   onSave: (updates: Partial<UserMetrics>) => void;
   onClose: () => void;
 }
 
-export default function EditProfileModal({ metrics, onSave, onClose }: EditProfileModalProps) {
+export default function EditProfileModal({ metrics, currentWeightKg, onSave, onClose }: EditProfileModalProps) {
   const [gender, setGender] = useState(metrics.gender);
   const [age, setAge] = useState(String(metrics.age));
   const [heightCm, setHeightCm] = useState(String(metrics.heightCm));
@@ -51,6 +54,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
   });
   const [goal, setGoal] = useState<Goal>(metrics.goal);
   const [goalIntensity, setGoalIntensity] = useState<GoalIntensity>(metrics.goalIntensity ?? 'moderate');
+  const [targetWeight, setTargetWeight] = useState(metrics.targetWeightKg ? String(metrics.targetWeightKg) : '');
   const [bulkingDraft, setBulkingDraft] = useState(() => draftFromPlan(metrics.bulkingPlan));
 
   const ageValue = Number(age);
@@ -72,7 +76,14 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
   const bulkingResult = parseBulkingDraft(bulkingDraft, metrics.bulkingPlan);
   const isBulkingValid = goal !== 'gain_muscle' || bulkingResult.status !== 'invalid';
 
-  const isValid = isAgeValid && isHeightValid && isWeightValid && isStepsValid && isBulkingValid;
+  const targetWeightValue = targetWeight.trim() === '' ? null : Number(targetWeight);
+  const targetCheck =
+    targetWeightValue === null || !isHeightValid
+      ? null
+      : validateWeightTarget({ targetKg: targetWeightValue, currentKg: currentWeightKg ?? weightValue, heightCm: heightValue, goal });
+  const isTargetWeightValid = targetCheck === null || targetCheck.ok;
+
+  const isValid = isAgeValid && isHeightValid && isWeightValid && isStepsValid && isBulkingValid && isTargetWeightValid;
 
   function handleSave() {
     if (!isValid) return;
@@ -88,6 +99,7 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
       homeEquipment: setup.location === 'home' ? (setup.equipment ?? 'none') : undefined,
       homeLevel: setup.location === 'home' ? (setup.level ?? 'beginner') : undefined,
       goal,
+      targetWeightKg: targetWeightValue ?? undefined,
       goalIntensity: goal === 'gain_muscle' ? goalIntensity : undefined,
       bulkingPlan: goal === 'gain_muscle' && bulkingResult.status === 'ok' ? bulkingResult.plan : undefined,
     });
@@ -232,6 +244,24 @@ export default function EditProfileModal({ metrics, onSave, onClose }: EditProfi
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <NumberField
+              label="משקל יעד (ק״ג, אופציונלי)"
+              value={targetWeight}
+              onChange={setTargetWeight}
+              min={35}
+              max={250}
+              isValid={isTargetWeightValid}
+            />
+            {targetCheck?.error && <p className="mt-1.5 text-[11px] leading-relaxed text-orange-700 dark:text-orange-400">{targetCheck.error}</p>}
+            {targetCheck?.ok && targetCheck.warning && <p className="mt-1.5 text-[11px] leading-relaxed text-orange-700 dark:text-orange-400">{targetCheck.warning}</p>}
+            {targetCheck === null && (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">
+                היעד נבדק על הממוצע השבועי, לא על שקילה בודדת. אפשר להשאיר ריק.
+              </p>
+            )}
           </div>
 
           {goal === 'gain_muscle' && (

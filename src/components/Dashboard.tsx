@@ -38,6 +38,8 @@ import {
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';
+import WeightTargetCard from './WeightTargetCard';
+import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { describeCoverage, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
@@ -387,6 +389,7 @@ export default function Dashboard({
             <DashboardTab
               appState={appState}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
+              onUpdateProfileFull={onUpdateProfileFull}
               onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
@@ -456,6 +459,7 @@ export default function Dashboard({
               onApplyCalorieAdjustment={onApplyCalorieAdjustment}
               onSetTdeeAdjustment={onSetTdeeAdjustment}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
+              onUpdateProfileFull={onUpdateProfileFull}
             />
           )}
           {tab === 'academy' && <Academy />}
@@ -518,6 +522,7 @@ export default function Dashboard({
 function DashboardTab({
   appState,
   onApplyTargetAdjustment,
+  onUpdateProfileFull,
   onApplyProgram,
   onApplyRebalance,
   onQuickCompleteDay,
@@ -533,6 +538,7 @@ function DashboardTab({
   onOpenInstallGuide,
 }: {
   onApplyTargetAdjustment: (deltaKcal: number) => void;
+  onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   appState: AppState;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onApplyRebalance: (choice: RebalanceChoice) => void;
@@ -551,6 +557,12 @@ function DashboardTab({
   onOpenInstallGuide: () => void;
 }) {
   const today = useToday();
+  const targetProgress = useMemo(
+    () => getWeightTargetProgress({ metrics: appState.profile.metrics, weightLogs: appState.weightLogs, today }),
+    [appState.profile.metrics, appState.weightLogs, today],
+  );
+  // Once the target weight is reached the calorie check would still compare the trend with the old goal's pace, so it waits for the switch to maintenance.
+  const targetReached = targetProgress?.status === 'reached' && appState.profile.metrics.goal !== 'maintain';
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
@@ -722,15 +734,25 @@ function DashboardTab({
         onNavigate={onOpenWorkoutCalendar}
       />
 
-      <TargetCheckCard
+      <WeightTargetCard
         variant="banner"
         weightLogs={weightLogs}
-        foodLog={foodLog}
         metrics={profile.metrics}
-        profileCreatedAt={profile.createdAt}
-        nutritionPlan={nutritionPlan}
-        onApply={onApplyTargetAdjustment}
+        onSetTarget={(targetKg) => onUpdateProfileFull({ targetWeightKg: targetKg ?? undefined })}
+        onSwitchToMaintain={() => onUpdateProfileFull({ goal: 'maintain', goalIntensity: undefined, bulkingPlan: undefined })}
       />
+
+      {!targetReached && (
+        <TargetCheckCard
+          variant="banner"
+          weightLogs={weightLogs}
+          foodLog={foodLog}
+          metrics={profile.metrics}
+          profileCreatedAt={profile.createdAt}
+          nutritionPlan={nutritionPlan}
+          onApply={onApplyTargetAdjustment}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <WeightTracker logs={weightLogs} onSave={onSaveWeightLog} compact />
@@ -1655,6 +1677,7 @@ function ProgressTab({
   onApplyCalorieAdjustment,
   onSetTdeeAdjustment,
   onApplyTargetAdjustment,
+  onUpdateProfileFull,
   appState,
 }: {
   weightLogs: WeightLog[];
@@ -1670,8 +1693,12 @@ function ProgressTab({
   onApplyCalorieAdjustment: (deltaKcal: number) => void;
   onSetTdeeAdjustment: (adjustmentKcal: number) => void;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
+  onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   appState: AppState;
 }) {
+  const progressMetrics = appState.profile.metrics;
+  const targetReached =
+    getWeightTargetProgress({ metrics: progressMetrics, weightLogs, today: todayIso() })?.status === 'reached' && progressMetrics.goal !== 'maintain';
   return (
     <div className="flex flex-col gap-6">
       <HeroCarousel
@@ -1697,15 +1724,25 @@ function ProgressTab({
         onBulkImport={onBulkImportWeightLogs}
       />
 
-      <TargetCheckCard
+      <WeightTargetCard
         variant="card"
         weightLogs={weightLogs}
-        foodLog={appState.foodLog}
-        metrics={appState.profile.metrics}
-        profileCreatedAt={appState.profile.createdAt}
-        nutritionPlan={appState.nutritionPlan}
-        onApply={onApplyTargetAdjustment}
+        metrics={progressMetrics}
+        onSetTarget={(targetKg) => onUpdateProfileFull({ targetWeightKg: targetKg ?? undefined })}
+        onSwitchToMaintain={() => onUpdateProfileFull({ goal: 'maintain', goalIntensity: undefined, bulkingPlan: undefined })}
       />
+
+      {!targetReached && (
+        <TargetCheckCard
+          variant="card"
+          weightLogs={weightLogs}
+          foodLog={appState.foodLog}
+          metrics={appState.profile.metrics}
+          profileCreatedAt={appState.profile.createdAt}
+          nutritionPlan={appState.nutritionPlan}
+          onApply={onApplyTargetAdjustment}
+        />
+      )}
 
       <CalibrationCard
         foodLog={appState.foodLog}
@@ -2223,7 +2260,7 @@ function ProfileTab({
       </div>
 
       {isEditProfileOpen && (
-        <EditProfileModal metrics={metrics} onSave={handleSaveProfile} onClose={() => setIsEditProfileOpen(false)} />
+        <EditProfileModal metrics={metrics} currentWeightKg={getCurrentWeight(appState.weightLogs, metrics.weightKg, todayIso()).kg} onSave={handleSaveProfile} onClose={() => setIsEditProfileOpen(false)} />
       )}
 
       {pendingImport && (
