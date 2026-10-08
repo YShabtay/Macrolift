@@ -14,6 +14,8 @@
 
 Built by a 3rd-year Industrial Engineering & Management student (Information Systems & Data Analytics tracks, Ariel University) as an end-to-end product project: from the nutrition model and UX, through offline-capable frontend engineering, to a secured serverless AI backend.
 
+Built with AI-assisted coding (Claude Code). The product decisions, the nutrition-model requirements and the verification (unit tests, CI and testing on a real phone) are the author's.
+
 ---
 
 ## Screenshots
@@ -187,3 +189,9 @@ Without a key the app still works; only the AI features are unavailable.
 
 - Data lives on a single device. Backup/restore covers moving between devices; optional cloud backup is the main candidate for a future version.
 - The nutrition model gives estimates for healthy adults, not medical advice (the app shows a disclaimer).
+
+---
+
+## License
+
+Copyright (c) 2026 Yogev Shabtay. All rights reserved. The source is visible for evaluation only; it may not be copied, modified or reused without written permission. See [LICENSE](LICENSE).
