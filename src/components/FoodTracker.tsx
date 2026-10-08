@@ -126,9 +126,11 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
     () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: today }).netKcal,
     [stepLogs, baseStepGoal, weeklyBalance, today],
   );
+  // Over how many of the days left to use a positive step credit (null = all of them); a view choice, so it is not stored.
+  const [creditSpreadDays, setCreditSpreadDays] = useState<number | null>(null);
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal, creditSpreadDays ?? undefined),
+    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal, creditSpreadDays],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);
@@ -247,7 +249,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </button>
       )}
 
-      <WeeklyCalorieCard budget={calorieBudget} />
+      <WeeklyCalorieCard budget={calorieBudget} onChangeCreditSpread={setCreditSpreadDays} />
 
 
       <button

@@ -24,4 +24,18 @@ describe('getWeeklyCalorieBudget pace', () => {
   it('subtracts steps the week fell short by', () => {
     expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -90).pace!.kcal).toBe(2335);
   });
+
+  it('lets the positive credit be used all today, over two days, or over all the days left (the default)', () => {
+    const pace = (days?: number) => getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, 227, days).pace!;
+    expect(pace().kcal).toBe(2441);
+    expect(pace(3).kcal).toBe(2441);
+    expect(pace(2).kcal).toBe(Math.round(7096 / 3 + 227 / 2)); // 2,479
+    expect(pace(1).kcal).toBe(Math.round(7096 / 3 + 227)); // 2,592
+    expect(pace(1).creditSpreadDays).toBe(1);
+  });
+
+  it('keeps the spread inside the days left, and does not spread a shortfall', () => {
+    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, 227, 9).pace!.creditSpreadDays).toBe(3);
+    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -90, 1).pace!.kcal).toBe(2335);
+  });
 });
