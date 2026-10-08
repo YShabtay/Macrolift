@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Footprints, Scale, Sparkles, TrendingDown, X } from 'lucide-react';
 import type { RebalanceOptions, WeeklyEnergyBalance } from '../utils/weeklyBalance';
+import type { OvershootCoverage } from '../utils/overshoot';
 
 export type RebalanceChoice =
   | { kind: 'taper'; reductionKcal: number; fromDate: string }
@@ -10,6 +11,8 @@ export type RebalanceChoice =
 interface RebalanceModalProps {
   options: RebalanceOptions;
   balance: WeeklyEnergyBalance;
+  /** The same week accounting the food tab uses, so the screens never disagree about whether the overshoot is covered. */
+  coverage: OvershootCoverage;
   /** The user's own daily step goal (without any rebalance boost). */
   baseStepGoal: number;
   onChoose: (choice: RebalanceChoice) => void;
@@ -17,8 +20,8 @@ interface RebalanceModalProps {
 }
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
-export default function RebalanceModal({ options, balance, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
-  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, extraStepsEarlier, earlierWasYesterday, netExcessKcal, netStepsNeeded } = options;
+export default function RebalanceModal({ options, balance, coverage, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
+  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, netExcessKcal, netStepsNeeded } = options;
   const isFullyCovered = netStepsNeeded === 0;
   const creditedKcal = excessKcal - netExcessKcal;
 
@@ -63,29 +66,18 @@ export default function RebalanceModal({ options, balance, baseStepGoal, onChoos
           </p>
         </div>
 
-        {extraStepsEarlier > 0 && (
-          <div className="rounded-xl border border-lime-400/30 bg-lime-400/5 p-3.5 text-sm font-semibold leading-relaxed text-zinc-800 dark:text-zinc-200">
-            🎉 עודכנו {extraStepsEarlier.toLocaleString()} צעדי בונוס {earlierWasYesterday ? 'מאתמול' : 'מהימים הקודמים השבוע'} שקוזזו מהחריגה!
-          </div>
-        )}
-        {extraStepsWalkedToday - extraStepsEarlier > 0 && (
-          <div
-            className={`rounded-xl border p-3.5 text-sm font-semibold leading-relaxed ${
-              isFullyCovered
-                ? 'border-lime-400/50 bg-lime-400/15 text-lime-800 dark:text-lime-300'
-                : 'border-lime-400/30 bg-lime-400/5 text-zinc-800 dark:text-zinc-200'
-            }`}
-          >
-            {isFullyCovered
-              ? '🏆 צעדי הבונוס שהלכת כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.'
-              : `🎉 הלכת היום ${(extraStepsWalkedToday - extraStepsEarlier).toLocaleString()} צעדים מעל היעד! קיזזנו אותם מחוב הפיצוי.`}
-          </div>
-        )}
-        {extraStepsEarlier > 0 && extraStepsWalkedToday - extraStepsEarlier === 0 && isFullyCovered && (
-          <div className="rounded-xl border border-lime-400/50 bg-lime-400/15 p-3.5 text-sm font-semibold leading-relaxed text-lime-800 dark:text-lime-300">
-            🏆 צעדי הבונוס כבר כיסו לחלוטין את החריגה הקלורית! אין צורך בתוספת צעדים למחר.
-          </div>
-        )}
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <p className="mb-1 text-sm font-bold text-zinc-900 dark:text-zinc-100">איך חישבנו כמה לאזן</p>
+          <p>חרגת היום ב-{coverage.overshootKcal.toLocaleString()} קק״ל, ומאזן השבוע הוא {coverage.weekBalanceKcal > 0 ? '+' : ''}{coverage.weekBalanceKcal.toLocaleString()} קק״ל.</p>
+          {(coverage.bonusSteps > 0 || coverage.shortfallSteps > 0) && (
+            <p className="mt-1">
+              הצעדים השבוע: {coverage.bonusSteps.toLocaleString()} מעל היעד
+              {coverage.shortfallSteps > 0 ? `, ${coverage.shortfallSteps.toLocaleString()} פחות מהיעד בימים אחרים` : ''} - נטו {coverage.stepsKcal >= 0 ? 'קוזזו' : 'נוספו'} כ-
+              {Math.abs(coverage.stepsKcal).toLocaleString()} קק״ל.
+            </p>
+          )}
+          <p className="mt-1 font-bold text-zinc-900 dark:text-zinc-100">נותרו לאזן: {excessKcal.toLocaleString()} קק״ל.</p>
+        </div>
 
         {/* Option 1: gentle taper */}
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">

@@ -59,6 +59,14 @@ export function getOvershootCoverage(params: {
   return { overshootKcal, isCovered, bonusSteps, shortfallSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
 }
 
+/**
+ * What is really left to make up when today's overshoot is not covered: the week's balance after the step credit, never more than today's overshoot.
+ * The rebalance options work from this number, so they agree with the covered / not covered verdict and no step is spent twice.
+ */
+export function getRebalanceDebtKcal(c: OvershootCoverage): number {
+  return Math.max(0, Math.min(c.overshootKcal, Math.round(c.weekBalanceKcal - c.stepsKcal)));
+}
+
 /** One line saying what covered the overshoot. */
 export function describeCoverage(c: OvershootCoverage): string {
   if (c.coveredBySteps) {

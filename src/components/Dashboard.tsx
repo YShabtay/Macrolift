@@ -43,7 +43,7 @@ import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
-import { describeCoverage, describeRoom, getOvershootCoverage, type OvershootCoverage } from '../utils/overshoot';
+import { describeCoverage, describeRoom, getOvershootCoverage, getRebalanceDebtKcal, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
@@ -117,7 +117,6 @@ import RebalanceModal, { type RebalanceChoice } from './RebalanceModal';
 import {
   buildRebalanceOptions,
   getDailyTargets,
-  getBonusStepDays,
   getTomorrowAdjustments,
   getWeeklyEnergyBalance,
 } from '../utils/weeklyBalance';
@@ -591,14 +590,11 @@ function DashboardTab({
     () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: today }),
     [stepLogs, baseStepGoal, profile.metrics.weightKg, today],
   );
-  // Steps walked above the daily goal (today, or earlier this week - even logged afterwards) already burned part of the overshoot.
-  const bonusStepDays = useMemo(
-    () => getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, today),
-    [stepLogs, baseStepGoal, weeklyBalance, today],
-  );
+  // The rebalance options work from what is really left to make up (the week after the net step credit), so they agree with the coverage verdict.
+  const rebalanceDebtKcal = getRebalanceDebtKcal(overshootCoverage);
   const rebalanceOptions = useMemo(
-    () => (isRebalanceOpen ? buildRebalanceOptions(overshootKcal, nutritionPlan, today, bonusStepDays) : null),
-    [isRebalanceOpen, overshootKcal, nutritionPlan, bonusStepDays, today],
+    () => (isRebalanceOpen ? buildRebalanceOptions(rebalanceDebtKcal, nutritionPlan, today) : null),
+    [isRebalanceOpen, rebalanceDebtKcal, nutritionPlan, today],
   );
   const weeklyEnergyBalance = useMemo(
     () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, today) : null),
@@ -817,6 +813,7 @@ function DashboardTab({
         <RebalanceModal
           options={rebalanceOptions}
           balance={weeklyEnergyBalance}
+          coverage={overshootCoverage}
           baseStepGoal={baseStepGoal}
           onChoose={(choice) => {
             onApplyRebalance(choice);

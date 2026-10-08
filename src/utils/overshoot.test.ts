@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOvershootCoverage } from './overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOvershootCoverage, getRebalanceDebtKcal } from './overshoot';
 import { getStepCredit } from './stepCredit';
 
 // 2026-10-04 is a Sunday, so the week so far is Sunday, Monday and today, Tuesday.
@@ -147,5 +147,25 @@ describe('step credit is signed: fewer steps than the goal count against the wee
     const c = getStepCredit({ stepLogs: [steps('2026-10-04', 6000)], baseGoal: GOAL, adjustment: undefined, asOf: '2026-10-08' });
     expect(c.shortfallSteps).toBe(0);
     expect(c.bonusSteps).toBe(1500);
+  });
+});
+
+describe('getRebalanceDebtKcal', () => {
+  // The week the rebalance screen used to call "fully covered" while the food tab showed an overshoot: Sunday-Thursday against 2,412, goal 4,500 steps.
+  const plan = { ...PLAN, targetCalories: 2412 } as NutritionPlan;
+  const log = [meal('2026-10-04', 2385), meal('2026-10-05', 2329), meal('2026-10-06', 2384), meal('2026-10-07', 2690), meal('2026-10-08', 2630)];
+  const stepLogs = [steps('2026-10-04', 8846), steps('2026-10-05', 3818), steps('2026-10-06', 5821), steps('2026-10-07', 2344), steps('2026-10-08', 5758)];
+  const c = getOvershootCoverage({ foodLog: log, plan, adjustment: undefined, stepLogs, baseStepGoal: 4500, today: '2026-10-08' });
+
+  it('is not covered, and what is left is the week after the net step credit, not today alone minus the bonus steps', () => {
+    expect(c.overshootKcal).toBe(218);
+    expect(c.weekBalanceKcal).toBe(358);
+    expect(c.stepsKcal).toBe(163); // 6,925 steps above the goal minus 2,838 short on finished days
+    expect(c.isCovered).toBe(false);
+    expect(getRebalanceDebtKcal(c)).toBe(195);
+  });
+  it('never asks for more than today\'s overshoot, and is zero when the week is in credit', () => {
+    expect(getRebalanceDebtKcal({ ...c, weekBalanceKcal: 900 })).toBe(218);
+    expect(getRebalanceDebtKcal({ ...c, weekBalanceKcal: 100 })).toBe(0);
   });
 });
