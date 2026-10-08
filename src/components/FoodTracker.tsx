@@ -33,7 +33,8 @@ import BarcodeScanner from './BarcodeScanner';
 import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
-import { KCAL_PER_1000_STEPS, getBonusStepDays, getDailyTargets } from '../utils/weeklyBalance';
+import { getDailyTargets } from '../utils/weeklyBalance';
+import { getStepCredit } from '../utils/stepCredit';
 import { describeCoverage, describeRoom, getOvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus } from '../utils/stepSurplus';
 import BalancedRing from './BalancedRing';
@@ -116,9 +117,9 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const recentFoods = useMemo(() => getRecentFoods(foodLog), [foodLog]);
-  // Steps walked above the goal this week already burned energy, so the pace for today counts them like the coverage check does.
+  // The week's walking against the step goal, in calories: the same number the coverage check uses, so every card moves together.
   const stepCreditKcal = useMemo(
-    () => (getBonusStepDays(stepLogs, baseStepGoal, weeklyBalance, today).reduce((sum, d) => sum + d.steps, 0) * KCAL_PER_1000_STEPS) / 1000,
+    () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: today }).netKcal,
     [stepLogs, baseStepGoal, weeklyBalance, today],
   );
   const calorieBudget = useMemo(
@@ -139,8 +140,8 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
   const isToday = selectedDate === today;
   const coverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: selectedDate }),
-    [selectedDate, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: selectedDate, realToday: today }),
+    [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
   const stepSurplus = useMemo(

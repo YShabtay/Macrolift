@@ -1,14 +1,19 @@
 import type { FoodEntry, NutritionPlan, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { getEntriesForDate, sumTotals } from './nutritionLog';
-import { KCAL_PER_1000_STEPS, getBonusStepDays, getDailyTargets, getWeeklyEnergyBalance } from './weeklyBalance';
+import { getDailyTargets, getWeeklyEnergyBalance } from './weeklyBalance';
+import { getStepCredit } from './stepCredit';
+
+/** The calorie estimates are approximate (a few percent on steps, ~10% on the formula), so a week this close to its target counts as in balance. */
+export const COVERAGE_TOLERANCE_KCAL = 50;
 
 export interface OvershootCoverage {
   /** Calories over today's target; 0 when today is at or under it. */
   overshootKcal: number;
   /** True when the overshoot needs no action: the week as a whole is still in balance. */
   isCovered: boolean;
-  /** Steps walked above the daily goal this week (today and earlier days), and the calories those already burned. */
+  /** The week's walking against the step goal: steps above it, steps short of it on completed days, and the net calories (negative when short). */
   bonusSteps: number;
+  shortfallSteps: number;
   stepsKcal: number;
   /** The week so far (days with logged food) is already at or under its cumulative target, with no help from the extra steps. */
   coveredByWeek: boolean;
@@ -32,30 +37,36 @@ export function getOvershootCoverage(params: {
   adjustment: WeeklyBalanceAdjustment | undefined;
   stepLogs: StepLog[];
   baseStepGoal: number;
+  /** The day being judged; the week is counted up to it. */
   today: string;
+  /** The real current date, when `today` is a past day being looked at: the days before it are finished, so their missing steps count. */
+  realToday?: string;
 }): OvershootCoverage {
-  const { foodLog, plan, adjustment, stepLogs, baseStepGoal, today } = params;
+  const { foodLog, plan, adjustment, stepLogs, baseStepGoal, today, realToday } = params;
   const eaten = sumTotals(getEntriesForDate(foodLog, today)).calories;
   const target = getDailyTargets(plan, adjustment, today).calories;
   const overshootKcal = Math.max(Math.round(eaten - target), 0);
 
-  const bonusSteps = Math.round(getBonusStepDays(stepLogs, baseStepGoal, adjustment, today).reduce((sum, d) => sum + d.steps, 0));
-  const stepsKcal = Math.round((bonusSteps * KCAL_PER_1000_STEPS) / 1000);
+  const { bonusSteps, shortfallSteps, netKcal: stepsKcal } = getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment, asOf: today, realToday });
   const weekBalanceKcal = getWeeklyEnergyBalance(foodLog, plan, adjustment, today).balanceKcal;
   const netWeek = weekBalanceKcal - stepsKcal;
 
-  const isCovered = overshootKcal > 0 && netWeek <= 0;
+  const isCovered = overshootKcal > 0 && netWeek <= COVERAGE_TOLERANCE_KCAL;
   const coveredByWeek = isCovered && weekBalanceKcal <= 0;
-  const coveredBySteps = isCovered && weekBalanceKcal > 0;
-  const roomKcal = isCovered ? Math.round(-netWeek) : 0;
+  const coveredBySteps = isCovered && weekBalanceKcal > 0 && stepsKcal > 0;
+  const roomKcal = isCovered ? Math.max(Math.round(-netWeek), 0) : 0;
 
-  return { overshootKcal, isCovered, bonusSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
+  return { overshootKcal, isCovered, bonusSteps, shortfallSteps, stepsKcal, coveredByWeek, coveredBySteps, weekBalanceKcal, roomKcal };
 }
 
 /** One line saying what covered the overshoot. */
 export function describeCoverage(c: OvershootCoverage): string {
-  if (c.coveredBySteps) return `${c.bonusSteps.toLocaleString('he-IL')} צעדי בונוס שהלכת השבוע (כ-${c.stepsKcal} קק״ל) מאזנים את העודף של השבוע`;
-  return 'מאזן השבוע עד כה עדיין מתחת ליעד המצטבר, אז אין צורך באיזון';
+  if (c.coveredBySteps) {
+    const missed = c.shortfallSteps > 0 ? `, אחרי שהופחתו ${c.shortfallSteps.toLocaleString('he-IL')} צעדים שחסרו בימים אחרים` : '';
+    return `${c.bonusSteps.toLocaleString('he-IL')} צעדים מעל היעד השבוע${missed} (נטו כ-${c.stepsKcal} קק״ל) מאזנים את העודף של השבוע`;
+  }
+  if (c.coveredByWeek) return c.stepsKcal < 0 ? `מאזן השבוע עד כה עדיין מתחת ליעד המצטבר, גם אחרי שהצעדים שחסרו (כ-${Math.abs(c.stepsKcal)} קק״ל) נלקחו בחשבון` : 'מאזן השבוע עד כה עדיין מתחת ליעד המצטבר, אז אין צורך באיזון';
+  return 'הסטייה של השבוע קטנה מספיק, בתוך הדיוק של ההערכה';
 }
 
 /** How much more can be eaten while the week stays in balance (shown when the overshoot is covered); empty when there is no real room. */

@@ -26,8 +26,8 @@ export interface WeeklyCalorieBudget {
 /**
  * Weekly calorie budget for the week containing `date`. For the current week it also suggests today's intake: the budget left after the
  * days before today, divided by the days remaining, kept within 15% of today's own target and never below the user's BMR.
- * `stepCreditKcal` is what the week's extra steps already burned: it is added back to the budget, so the pace agrees with the
- * "overshoot is covered" check, which counts those same steps.
+ * `stepCreditKcal` is the week's walking against the step goal in calories (negative when short of it): it is added to the budget, so the pace
+ * agrees with the "overshoot is covered" check, which reads the same number.
  */
 export function getWeeklyCalorieBudget(
   foodLog: FoodEntry[],
@@ -67,7 +67,7 @@ export function getWeeklyCalorieBudget(
   if (isCurrentWeek) {
     const daysLeft = 7 - daysBetween(weekStart, today);
     const target = getDailyTargets(plan, adjustment, today).calories;
-    const credit = Math.max(Math.round(stepCreditKcal), 0);
+    const credit = Math.round(stepCreditKcal);
     const raw = (weeklyTarget - assumedBeforeToday + credit) / daysLeft;
     const low = Math.max(target * (1 - PACE_FLEX), plan.bmr);
     const high = target * (1 + PACE_FLEX);

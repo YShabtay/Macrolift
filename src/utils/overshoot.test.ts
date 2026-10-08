@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { describeCoverage, describeRoom, getOvershootCoverage } from './overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOvershootCoverage } from './overshoot';
+import { getStepCredit } from './stepCredit';
 
 // 2026-10-04 is a Sunday, so the week so far is Sunday, Monday and today, Tuesday.
 const SUN = '2026-10-04';
@@ -80,12 +81,12 @@ describe('getOvershootCoverage', () => {
     expect(c.roomKcal).toBe(21); // 80 kcal of steps - 59
   });
 
-  it('stops being covered exactly where the room runs out', () => {
+  it('stops being covered where the room plus the estimate tolerance runs out', () => {
     const base = [meal(SUN, 2341), meal(MON, 2341)];
     const steps174 = [steps(SUN, BASE_GOAL + 4346)];
     const room = coverage([...base, meal(TODAY, 2384)], steps174).roomKcal;
-    expect(coverage([...base, meal(TODAY, 2384 + room)], steps174).isCovered).toBe(true);
-    expect(coverage([...base, meal(TODAY, 2384 + room + 1)], steps174).isCovered).toBe(false);
+    expect(coverage([...base, meal(TODAY, 2384 + room + COVERAGE_TOLERANCE_KCAL)], steps174).isCovered).toBe(true);
+    expect(coverage([...base, meal(TODAY, 2384 + room + COVERAGE_TOLERANCE_KCAL + 1)], steps174).isCovered).toBe(false);
   });
 });
 
@@ -120,5 +121,31 @@ describe('getOvershootCoverage judged as of a past day', () => {
     const c = asOf('2026-10-08');
     expect(c.overshootKcal).toBe(0);
     expect(c.isCovered).toBe(false);
+  });
+});
+
+
+describe('step credit is signed: fewer steps than the goal count against the week once the day is over', () => {
+  const GOAL = 4500;
+  const logs = [steps('2026-10-04', 8846), steps('2026-10-05', 3818), steps('2026-10-06', 5821), steps('2026-10-07', 2344)];
+  const credit = (asOf: string, realToday?: string) => getStepCredit({ stepLogs: logs, baseGoal: GOAL, adjustment: undefined, asOf, realToday });
+
+  it('counts only the surplus of a day still in progress, but its shortfall once the day is finished', () => {
+    const during = credit('2026-10-07'); // Wednesday itself: 2,344 steps may still grow
+    expect(during.shortfallSteps).toBe(682); // only Monday is finished and short
+    const after = credit('2026-10-08'); // Thursday: Wednesday is finished
+    expect(after.shortfallSteps).toBe(682 + 2156);
+    expect(after.bonusSteps).toBe(4346 + 1321);
+    expect(after.netKcal).toBe(Math.round(((4346 + 1321 - 682 - 2156) * 40) / 1000));
+  });
+
+  it('looking back at Wednesday from Thursday uses the finished day', () => {
+    expect(credit('2026-10-07', '2026-10-08')).toEqual(credit('2026-10-08'));
+  });
+
+  it('skips a day with no step entry instead of counting it as zero', () => {
+    const c = getStepCredit({ stepLogs: [steps('2026-10-04', 6000)], baseGoal: GOAL, adjustment: undefined, asOf: '2026-10-08' });
+    expect(c.shortfallSteps).toBe(0);
+    expect(c.bonusSteps).toBe(1500);
   });
 });

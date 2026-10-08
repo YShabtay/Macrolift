@@ -21,7 +21,7 @@ describe('getWeeklyCalorieBudget pace', () => {
     expect(pace.stepCreditKcal).toBe(227);
   });
 
-  it('ignores a negative credit', () => {
-    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -50).pace!.kcal).toBe(2365);
+  it('subtracts steps the week fell short by', () => {
+    expect(getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY, -90).pace!.kcal).toBe(2335);
   });
 });
