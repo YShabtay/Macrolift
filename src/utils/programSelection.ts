@@ -1,7 +1,7 @@
 import type { TrainingDaysPerWeek, UserMetrics, WorkoutPlan, WorkoutSplitType } from '../types/fitness';
 import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
 import { getHomeWorkoutTemplate } from '../data/homeWorkoutTemplates';
-import { adaptWorkoutPlan } from './workoutAdaptation';
+import { adaptWorkoutPlan, getExperienceLevel } from './workoutAdaptation';
 
 /** True when the profile trains at home; older profiles have no location and count as gym trainees. */
 export function trainsAtHome(metrics: Pick<UserMetrics, 'trainingLocation'>): boolean {
@@ -33,4 +33,13 @@ export function trainingSetupChanged(before: UserMetrics, after: UserMetrics): b
   if (trainsAtHome(before) !== trainsAtHome(after)) return true;
   if (!trainsAtHome(after)) return false;
   return (before.homeEquipment ?? 'none') !== (after.homeEquipment ?? 'none') || (before.homeLevel ?? 'beginner') !== (after.homeLevel ?? 'beginner');
+}
+
+/**
+ * True when a gym profile's declared training experience changed, which reshapes the gym program (beginner swaps, advanced
+ * variations). Home programs follow the home level instead, so they are not affected.
+ */
+export function gymExperienceChanged(before: UserMetrics, after: UserMetrics): boolean {
+  if (trainsAtHome(after)) return false;
+  return getExperienceLevel(before.experience) !== getExperienceLevel(after.experience);
 }

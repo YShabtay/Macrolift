@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UserMetrics } from '../types/fitness';
-import { buildWorkoutProgram, trainsAtHome } from './programSelection';
+import { buildWorkoutProgram, gymExperienceChanged, trainsAtHome } from './programSelection';
 import { mergeProfile } from './backupValidation';
 
 const BASE: UserMetrics = {
@@ -54,5 +54,30 @@ describe('home training settings in a saved profile', () => {
     expect(bad.metrics.trainingLocation).toBeUndefined();
     expect(bad.metrics.homeEquipment).toBeUndefined();
     expect(bad.metrics.homeLevel).toBeUndefined();
+  });
+});
+
+describe('gym programs and declared experience', () => {
+  const names = (m: UserMetrics) => buildWorkoutProgram(m).days.flatMap((d) => d.exercises.map((e) => e.name));
+
+  it('builds a different gym program for a beginner than for a trainee with over 3 years', () => {
+    const beginner = names({ ...BASE, trainingDaysPerWeek: 5, experience: { isCurrentlyTraining: true, experienceYears: 'under_1y' } });
+    const veteran = names({ ...BASE, trainingDaysPerWeek: 5, experience: { isCurrentlyTraining: true, experienceYears: 'over_3y' } });
+    expect(beginner).not.toEqual(veteran);
+    expect(beginner).not.toContain('סקוואט מוט');
+    expect(veteran).toContain('סקוואט מוט');
+  });
+
+  it('leaves a profile with no experience data on the base program', () => {
+    expect(buildWorkoutProgram(BASE).title).toBe('Full Body Workout');
+  });
+
+  it('flags a change of level on gym profiles only', () => {
+    const beginner = { ...BASE, experience: { isCurrentlyTraining: true, experienceYears: 'under_1y' as const } };
+    const veteran = { ...BASE, experience: { isCurrentlyTraining: true, experienceYears: 'over_3y' as const } };
+    expect(gymExperienceChanged(beginner, veteran)).toBe(true);
+    expect(gymExperienceChanged(BASE, beginner)).toBe(true);
+    expect(gymExperienceChanged(beginner, { ...beginner, experience: { ...beginner.experience, injuries: ['knees' as const] } })).toBe(false);
+    expect(gymExperienceChanged({ ...beginner, trainingLocation: 'home' }, { ...veteran, trainingLocation: 'home' })).toBe(false);
   });
 });

@@ -1473,6 +1473,19 @@ function WorkoutCard({
       </div>
       <p className="mb-4 text-xs text-zinc-600 dark:text-zinc-500">{workoutPlan.description}</p>
 
+      {workoutPlan.adaptationNotes && workoutPlan.adaptationNotes.length > 0 && (
+        <details className="mb-4 rounded-xl border border-lime-400/20 bg-lime-400/5 p-3">
+          <summary className="cursor-pointer text-xs font-bold text-lime-700 dark:text-lime-400">🎯 התאמות אישיות לתוכנית</summary>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {workoutPlan.adaptationNotes.map((note) => (
+              <li key={note} className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                {note}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <div className="mb-4 flex flex-wrap gap-2">
         {workoutPlan.days.map((d) => (
           <button
@@ -1559,6 +1572,7 @@ function WorkoutCard({
                       </span>
                     )}
                   </p>
+                  {exercise.notes && <p className="mt-1 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-500">{exercise.notes}</p>}
                   {exercise.replacedFrom && (
                     <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-orange-400/10 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-400">
                       <Sparkles className="h-3 w-3" />

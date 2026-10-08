@@ -36,7 +36,7 @@ import type {
 import type { NutritionPlan, WorkoutPlan } from './types/fitness';
 import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
 import { suggestSplitType } from './data/workoutTemplates';
-import { buildWorkoutProgram, trainingSetupChanged } from './utils/programSelection';
+import { buildWorkoutProgram, gymExperienceChanged, trainingSetupChanged } from './utils/programSelection';
 import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
 import { applyTdeeAdjustment } from './utils/calibration';
 import { applyTargetAdjustment } from './utils/targetCheck';
@@ -569,6 +569,11 @@ export default function App() {
 
         if (updates.trainingDaysPerWeek && updates.trainingDaysPerWeek !== prev.profile.metrics.trainingDaysPerWeek) {
           return applyProgramToState(prev, suggestSplitType(updates.trainingDaysPerWeek), updates.trainingDaysPerWeek, updates);
+        }
+
+        // A new training experience reshapes the gym program (beginner swaps, advanced variations): same split and frequency, rebuilt.
+        if (gymExperienceChanged(prev.profile.metrics, updatedMetrics)) {
+          return applyProgramToState(prev, prev.workoutPlan.splitType, prev.workoutPlan.daysPerWeek, updates);
         }
 
         // A new muscle emphasis rebuilds the current program (same split and frequency) with the emphasis applied.

@@ -252,6 +252,110 @@ function substituteExercise(exercise: Exercise, injuries: InjuryArea[], dayExerc
 }
 
 // ---------------------------------------------------------------------------
+// Training experience (gym programs)
+// ---------------------------------------------------------------------------
+
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
+/**
+ * The level a gym program is shaped for. Someone who is not training now counts as a beginner. A trainee who did not say for how long
+ * (and an old profile with no experience data at all) has no level: the base program is left exactly as it is rather than guessed at.
+ */
+export function getExperienceLevel(experience: ExperienceProfile | undefined): ExperienceLevel | undefined {
+  if (!experience) return undefined;
+  if (!experience.isCurrentlyTraining) return 'beginner';
+  switch (experience.experienceYears) {
+    case 'under_1y':
+      return 'beginner';
+    case '1_3y':
+      return 'intermediate';
+    case 'over_3y':
+      return 'advanced';
+    default:
+      return undefined;
+  }
+}
+
+/** One exercise swapped for a variation that suits a level. `to` lists candidates in order of preference (the first not already in the session wins). */
+export interface LevelSwap {
+  from: string;
+  to: string[];
+  /** Replaces the rep range when the new exercise needs a different one (a one-sided lift becoming a two-legged one, a heavy range softened for learning). */
+  repsRange?: string;
+}
+
+/**
+ * Beginners: the technically demanding free-barbell lifts and the balance-heavy single-leg and bodyweight pulls give way to stable
+ * machine, cable and dumbbell versions of the same movement (same muscle, same sets), which are easier to learn and to load safely.
+ * Every target is listed with difficulty "beginner" in the source exercise's swap options (data/workoutTemplates.ts) - a test guards that.
+ * Only the exercise changes; sets are untouched, so the weekly volume per muscle is identical to the base program.
+ */
+export const BEGINNER_SWAPS: LevelSwap[] = [
+  { from: 'סקוואט מוט', to: ['לחיצת רגליים במכונה', 'גובלט סקוואט'], repsRange: '8-12' },
+  { from: 'דדליפט רומני', to: ['דדליפט רומני עם משקולות'], repsRange: '8-12' },
+  { from: 'לחיצת חזה במוט שטוח', to: ['לחיצת חזה במכונה'], repsRange: '8-12' },
+  { from: 'חתירת מוט חבוק', to: ['חתירה בכבל ישיבה', 'חתירת דאמבל חד-יד'] },
+  { from: 'חתירת T או חתירת מוט', to: ['חתירה בכבל ישיבה', 'חתירת דאמבל חד-יד'] },
+  { from: 'לחיצת כתפיים בעמידה', to: ['לחיצת כתפיים בשיפוע (מכונה)'], repsRange: '8-12' },
+  { from: 'מתח באחיזה רחבה (או מכונת עזר)', to: ['פולי עליון לגב רחב'] },
+  { from: 'מכרעים בולגריים', to: ['גובלט סקוואט'], repsRange: '10-12' },
+];
+
+/**
+ * Advanced trainees (over 3 years): where the program has a machine press on a variation day, a free-weight press with a longer path
+ * replaces it. This is the only slot where the swap data has a more advanced version of the same movement; nothing else about the
+ * program changes, because no research ties training age to a different weekly volume.
+ */
+export const ADVANCED_SWAPS: LevelSwap[] = [{ from: 'לחיצת כתפיים בשיפוע (מכונה)', to: ['לחיצה ארנולד'] }];
+
+const BEGINNER_ACCLIMATION_NOTE =
+  'שבועיים ראשונים: 1-2 הסטים הראשונים בתרגיל הראשון הם סטי היכרות בעומס קל, הרחק מכשל (הם נכללים במספר הסטים שבתוכנית).';
+
+/**
+ * Applies a level's swaps, keeping each exercise's id, sets and rest. The original is stored in `replacedFrom`, so the existing
+ * "back to the original exercise" button restores it. A swap that would put the same exercise in a session twice is skipped.
+ */
+function applyLevelSwaps(
+  days: DayWorkout[],
+  swaps: LevelSwap[],
+  describe: (from: string) => string,
+): { days: DayWorkout[]; swapped: number } {
+  let swapped = 0;
+  const result = days.map((day) => {
+    const names = new Set(day.exercises.map((e) => e.name));
+    return {
+      ...day,
+      exercises: day.exercises.map((exercise) => {
+        const swap = swaps.find((s) => s.from === exercise.name);
+        if (!swap) return exercise;
+        const target = swap.to.find((candidate) => !names.has(candidate) && findExerciseTemplate(candidate));
+        const template = target ? findExerciseTemplate(target) : undefined;
+        if (!target || !template) return exercise;
+        names.delete(exercise.name);
+        names.add(target);
+        swapped += 1;
+        const { replacedFrom: _history, ...original } = exercise;
+        return {
+          ...exercise,
+          ...template,
+          repsRange: swap.repsRange ?? exercise.repsRange,
+          notes: describe(exercise.name),
+          replacedFrom: exercise.replacedFrom ?? original,
+        };
+      }),
+    };
+  });
+  return { days: result, swapped };
+}
+
+/** Each gym split exists for one weekly frequency only (3 full body, 4 upper/lower, 5-6 push/pull/legs), so the chosen days decide the split. */
+const SPLIT_LABELS: Record<'fbw' | 'upper_lower' | 'ppl', string> = {
+  fbw: 'Full Body',
+  upper_lower: 'Upper / Lower',
+  ppl: 'Push / Pull / Legs',
+};
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -273,8 +377,9 @@ export function adaptWorkoutPlan(
   gender?: Gender,
 ): AdaptedWorkout {
   const trainee = experience?.isCurrentlyTraining ? experience : undefined;
+  const level = getExperienceLevel(experience);
   const femaleDefault = gender === 'female' && targetFocus === 'balanced';
-  if (!trainee && targetFocus === 'balanced' && !femaleDefault) {
+  if (!trainee && !level && targetFocus === 'balanced' && !femaleDefault) {
     return { plan: basePlan, notes: [] };
   }
 
@@ -317,6 +422,33 @@ export function adaptWorkoutPlan(
     );
   }
 
+  // 1b. Experience: beginners get stable, easy-to-learn versions of the technical lifts; advanced trainees a longer-path press where the data has one.
+  // Runs after the injury swaps, so a joint-driven substitution wins over an experience-driven one.
+  const levelSuggestions: string[] = [];
+  if (level === 'beginner') {
+    const swapped = applyLevelSwaps(days, BEGINNER_SWAPS, (from) => `מתחילים: "${from}" הוחלף בגרסה יציבה וקלה יותר ללימוד. כשהטכניקה יציבה אפשר לחזור למקור.`);
+    days = swapped.days;
+    if (swapped.swapped > 0) {
+      notes.push(
+        'תוכנית למתחילים: סקוואט, דדליפט רומני, לחיצת חזה, חתירה ולחיצת כתפיים במוט, מתח ומכרעים בולגריים הוחלפו בגרסאות יציבות וקלות ללימוד (מכונות, כבלים ומשקולות) עם טווח חזרות מתון. מספר הסטים השבועי לא השתנה, ואפשר לחזור לכל תרגיל מקורי דרך "חזרה לתרגיל המקורי".',
+      );
+    }
+    notes.push(
+      'שבועיים ראשונים: התחל/י את התרגיל הראשון בכל אימון ב-1-2 סטי היכרות בעומס קל, הרחק מכשל, והתמקד/י בטכניקה. הם נכללים בסטים שבתוכנית, ואין כאן סטים נוספים.',
+    );
+  } else if (level === 'advanced') {
+    const swapped = applyLevelSwaps(days, ADVANCED_SWAPS, (from) => `ותק גבוה: "${from}" הוחלף בגרסה מתקדמת יותר. אפשר לחזור למקור.`);
+    days = swapped.days;
+    if (swapped.swapped > 0) notes.push('ותק של מעל 3 שנים: לחיצת כתפיים במכונה בימי הווריאציה הוחלפה בלחיצה ארנולד עם משקולות. שאר התוכנית ונפח הסטים זהים לכל הרמות.');
+    levelSuggestions.push(
+      'ותק של מעל 3 שנים: נפח הסטים הנוכחי נשאר בטווח המקובל גם לך - אין מחקר שמצדיק נפח אחר רק לפי ותק. לשינוי אפשר להחליף תרגילים לגרסאות מתקדמות דרך "החלף תרגיל".',
+    );
+  } else if (level === 'intermediate') {
+    levelSuggestions.push(
+      'ותק של 1-3 שנים: התוכנית הבסיסית (מוטות חופשיים, מתח ומכונות) מתאימה לרמה שלך כפי שהיא. תעד/י משקלים והעלה/י עומס רק כשמגיעים לקצה טווח החזרות בכל הסטים.',
+    );
+  }
+
   // 2. Focus-area volume boost - append the boost exercise once per qualifying day.
   for (const focusArea of focusAreas) {
     const boostName = FOCUS_AREA_BOOST_EXERCISE[focusArea];
@@ -352,7 +484,12 @@ export function adaptWorkoutPlan(
   }
 
   // 3. Plateau: a suggestion only. The plan is left exactly as it is - an automatic deload would have cut the sets and rep ranges for good, not for a week.
-  const suggestions: string[] = [];
+  const suggestions: string[] = [...levelSuggestions];
+  if (trainee?.currentSplit && trainee.currentSplit !== 'custom' && trainee.currentSplit !== basePlan.splitType) {
+    suggestions.push(
+      `ציינת שאתה מתאמן כיום בחלוקה ${SPLIT_LABELS[trainee.currentSplit]}, והתוכנית שלפניך היא ${SPLIT_LABELS[basePlan.splitType]} כי היא זו שמתאימה ל-${basePlan.daysPerWeek} ימי האימון בשבוע שבחרת (לכל חלוקה יש תדירות קבועה). כדי לשמור על החלוקה שלך, שנה/י את מספר ימי האימון או עבור/י לחלוקה אחרת דרך "החלף תוכנית".`,
+    );
+  }
   if (trainee?.hasPlateau) {
     suggestions.push(
       'דיווחת על תקיעות (פלאטו). לפני שמשנים את התוכנית כדאי לבדוק שלושה דברים: שאתה ישן מספיק, שאתה אוכל מספיק, ושאתה מתעד ומעלה עומס בהדרגה. אם יש גם סימני עייפות אמיתיים (ירידה בביצועים, שינה לא טובה), אפשר לשקול שבוע deload של כ-40% פחות סטים - ראה את המדריך "שבוע Deload". התוכנית לא שונתה אוטומטית.',
@@ -370,6 +507,14 @@ export function adaptWorkoutPlan(
     const blockOrder = leadBlock ? [leadBlock, ...inferBlockOrder(day).filter((b) => b !== leadBlock)] : inferBlockOrder(day);
     return { ...day, exercises: orderExercisesByBlock(day.exercises, { blockOrder, shouldersFirst: leadFocus === 'shoulders' }) };
   });
+
+  // Beginners: the first lift of each session (after the final ordering) carries the acclimation note.
+  if (level === 'beginner') {
+    days = days.map((day) => ({
+      ...day,
+      exercises: day.exercises.map((e, i) => (i === 0 ? { ...e, notes: e.notes ? `${e.notes} ${BEGINNER_ACCLIMATION_NOTE}` : BEGINNER_ACCLIMATION_NOTE } : e)),
+    }));
+  }
 
   // Only real changes to the plan make it "personalized"; a suggestion alone does not.
   const wasAdapted = notes.length > 0;
