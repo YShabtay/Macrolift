@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { getStepCalorieBank, getStepMode, getWeeklyStepsPlan, stepBonusKcal, withStepMode } from './weeklySteps';
+import { getStepCalorieBank, getStepMode, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, withStepMode } from './weeklySteps';
 
 const GOAL = 4500;
 const steps = (date: string, n: number): StepLog => ({ date, steps: n });
@@ -134,13 +134,48 @@ describe('getStepCalorieBank: calories not eaten roll over within the week', () 
   });
 });
 
+describe('getStepCalorieBank: a day below the goal is netted against the days above it', () => {
+  const bank = (stepLogs: StepLog[], today: string, foodLog: FoodEntry[] = []) =>
+    getStepCalorieBank({ baseAdjustment: undefined, plan: PLAN, stepLogs, foodLog, targetDailySteps: GOAL, weightKg: 70, today });
+
+  it('takes the calories of a short day off the bank before they become food', () => {
+    // Sunday +160 (8,500), Monday 3,000 steps = -60: 100 are left, then today's own steps add 40.
+    const r = bank([steps('2026-10-04', 8500), steps('2026-10-05', 3000), steps('2026-10-06', 5500)], '2026-10-06');
+    expect(r.carriedIntoToday).toBe(100);
+    expect(r.availableToday).toBe(140);
+    expect(r.allowance['2026-10-06']).toBe(140);
+  });
+
+  it('a short day before any surplus is a debt the later days pay first, and the bank never goes below 0 for today', () => {
+    // Sunday 3,000 (-60), Monday 8,500 (+160): 100. Tuesday (today) 0 steps: still 100.
+    expect(bank([steps('2026-10-04', 3000), steps('2026-10-05', 8500)], '2026-10-06').availableToday).toBe(100);
+    // Only short days: nothing to eat, never a negative allowance.
+    const short = bank([steps('2026-10-04', 3000), steps('2026-10-05', 3000)], '2026-10-06');
+    expect(short.carriedIntoToday).toBe(-120);
+    expect(short.availableToday).toBe(0);
+    expect(short.allowance).toEqual({});
+  });
+
+  it('does not count a day with no entry, nor today\'s steps so far, as a shortfall', () => {
+    const r = bank([steps('2026-10-04', 8500), steps('2026-10-06', 1000)], '2026-10-06'); // Monday not logged; today 1,000 so far
+    expect(r.carriedIntoToday).toBe(160);
+    expect(r.availableToday).toBe(160);
+  });
+
+  it('a short day only counts once it is over: the same steps on a past day take calories off, today they do not', () => {
+    expect(stepNetKcal(3000, true, GOAL, 70)).toBe(-60);
+    expect(stepNetKcal(0, false, GOAL, 70)).toBe(0);
+    expect(stepNetKcal(8500, true, GOAL, 70)).toBe(160);
+  });
+});
+
 describe('withStepMode', () => {
   const logs = [steps('2026-10-05', 6500), steps('2026-10-06', 3000), steps('2026-10-07', 8500)];
   const base = { mode: 'add_calories' as const, stepLogs: logs, foodLog: [] as FoodEntry[], plan: PLAN, targetDailySteps: GOAL, weightKg: 70, today: '2026-10-07' };
 
   it('in the calorie mode gives today the bank and past days only what they spent', () => {
-    // Monday earned 80 and ate nothing: it keeps them; Tuesday 0; Wednesday earned 160: today's target gets 80 + 160.
-    expect(withStepMode(undefined, base)?.stepAllowance).toEqual({ '2026-10-07': 240 });
+    // Monday earned 80 and ate nothing: it keeps them; Tuesday walked 1,500 short (-60); Wednesday earned 160: today's target gets 80 - 60 + 160.
+    expect(withStepMode(undefined, base)?.stepAllowance).toEqual({ '2026-10-07': 180 });
   });
 
   it('in the steps mode leaves calories alone, and drops anything an older version saved', () => {

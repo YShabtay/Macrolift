@@ -5,7 +5,7 @@ import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
 import { getCarriedBonus, getStepBoostBreakdown, type StepBoostBreakdown } from '../utils/weeklyBalance';
-import { getStepBoostExtraSteps, getWeeklyStepsPlan, stepBonusKcal, type StepGoalMode, type StepMode } from '../utils/weeklySteps';
+import { getStepBoostExtraSteps, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, type StepGoalMode, type StepMode } from '../utils/weeklySteps';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
 
@@ -252,7 +252,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
         <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-500">7 הימים האחרונים - לחצו על יום כדי לראות או לתקן את הצעדים שלו</p>
         {inCalorieMode && (
           <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
-            כל יום נמדד מול {baseGoalSteps.toLocaleString('he-IL')}. המספר מעל העמודה הוא הקלוריות שנוספו מצעדים עודפים באותו יום (קק״ל).
+            כל יום נמדד מול {baseGoalSteps.toLocaleString('he-IL')}. המספר מעל העמודה הוא הקלוריות שהצעדים של אותו יום הוסיפו (+) או הורידו (−) מהבנק (קק״ל): יום קצר מקזז קודם מהימים העודפים.
           </p>
         )}
         <div className="flex items-end justify-between gap-1.5">
@@ -267,7 +267,12 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
                 d.date === selectedDate ? 'bg-lime-400/10 ring-1 ring-lime-400/50' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
               }`}
             >
-              {inCalorieMode && stepBonusKcal(d.steps, baseGoalSteps, weightKg) > 0 ? (
+              {inCalorieMode && d.date !== today && stepNetKcal(d.steps, d.steps > 0, baseGoalSteps, weightKg) !== 0 ? (
+                <span className={`text-[10px] font-extrabold tabular-nums ${d.steps >= baseGoalSteps ? 'text-lime-700 dark:text-lime-400' : 'text-orange-700 dark:text-orange-400'}`} dir="ltr">
+                  {stepNetKcal(d.steps, true, baseGoalSteps, weightKg) > 0 ? '+' : '−'}
+                  {Math.abs(stepNetKcal(d.steps, true, baseGoalSteps, weightKg))}
+                </span>
+              ) : inCalorieMode && d.date === today && stepBonusKcal(d.steps, baseGoalSteps, weightKg) > 0 ? (
                 <span className="text-[10px] font-extrabold tabular-nums text-lime-700 dark:text-lime-400">+{stepBonusKcal(d.steps, baseGoalSteps, weightKg)}</span>
               ) : (
                 <span className="text-[9px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-500">
@@ -386,7 +391,7 @@ function StepsSummary({
             {bonus > 0 ? `${dayWord}: ${fmt(stepsOnDay - baseGoal)} צעדים מעל היעד = +${fmt(bonus)} קק״ל` : `צעדים מעל ${fmt(baseGoal)} ${dayWord} יצטרפו לבנק`}
           </p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
-            יעד הצעדים היומי נשאר {fmt(baseGoal)}. תקציב הקלוריות להיום כולל את הבנק, וקלוריות שלא נוצלו מתגלגלות לימים הבאים באותו שבוע.
+            יעד הצעדים היומי נשאר {fmt(baseGoal)}. תקציב הקלוריות להיום כולל את הבנק, וקלוריות שלא נוצלו מתגלגלות לימים הבאים באותו שבוע. יום שהסתיים מתחת ליעד מקזז מהבנק קודם.
           </p>
         </>
       )}

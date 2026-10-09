@@ -87,20 +87,33 @@ export function stepBonusKcal(steps: number, targetDailySteps: number, weightKg:
   return surplus > 0 ? Math.round(surplus * (weightKg / 70) * KCAL_PER_STEP_AT_70KG) : 0;
 }
 
+/**
+ * Calories a finished day's steps add (above the goal) or take away (below it), for a day that has a step entry. The calorie target assumes the goal is
+ * walked every day, so a short day really burned less and is netted against the days that went over before anything becomes food. Days with no entry
+ * are not counted: a day that was simply not logged is not a day not walked.
+ */
+export function stepNetKcal(steps: number, hasEntry: boolean, targetDailySteps: number, weightKg: number): number {
+  if (!hasEntry) return 0;
+  const diff = steps - targetDailySteps;
+  return diff >= 0 ? stepBonusKcal(steps, targetDailySteps, weightKg) : -Math.round(-diff * (weightKg / 70) * KCAL_PER_STEP_AT_70KG);
+}
+
 export interface StepCalorieBank {
   /** What to add to each day's target (date -> kcal): the part of the bank that day actually ate, and for today everything available. */
   allowance: Record<string, number>;
-  /** What came into today from earlier days of the week, unspent. */
+  /** What came into today from earlier days of the week, unspent, after the days that fell short are taken off (can be negative). */
   carriedIntoToday: number;
   /** Calories earned from today's steps so far. */
   bonusToday: number;
-  /** Today's whole allowance: what is carried in plus what today's steps earned. */
+  /** Today's whole allowance: what is carried in plus what today's steps earned (never below 0). */
   availableToday: number;
 }
 
 /**
  * The week's calorie bank in the 'add_calories' mode. Each day's steps above the goal earn calories; calories not eaten that day are not lost at midnight,
- * they carry to the next days of the same week until they are used up by eating above the base target (or the week ends on Sunday).
+ * they carry to the next days of the same week until they are used up by eating above the base target (or the week ends on Sunday). A day that fell short of
+ * the goal takes calories off the bank first (down to a debt that later days must cover), so only the net walking becomes food. Today's own steps only
+ * add: the day is not over, so a low count so far is not a shortfall yet.
  *
  * For a day before today: it spent min(what was available, what it ate above its base target), and that spent part is what is added to its target (so
  * eaten minus target stays honest and the same calories are never in two days' targets). For today: its target includes everything available (carried in
@@ -124,17 +137,19 @@ export function getStepCalorieBank(params: {
 
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const day = addDaysIso(weekStart, i);
-    const bonus = stepBonusKcal(getStepsForDate(stepLogs, day), targetDailySteps, weightKg);
-    const available = bank + bonus;
+    const daySteps = getStepsForDate(stepLogs, day);
     if (day === today) {
+      const bonus = stepBonusKcal(daySteps, targetDailySteps, weightKg);
+      const available = Math.max(0, bank + bonus);
       carriedIntoToday = bank;
       bonusToday = bonus;
       if (available > 0) allowance[day] = available;
       return { allowance, carriedIntoToday, bonusToday, availableToday: available };
     }
+    const available = bank + stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
     const base = getDailyTargets(plan, baseAdjustment, day).calories;
     const eaten = sumTotals(foodLog.filter((f) => f.date === day)).calories;
-    const used = Math.min(available, Math.max(0, Math.round(eaten - base)));
+    const used = Math.min(Math.max(available, 0), Math.max(0, Math.round(eaten - base)));
     if (used > 0) allowance[day] = used;
     bank = available - used;
   }
