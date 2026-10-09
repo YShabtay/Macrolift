@@ -399,7 +399,6 @@ export default function Dashboard({
               appState={appState}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onUpdateProfileFull={onUpdateProfileFull}
-              onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
               onUndoCompleteDay={onUndoCompleteDay}
@@ -432,6 +431,9 @@ export default function Dashboard({
               onUndoCompleteDay={onUndoCompleteDay}
               onSetSchedule={onSetSchedule}
               onClearSchedule={onClearSchedule}
+              daysPerWeek={appState.profile.metrics.trainingDaysPerWeek}
+              trainingLocation={appState.profile.metrics.trainingLocation}
+              onApplyProgram={onApplyProgram}
             />
           )}
           {tab === 'nutrition' && (
@@ -520,7 +522,6 @@ function DashboardTab({
   appState,
   onApplyTargetAdjustment,
   onUpdateProfileFull,
-  onApplyProgram,
   onApplyRebalance,
   onQuickCompleteDay,
   onUndoCompleteDay,
@@ -539,7 +540,6 @@ function DashboardTab({
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   appState: AppState;
-  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
   onUndoCompleteDay: (dayId: string, date?: string) => void;
@@ -567,7 +567,6 @@ function DashboardTab({
   const targetReached = targetProgress?.status === 'reached' && appState.profile.metrics.goal !== 'maintain';
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
-  const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
@@ -716,12 +715,6 @@ function DashboardTab({
         </div>
       )}
 
-      <ProgramCard
-        splitType={workoutPlan.splitType}
-        daysPerWeek={profile.metrics.trainingDaysPerWeek}
-        onChangeProgram={() => setIsProgramModalOpen(true)}
-      />
-
       <WeeklyCalendarWidget
         workoutPlan={workoutPlan}
         progress={progress}
@@ -838,16 +831,6 @@ function DashboardTab({
 
       {syncToast && <Toast message={syncToast} onDismiss={() => setSyncToast(null)} />}
 
-      {isProgramModalOpen && (
-        <ProgramSwitcherModal
-          isCustomPlan={!!workoutPlan.isCustom}
-          currentSplit={workoutPlan.splitType}
-          currentDays={profile.metrics.trainingDaysPerWeek}
-          location={profile.metrics.trainingLocation}
-          onApply={onApplyProgram}
-          onClose={() => setIsProgramModalOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -1290,6 +1273,9 @@ function WorkoutPlanTab({
   onSetSchedule,
   onClearSchedule,
   onSaveCustomPlan,
+  daysPerWeek,
+  trainingLocation,
+  onApplyProgram,
 }: {
   /** The sub-view to open on; the screen remounts on each visit, so this only matters on arrival. */
   initialView: WorkoutView;
@@ -1306,8 +1292,12 @@ function WorkoutPlanTab({
   onUndoCompleteDay: (dayId: string, date?: string) => void;
   onSetSchedule: (date: string, dayId: string, customLabel?: string) => void;
   onClearSchedule: (date: string) => void;
+  daysPerWeek: TrainingDaysPerWeek;
+  trainingLocation: UserMetrics['trainingLocation'];
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
 }) {
   const [view, setView] = useState<WorkoutView>(initialView);
+  const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule), [workoutPlan, schedule]);
@@ -1331,6 +1321,19 @@ function WorkoutPlanTab({
           },
         ]}
       />
+
+      <ProgramCard splitType={workoutPlan.splitType} daysPerWeek={daysPerWeek} onChangeProgram={() => setIsProgramModalOpen(true)} />
+
+      {isProgramModalOpen && (
+        <ProgramSwitcherModal
+          isCustomPlan={!!workoutPlan.isCustom}
+          currentSplit={workoutPlan.splitType}
+          currentDays={daysPerWeek}
+          location={trainingLocation}
+          onApply={onApplyProgram}
+          onClose={() => setIsProgramModalOpen(false)}
+        />
+      )}
 
       <p className="-mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
         {getFrequencyRecommendation(workoutPlan)} אפשר לשבץ כל אימון ליום שנוח לך דרך לוח השנה.

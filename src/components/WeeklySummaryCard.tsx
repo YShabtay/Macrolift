@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Award, BarChart3, ChevronLeft, ChevronRight, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
+import { Award, BarChart3, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
 import type { AppState } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { buildWeeklySummary } from '../utils/weeklySummary';
@@ -27,6 +27,31 @@ function Stat({ icon: Icon, label, value, hint }: { icon: typeof Dumbbell; label
 
 /** "This week" / "last week" at a glance - workouts, sets and personal records, steps, nutrition, weight - plus the streaks that keep it going. */
 export default function WeeklySummaryCard({ appState }: { appState: AppState }) {
+  // Collapsed by default: on a phone the home screen is already long, and this is a look-back more than something to act on.
+  const [isOpen, setIsOpen] = useState(false);
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        aria-expanded={false}
+        className="glass-card flex w-full items-center justify-between gap-3 p-4 text-right transition hover:border-lime-400/30 sm:p-5"
+      >
+        <span className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-lime-700 dark:text-lime-400" />
+          <span className="font-bold text-zinc-900 dark:text-zinc-100">סיכום שבועי</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs font-semibold text-zinc-500">
+          הצג
+          <ChevronDown className="h-4 w-4" />
+        </span>
+      </button>
+    );
+  }
+  return <WeeklySummaryBody appState={appState} onCollapse={() => setIsOpen(false)} />;
+}
+
+function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCollapse: () => void }) {
   const today = useToday();
   const [offset, setOffset] = useState(0);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -55,6 +80,9 @@ export default function WeeklySummaryCard({ appState }: { appState: AppState }) 
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-lime-700 dark:text-lime-400" />
           <h2 className="font-bold text-zinc-900 dark:text-zinc-100">סיכום שבועי</h2>
+          <button type="button" onClick={onCollapse} aria-label="הסתר את הסיכום השבועי" aria-expanded className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            <ChevronUp className="h-4 w-4" />
+          </button>
         </div>
         <div className="flex items-center gap-1" role="group" aria-label="ניווט בין שבועות">
           <button
