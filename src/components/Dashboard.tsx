@@ -42,6 +42,7 @@ import WeightTargetCard from './WeightTargetCard';
 import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
+import AppVersionCard from './AppVersionCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getOvershootDays, getRebalanceDebtKcal, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
@@ -2280,6 +2281,8 @@ function ProfileTab({
       </div>
 
       <AutoBackupCard userId={userId} refreshKey={appState} onRestore={onRestoreSnapshot} />
+
+      <AppVersionCard />
 
       <div className="flex flex-wrap gap-3">
         <button

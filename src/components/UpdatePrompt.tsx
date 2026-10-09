@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Rocket, X } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const UPDATE_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+/** An update found this soon after the app opened is applied without asking: nothing is in progress yet, and an installed iPhone app that waits for a tap can stay on an old version for days. */
+const AUTO_APPLY_WITHIN_MS = 20_000;
 /** Focus, visibility and reconnect events often fire together; one check per window is enough. */
 const MIN_CHECK_GAP_MS = 10_000;
 
@@ -52,6 +55,11 @@ export default function UpdatePrompt() {
       startBackgroundUpdateChecks(registration);
     },
   });
+
+  // Just opened: update right away (one quick reload); later in a session the choice stays with the user, so a reload never interrupts a set or a form.
+  useEffect(() => {
+    if (needRefresh && performance.now() < AUTO_APPLY_WITHIN_MS) void updateServiceWorker(false);
+  }, [needRefresh, updateServiceWorker]);
 
   if (!needRefresh) return null;
 

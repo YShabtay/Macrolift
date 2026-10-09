@@ -92,7 +92,7 @@ Most tracking apps share the same weaknesses:
 - Meal photo analysis and voice-to-meal parsing.
 
 **Product & reliability**
-- Installable PWA with offline support, an install guide for iOS/Android, and background update checks with a "new version" prompt.
+- Installable PWA with offline support, an install guide for iOS/Android, and background update checks with a "new version" prompt. A new version found right after the app opens is applied without asking, and the profile shows the running build and has a "check for update" button that compares it with the live one and can force the update (service worker and caches only, never the saved data).
 - Defensive data layer: schema versioning and migrations, sanitising of stored data on boot, per-screen error boundaries, and a recovery path if a chunk fails to load.
 - Backup reminders, JSON export/import and CSV export.
 - Automatic on-device safety copies in IndexedDB (daily, last 7 days, plus a copy before every reset, import or restore). They are offered for restore when the app opens with its data missing, reset can be undone in one tap, and a list in the profile restores any copy. Same-origin by design: they protect against mistakes and bugs, not against clearing all site data.
@@ -140,7 +140,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-384 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+388 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |

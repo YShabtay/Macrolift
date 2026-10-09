@@ -1,9 +1,22 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'node:child_process'
+
+/** A short id of the build shown in the profile, so "which version is on my phone?" has an answer: the commit Vercel builds, or the local one. */
+function buildId(): string {
+  const fromHost = process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromHost) return fromHost.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'local'
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   plugins: [
     react(),
     VitePWA({
