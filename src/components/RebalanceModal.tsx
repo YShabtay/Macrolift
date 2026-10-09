@@ -96,6 +96,11 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
               </tbody>
             </table>
           )}
+          {coverage.unspentBankKcal > 0 && (
+            <p className="mt-1 font-semibold text-lime-700 dark:text-lime-400">
+              בנק קלוריות מצעדים שלא נוצל היום: −{coverage.unspentBankKcal.toLocaleString()} קק״ל (אם תאכל אותו, הוא יחזור לעודף)
+            </p>
+          )}
           <p className="mt-1">
             סך הכול: {coverage.weekOverSoFarKcal > 0 ? '+' : ''}
             {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל. ימים מתחת ליעד מקזזים ימים מעליו, והיום עצמו נספר רק אם חרגת, כי מה שעוד לא אכלת היום הוא לא "חיסכון".

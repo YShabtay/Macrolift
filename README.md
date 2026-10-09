@@ -139,7 +139,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-374 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+375 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -148,7 +148,7 @@ npm test
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |
 | Data safety (`dataMigration`, `backupValidation`, `snapshotStore`) | Corrupt or partial stored data is cleaned entry by entry, sanitising is idempotent, malformed backup files are rejected or partially restored, snapshots are rate-limited, pruned per profile and skip empty profiles |
-| Overshoot coverage (`overshoot`) | The week judged as a whole (no steps involved): covered by the weekly balance, the room left and the tolerance, the overshoot carried from earlier days on a morning with nothing eaten, a past day judged as it stood, planned compensation counted, the days that went over |
+| Overshoot coverage (`overshoot`) | The week judged as a whole (no steps involved): covered by the weekly balance, the room left and the tolerance, the overshoot carried from earlier days on a morning with nothing eaten, a past day judged as it stood, planned compensation counted, the days that went over, and in the calorie mode the unspent step calories paying the week's overshoot down (and coming back when eaten) |
 | Target weight (`weightTarget`) | Validation against the goal and BMI, progress on the weekly average, start weight bookkeeping, time estimate from the measured pace or the planned one, reached only after two weeks in a row, a trend moving away, survival through backup restore |
 | Profile weight sync (`profileWeightSync`) | Two weekly averages in a row on the same side of the profile weight before suggesting, quiet for one odd week or small drift, the week in progress and single-weigh-in weeks ignored |
 | Weekly step plan and step modes (`weeklySteps`) | Today counted as a day still to walk (a steady target on a Friday morning, what is left of it live), a day without an entry as 0 steps, Sunday and Saturday edges, extra rebalance walking in the total, the calorie bank rolling over within the week and resetting on Sunday, never the same calories in two days' targets, the two modes never both, the same story checked on the step card, weekly budget, coverage and rebalance screen |
