@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOvershootCoverage, getRebalanceDebtKcal } from './overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getOvershootDays, getRebalanceDebtKcal, shouldOfferRebalance } from './overshoot';
 import { getStepCredit } from './stepCredit';
 
 // 2026-10-04 is a Sunday, so the week so far is Sunday, Monday and today, Tuesday.
@@ -164,8 +164,33 @@ describe('getRebalanceDebtKcal', () => {
     expect(c.isCovered).toBe(false);
     expect(getRebalanceDebtKcal(c)).toBe(195);
   });
-  it('never asks for more than today\'s overshoot, and is zero when the week is in credit', () => {
-    expect(getRebalanceDebtKcal({ ...c, weekBalanceKcal: 900 })).toBe(218);
-    expect(getRebalanceDebtKcal({ ...c, weekBalanceKcal: 100 })).toBe(0);
+
+  it('is the week over so far after the net steps, and is zero when the steps already cover it', () => {
+    expect(c.weekOverSoFarKcal).toBe(358);
+    expect(getRebalanceDebtKcal({ ...c, weekOverSoFarKcal: 900 })).toBe(900 - 163);
+    expect(getRebalanceDebtKcal({ ...c, weekOverSoFarKcal: 100 })).toBe(0);
+  });
+
+  it('still offers the rebalance on a day with nothing eaten yet, for the overshoot carried from earlier days', () => {
+    const friday = getOvershootCoverage({ foodLog: log.filter((m) => m.date < '2026-10-08'), plan, adjustment: undefined, stepLogs: stepLogs.filter((s) => s.date < '2026-10-08'), baseStepGoal: 4500, today: '2026-10-09' });
+    expect(friday.overshootKcal).toBe(0);
+    expect(friday.weekOverSoFarKcal).toBe(140); // Wednesday's +278 against the three days that stayed a little under
+    expect(shouldOfferRebalance(friday)).toBe(getRebalanceDebtKcal(friday) > COVERAGE_TOLERANCE_KCAL);
+    expect(getRebalanceDebtKcal(friday)).toBe(Math.max(0, 140 - friday.stepsKcal));
+  });
+
+  it('counts what the user already planned (lowered targets ahead, extra walking) and keeps offering the screen to revisit it', () => {
+    const planned = { weekStart: '2026-10-04', calorie: { reductionKcal: 98, fromDate: '2026-10-09' }, steps: { boost: 1000, days: 2, fromDate: '2026-10-09' } };
+    const withPlan = getOvershootCoverage({ foodLog: log, plan, adjustment: planned, stepLogs, baseStepGoal: 4500, today: '2026-10-08' });
+    expect(withPlan.plannedCompensationKcal).toBe(98 * 2 + 80); // two lowered days (Fri, Sat) and 2,000 extra steps
+    expect(getOpenRebalanceDebtKcal(withPlan)).toBe(Math.max(0, getRebalanceDebtKcal(withPlan) - 276));
+    expect(shouldOfferRebalance(withPlan)).toBe(getRebalanceDebtKcal(withPlan) > COVERAGE_TOLERANCE_KCAL);
+  });
+
+  it('lists the days that went over, with how much', () => {
+    expect(getOvershootDays({ foodLog: log, plan, adjustment: undefined, today: '2026-10-08' })).toEqual([
+      { date: '2026-10-07', overKcal: 278 },
+      { date: '2026-10-08', overKcal: 218 },
+    ]);
   });
 });

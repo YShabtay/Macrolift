@@ -36,7 +36,7 @@ import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
 import { getStepCredit } from '../utils/stepCredit';
-import { describeCoverage, describeRoom, getOvershootCoverage } from '../utils/overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, shouldOfferRebalance } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus } from '../utils/stepSurplus';
 import BalancedRing from './BalancedRing';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
@@ -248,13 +248,15 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
           {describeStepSurplus(stepSurplus, coverage.overshootKcal)}
         </p>
       )}
-      {isToday && !isCovered && coverage.overshootKcal > 0 && (
+      {isToday && shouldOfferRebalance(coverage) && (
         <button
           type="button"
           onClick={onOpenRebalance}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
         >
-          ⚖️ חרגת ב-{coverage.overshootKcal} קק״ל • לאפשרויות האיזון השבועי בדשבורד
+          {getOpenRebalanceDebtKcal(coverage) > COVERAGE_TOLERANCE_KCAL
+            ? `⚖️ עודף של ${getOpenRebalanceDebtKcal(coverage).toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון בדשבורד`
+            : '⚖️ איזון שבועי פעיל • לשינוי בדשבורד'}
         </button>
       )}
 

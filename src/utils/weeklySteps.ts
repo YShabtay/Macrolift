@@ -14,6 +14,14 @@ function addDays(date: string, days: number): string {
   return formatIsoDate(d);
 }
 
+/** The extra steps in the week's total that a calorie rebalance asked for (boost per day x the days it covers); 0 when there is none or it is another week's. */
+export function getStepBoostExtraSteps(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+  const stepsBoost = getActiveAdjustment(adjustment, date)?.steps;
+  if (!stepsBoost) return 0;
+  const boostDays = Math.max(stepsBoost.days ?? daysBetween(stepsBoost.fromDate, stepsBoost.toDate ?? getWeekEnd(stepsBoost.fromDate)) + 1, 1);
+  return stepsBoost.boost * boostDays;
+}
+
 export interface WeeklyStepsPlan {
   weekStart: string;
   /** The week's total goal: 7 x the daily average, plus any extra walking a calorie rebalance asked for. */
@@ -65,9 +73,7 @@ export function getWeeklyStepsPlan(
   const daysLeft = 7 - dayIndex;
 
   // A calorie rebalance's walking boost is part of the week's total (boost per day x the days it covers).
-  const stepsBoost = getActiveAdjustment(adjustment, date)?.steps;
-  const boostDays = stepsBoost ? Math.max(stepsBoost.days ?? daysBetween(stepsBoost.fromDate, stepsBoost.toDate ?? getWeekEnd(stepsBoost.fromDate)) + 1, 1) : 0;
-  const extra = stepsBoost ? stepsBoost.boost * boostDays : 0;
+  const extra = getStepBoostExtraSteps(adjustment, date);
   const weeklyTarget = baseGoal * 7 + extra;
 
   // A day with no entry is unknown, not zero: it counts as exactly on target, the same rule the calorie side uses, so the two never disagree.

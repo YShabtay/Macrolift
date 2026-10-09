@@ -15,6 +15,7 @@ import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
 import { useToday } from './hooks/useToday';
 import { chooseStepAllowance } from './utils/stepAllowance';
+import { applyRebalanceChoice } from './utils/rebalanceChoice';
 import { getBaseStepGoal } from './utils/stepGoalSync';
 import { storageService } from './services/storageService';
 import type {
@@ -617,10 +618,7 @@ export default function App() {
       if (!prev) return prev;
       const today = todayIso();
       const current = getActiveAdjustment(prev.weeklyBalance, today) ?? { weekStart: getWeekStart(today) };
-      const next = { ...current };
-      if (choice.kind === 'taper') next.calorie = { reductionKcal: choice.reductionKcal, fromDate: choice.fromDate };
-      if (choice.kind === 'steps') next.steps = { boost: choice.boost, days: choice.days, fromDate: choice.fromDate, toDate: choice.toDate };
-      return { ...prev, weeklyBalance: next };
+      return { ...prev, weeklyBalance: applyRebalanceChoice(current, choice) };
     });
   }
 

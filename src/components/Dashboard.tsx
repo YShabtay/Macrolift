@@ -43,7 +43,7 @@ import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
-import { describeCoverage, describeRoom, getOvershootCoverage, getRebalanceDebtKcal, type OvershootCoverage } from '../utils/overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getOvershootDays, getRebalanceDebtKcal, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
@@ -118,7 +118,6 @@ import {
   buildRebalanceOptions,
   getDailyTargets,
   getTomorrowAdjustments,
-  getWeeklyEnergyBalance,
 } from '../utils/weeklyBalance';
 import QuickDayEditSheet from './QuickDayEditSheet';
 import { sumTotals, type DailyTotals } from '../utils/nutritionLog';
@@ -586,14 +585,15 @@ function DashboardTab({
   const baseStepGoal = getBaseStepGoal(appState);
   const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, today, stepLogs);
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, today), [nutritionPlan, weeklyBalance, today]);
-  const overshootKcal = Math.round(eatenToday.calories - todayTargets.calories);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
   const overshootCoverage = useMemo(
     () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: today }),
     [foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, today],
   );
   // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
-  const showRebalanceButton = overshootKcal > 0 && !overshootCoverage.isCovered;
+  // The rebalance is offered for the week's overshoot so far - earlier days included - not only when today is over, and stays available once chosen.
+  const showRebalanceButton = shouldOfferRebalance(overshootCoverage);
+  const openRebalanceKcal = getOpenRebalanceDebtKcal(overshootCoverage);
   // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
   const stepSurplus = useMemo(
     () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: today }),
@@ -601,13 +601,13 @@ function DashboardTab({
   );
   // The rebalance options work from what is really left to make up (the week after the net step credit), so they agree with the coverage verdict.
   const rebalanceDebtKcal = getRebalanceDebtKcal(overshootCoverage);
+  const rebalanceOvershootDays = useMemo(
+    () => (isRebalanceOpen ? getOvershootDays({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []),
+    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance, today],
+  );
   const rebalanceOptions = useMemo(
     () => (isRebalanceOpen ? buildRebalanceOptions(rebalanceDebtKcal, nutritionPlan, today) : null),
     [isRebalanceOpen, rebalanceDebtKcal, nutritionPlan, today],
-  );
-  const weeklyEnergyBalance = useMemo(
-    () => (isRebalanceOpen ? getWeeklyEnergyBalance(foodLog, nutritionPlan, weeklyBalance, today) : null),
-    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance, today],
   );
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule, today), [workoutPlan, schedule, today]);
   const todaysDayCompleted = useMemo(
@@ -764,7 +764,7 @@ function DashboardTab({
           metrics={profile.metrics}
           nutritionPlan={nutritionPlan}
           targets={todayTargets}
-          overshootKcal={showRebalanceButton ? overshootKcal : 0}
+          rebalance={{ offered: showRebalanceButton, openKcal: openRebalanceKcal }}
           coverage={overshootCoverage}
           stepSurplus={stepSurplus}
           tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
@@ -820,11 +820,11 @@ function DashboardTab({
         />
       )}
 
-      {isRebalanceOpen && rebalanceOptions && weeklyEnergyBalance && (
+      {isRebalanceOpen && rebalanceOptions && (
         <RebalanceModal
           options={rebalanceOptions}
-          balance={weeklyEnergyBalance}
           coverage={overshootCoverage}
+          overshootDays={rebalanceOvershootDays}
           baseStepGoal={baseStepGoal}
           onChoose={(choice) => {
             onApplyRebalance(choice);
@@ -1111,7 +1111,7 @@ function NutritionCard({
   metrics,
   nutritionPlan,
   targets,
-  overshootKcal,
+  rebalance,
   coverage,
   stepSurplus,
   tomorrowReductionKcal,
@@ -1124,8 +1124,8 @@ function NutritionCard({
   nutritionPlan: NutritionPlan;
   /** Today's targets - the base plan, or lower while a weekly rebalance reduction is active. */
   targets: { calories: number; macros: NutritionPlan['macros']; reductionKcal: number; allowanceKcal: number };
-  /** Calories over today's target when a rebalance suggestion should show (0 hides it). */
-  overshootKcal: number;
+  /** Whether to offer the weekly rebalance, and how much of the week's overshoot is still open after what the user already planned. */
+  rebalance: { offered: boolean; openKcal: number };
   /** Whether today's overshoot is already covered by the week's steps or its calorie balance (then it is shown as covered). */
   coverage: OvershootCoverage;
   /** How this week's walking compares with the step average the target assumes (null when there is nothing to say). */
@@ -1192,13 +1192,15 @@ function NutritionCard({
         {targets.reductionKcal === 0 && tomorrowReductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">מחר: יעד מותאם -{tomorrowReductionKcal} קק״ל (איזון שבועי) ⚖️</p>
         )}
-        {overshootKcal > 0 && (
+        {rebalance.offered && (
           <button
             type="button"
             onClick={onOpenRebalance}
             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
           >
-            ⚖️ חרגת ב-{overshootKcal} קק״ל • צפה באפשרויות לאיזון שבועי
+            {rebalance.openKcal > COVERAGE_TOLERANCE_KCAL
+              ? `⚖️ עודף של ${rebalance.openKcal.toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון`
+              : '⚖️ איזון שבועי פעיל • לשינוי או לביטול'}
           </button>
         )}
       </div>

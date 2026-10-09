@@ -86,7 +86,9 @@ describe('the choice is the same number on every screen, with no credit spent tw
     expect(withIt.stepsKcal).toBe(0); // all of the net credit is already in today's target
     // The week balance fell by the allowance (the target is higher), and the unspent credit fell by the same amount: the debt moves only by the allowance.
     expect(without.weekBalanceKcal - withIt.weekBalanceKcal).toBe(163);
-    expect(getRebalanceDebtKcal(withIt)).toBe(withIt.overshootKcal);
+    // What is left to make up is the week's overshoot so far (earlier days included) after the net step credit: 140 from before today plus today's 55.
+    expect(withIt.weekOverSoFarKcal).toBe(195);
+    expect(getRebalanceDebtKcal(withIt)).toBe(195);
   });
 
   it('a day with an allowance is judged the same way when it is looked at later', () => {
