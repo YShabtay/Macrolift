@@ -5,6 +5,7 @@ import {
   describeCoverage,
   describeRoom,
   getOpenRebalanceDebtKcal,
+  getRangeHeadroomKcal,
   getOvershootCoverage,
   getWeekBreakdown,
   getRebalanceDebtKcal,
@@ -84,7 +85,7 @@ describe('getWeekBreakdown', () => {
   it('lists every logged day with eaten, target and the difference, and adds up to the week over so far', () => {
     const log = [meal('2026-10-04', 2300), meal('2026-10-05', 2800), meal('2026-10-06', 2650)];
     const rows = getWeekBreakdown({ foodLog: log, plan: PLAN, adjustment: undefined, today: '2026-10-06' });
-    expect(rows.map((r) => [r.date, r.eatenKcal, r.targetKcal, r.diffKcal, r.isToday])).toEqual([
+    expect(rows.map((r) => [r.date, r.eatenKcal, r.ceilingKcal, r.diffKcal, r.isToday])).toEqual([
       ['2026-10-04', 2300, 2400, -100, false],
       ['2026-10-05', 2800, 2400, 400, false],
       ['2026-10-06', 2650, 2400, 250, true],
@@ -97,6 +98,51 @@ describe('getWeekBreakdown', () => {
   it('skips days with nothing logged, and shows a day\'s step calories in its target', () => {
     const adjustment = { weekStart: '2026-10-04', stepAllowance: { '2026-10-05': 100 } };
     const rows = getWeekBreakdown({ foodLog: [meal('2026-10-05', 2500)], plan: PLAN, adjustment, today: '2026-10-06' });
-    expect(rows).toEqual([{ date: '2026-10-05', eatenKcal: 2500, targetKcal: 2500, diffKcal: 0, isToday: false }]);
+    expect(rows).toEqual([{ date: '2026-10-05', eatenKcal: 2500, ceilingKcal: 2500, diffKcal: 0, isToday: false }]);
+  });
+});
+
+describe('the recommended range: eating inside it is not an overshoot', () => {
+  // A bulk starts at the low end of its range: target 2,400, the range goes up to 2,600.
+  const RANGE_PLAN = { ...PLAN, targetMin: 2400, targetMax: 2600 } as NutritionPlan;
+  const inRange = (foodLog: FoodEntry[], today: string, adjustment?: Parameters<typeof getOvershootCoverage>[0]['adjustment']) =>
+    getOvershootCoverage({ foodLog, plan: RANGE_PLAN, adjustment, today });
+
+  it('knows how far above the target the range goes, and none for a plan without one', () => {
+    expect(getRangeHeadroomKcal(RANGE_PLAN)).toBe(200);
+    expect(getRangeHeadroomKcal(PLAN)).toBe(0);
+    expect(getRangeHeadroomKcal({ ...PLAN, targetMax: 2400 } as NutritionPlan)).toBe(0); // a cut starts at the top of its range
+  });
+
+  it('a day above the target but under the top of the range is shown calmly, with the room left to the top', () => {
+    const c = inRange([meal('2026-10-06', 2550)], '2026-10-06');
+    expect(c.overshootKcal).toBe(0);
+    expect(c.isWithinRange).toBe(true);
+    expect(c.ceilingKcal).toBe(2600);
+    expect(c.roomKcal).toBe(50);
+    expect(describeCoverage(c)).toContain('בתוך הטווח');
+    expect(describeRoom(c)).toContain('50');
+  });
+
+  it('a day above the top of the range is an overshoot by the part above it', () => {
+    const c = inRange([meal('2026-10-06', 2700)], '2026-10-06');
+    expect(c.isWithinRange).toBe(false);
+    expect(c.overshootKcal).toBe(100);
+  });
+
+  it('a whole week eaten inside the range offers no rebalance', () => {
+    const log = ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07'].map((d) => meal(d, 2550));
+    const c = inRange(log, '2026-10-08');
+    expect(c.weekOverSoFarKcal).toBeLessThan(0);
+    expect(shouldOfferRebalance(c)).toBe(false);
+  });
+
+  it('only what is above the top of the range counts toward the week, and the breakdown shows the same ceiling', () => {
+    const log = [meal('2026-10-04', 2550), meal('2026-10-05', 2900), meal('2026-10-06', 2500)];
+    const c = inRange(log, '2026-10-07');
+    // Sunday -50, Monday +300, Tuesday -100 against the 2,600 top.
+    expect(c.weekOverSoFarKcal).toBe(150);
+    const rows = getWeekBreakdown({ foodLog: log, plan: RANGE_PLAN, adjustment: undefined, today: '2026-10-07' });
+    expect(rows.map((r) => [r.ceilingKcal, r.diffKcal])).toEqual([[2600, -50], [2600, 300], [2600, -100]]);
   });
 });

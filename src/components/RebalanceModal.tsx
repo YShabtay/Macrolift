@@ -73,7 +73,7 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
                 <tr className="text-zinc-500">
                   <th className="py-0.5 text-start font-semibold">יום</th>
                   <th className="py-0.5 text-start font-semibold">אכלת</th>
-                  <th className="py-0.5 text-start font-semibold">יעד</th>
+                  <th className="py-0.5 text-start font-semibold">עד (תקרת הטווח)</th>
                   <th className="py-0.5 text-start font-semibold">הפרש</th>
                 </tr>
               </thead>
@@ -85,7 +85,7 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
                       {d.isToday ? ' (היום)' : ''}
                     </td>
                     <td className="py-0.5">{d.eatenKcal.toLocaleString()}</td>
-                    <td className="py-0.5">{d.targetKcal.toLocaleString()}</td>
+                    <td className="py-0.5">{d.ceilingKcal.toLocaleString()}</td>
                     <td className={`py-0.5 font-semibold ${d.diffKcal > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
                       {d.diffKcal > 0 ? '+' : ''}
                       {d.diffKcal.toLocaleString()}
@@ -98,7 +98,7 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
           )}
           <p className="mt-1">
             סך הכול: {coverage.weekOverSoFarKcal > 0 ? '+' : ''}
-            {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל. ימים מתחת ליעד מקזזים ימים מעליו, והיום עצמו נספר רק אם חרגת, כי מה שעוד לא אכלת היום הוא לא "חיסכון".
+            {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל. מחשבים מול החלק העליון של הטווח המומלץ, לא מול היעד התחתון, כי אכילה בתוך הטווח אינה חריגה. ימים מתחת לתקרה מקזזים ימים מעליה, והיום עצמו נספר רק אם חרגת.
           </p>
           {coverage.plannedCompensationKcal > 0 && <p className="mt-1">כבר תוכנן איזון של כ-{coverage.plannedCompensationKcal.toLocaleString()} קק״ל (יעדים מופחתים בשאר השבוע או הליכה נוספת).</p>}
           <p className="mt-1 font-bold text-zinc-900 dark:text-zinc-100">נותרו לאזן: {excessKcal.toLocaleString()} קק״ל.</p>

@@ -141,7 +141,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
     () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate }),
     [selectedDate, foodLog, nutritionPlan, weeklyBalance],
   );
-  const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
+  const isCovered = remaining.calories < 0 && (coverage.isCovered || coverage.isWithinRange);
 
   return (
     <div className="flex flex-col gap-5">
@@ -224,7 +224,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isLiveDay && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
+          {coverage.isWithinRange ? 'בתוך הטווח' : 'מאוזן'}: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isLiveDay && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
         </p>
       )}
       {isToday && shouldOfferRebalance(coverage) && (

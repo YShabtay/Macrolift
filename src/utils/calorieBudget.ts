@@ -2,6 +2,7 @@ import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types
 import { addDaysIso } from './dateMath';
 import { sumTotals } from './nutritionLog';
 import { getDailyTargets, getStepAllowanceKcal } from './weeklyBalance';
+import { getRangeHeadroomKcal } from './overshoot';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
@@ -12,6 +13,8 @@ export interface WeeklyCalorieBudget {
   weekEnd: string;
   /** The week's total target: the sum of each day's target (a rebalance reduction and any step allowance put on a day included). */
   weeklyTarget: number;
+  /** The top of the week's range: the target total plus the range's headroom for each of the 7 days. */
+  weeklyCeiling: number;
   /** Calories logged on the days of the week up to and including `today` (the whole week for a past week). */
   eaten: number;
   /** Weekly target minus eaten; negative once the week's budget is exceeded. */
@@ -90,5 +93,5 @@ export function getWeeklyCalorieBudget(
     pace = { kcal, target, stepBonusKcal: todayAllowance, daysLeft, clamped: shared < low ? 'down' : shared > high ? 'up' : null };
   }
 
-  return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };
+  return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), weeklyCeiling: Math.round(weeklyTarget + 7 * getRangeHeadroomKcal(plan)), eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };
 }
