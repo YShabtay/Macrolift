@@ -7,6 +7,7 @@ import {
   Calendar as CalendarIcon,
   Camera,
   Check,
+  ChevronDown,
   ChevronLeft,
   Database,
   Download,
@@ -699,12 +700,16 @@ function DashboardTab({
         onUndoCompleteDay={onUndoCompleteDay}
       />
 
-      <CoachInsightCard
-        goal={profile.metrics.goal}
-        weightLogs={weightLogs}
-        workoutPlan={workoutPlan}
-        progress={progress}
-      />
+      <CollapsibleCard title="תובנת השבוע ורצפים" icon={Sparkles}>
+        <CoachInsightCard goal={profile.metrics.goal} weightLogs={weightLogs} workoutPlan={workoutPlan} progress={progress} />
+        <StreaksCard
+          weightLogs={weightLogs}
+          workoutPlan={workoutPlan}
+          progress={progress}
+          completedDates={completedDates}
+          trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
+        />
+      </CollapsibleCard>
 
       {showPhotoReminder && progressPhotos.length > 0 && (
         <div className="glass-card flex items-center gap-3 border-orange-400/20 bg-orange-400/5 p-4">
@@ -764,13 +769,6 @@ function DashboardTab({
           onApplyTargetAdjustment={onApplyTargetAdjustment}
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
-        />
-        <StreaksCard
-          weightLogs={weightLogs}
-          workoutPlan={workoutPlan}
-          progress={progress}
-          completedDates={completedDates}
-          trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
         />
       </div>
 
@@ -997,6 +995,31 @@ function WeeklyCalendarWidget({
 // Smart coach insight card
 // ---------------------------------------------------------------------------
 
+/** A one-row card that opens on tap: the home screen stays short on a phone, and what is inside is a look-back more than something to act on. */
+function CollapsibleCard({ title, icon: Icon, children }: { title: string; icon: typeof Sparkles; children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        className="glass-card flex w-full items-center justify-between gap-3 p-4 text-right transition hover:border-lime-400/30 sm:p-5"
+      >
+        <span className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-lime-700 dark:text-lime-400" />
+          <span className="font-bold text-zinc-900 dark:text-zinc-100">{title}</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs font-semibold text-zinc-500">
+          {isOpen ? 'הסתר' : 'הצג'}
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+      {isOpen && <div className="flex flex-col gap-3 animate-fade-in">{children}</div>}
+    </div>
+  );
+}
+
 function CoachInsightCard({
   goal,
   weightLogs,
@@ -1160,7 +1183,7 @@ function NutritionCard({
           <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
         </div>
         {targets.allowanceKcal > 0 && (
-          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">יעד בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה שנשארה מימים קודמים השבוע)</p>
+          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה מהשבוע)</p>
         )}
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>

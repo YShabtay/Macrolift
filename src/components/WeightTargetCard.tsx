@@ -33,7 +33,8 @@ export default function WeightTargetCard({ weightLogs, metrics, onSetTarget, onS
   const draftValue = draft.trim() === '' ? null : Number(draft);
   const check = draftValue === null ? null : validateWeightTarget({ targetKg: draftValue, currentKg, heightCm: metrics.heightCm, goal: metrics.goal });
 
-  if (!progress && variant === 'banner') return null;
+  // On the home screen it only appears when there is something to decide (target reached, switch to maintenance); the progress tab always shows it.
+  if (variant === 'banner' && (!progress || progress.status !== 'reached' || metrics.goal === 'maintain')) return null;
 
   function startEditing() {
     setDraft(progress ? String(progress.targetKg) : '');
