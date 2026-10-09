@@ -24,7 +24,7 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
-import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, StepLog, UserMetrics, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { FavoriteFood, FoodEntry, FoodPer100g, FoodTemplate, Meal, NutritionPlan, SavedMeal, UserMetrics, WeeklyBalanceAdjustment } from '../types/fitness';
 import QuickFoodShortcuts from './QuickFoodShortcuts';
 import WeekStrip, { type WeekStripDay } from './WeekStrip';
 import WeeklyCalorieCard from './WeeklyCalorieCard';
@@ -35,9 +35,7 @@ import BarcodeIntro from './BarcodeIntro';
 import { hasSeenBarcodeIntro, markBarcodeIntroSeen } from '../utils/barcodeIntro';
 import { copyMealEntries, findFavorite, getRecentFoods, templateToEntry } from '../utils/foodShortcuts';
 import { getDailyTargets } from '../utils/weeklyBalance';
-import { getStepCredit } from '../utils/stepCredit';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, shouldOfferRebalance } from '../utils/overshoot';
-import { describeStepSurplus, getStepSurplus } from '../utils/stepSurplus';
 import BalancedRing from './BalancedRing';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import HeroCarousel from './HeroCarousel';
@@ -70,15 +68,9 @@ interface FoodTrackerProps {
   nutritionPlan: NutritionPlan;
   /** Temporary weekly rebalance, which can lower the target on the days it covers. */
   weeklyBalance?: WeeklyBalanceAdjustment;
-  /** Step history and the base daily step goal: steps walked above the goal count against a day's overshoot. */
-  stepLogs: StepLog[];
-  baseStepGoal: number;
-  weightKg: number;
   /** The profile, for the manual calorie adjustment, and what applies it (adds kcal to the daily target; negative removes). */
   metrics: UserMetrics;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
-  /** Puts the week's step credit on today and the next days (1 = today only), or with null shares it over every day left. */
-  onChooseStepAllowance: (days: number | null, from?: string) => void;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
@@ -103,7 +95,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, weightKg, metrics, onApplyTargetAdjustment, onChooseStepAllowance, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const today = useToday();
@@ -129,13 +121,9 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   const isToday = selectedDate === today;
   const isLiveDay = isToday || (selectedDate === shiftDate(today, -1) && getWeekStart(selectedDate) === getWeekStart(today));
   const liveDate = isLiveDay ? selectedDate : today;
-  const stepCreditKcal = useMemo(
-    () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: liveDate, realToday: today }).netKcal,
-    [stepLogs, baseStepGoal, weeklyBalance, liveDate, today],
-  );
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate, stepCreditKcal),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate, stepCreditKcal],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate),
+    [foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);
@@ -150,14 +138,10 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
   const coverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: selectedDate, realToday: today }),
-    [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate }),
+    [selectedDate, foodLog, nutritionPlan, weeklyBalance],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
-  const stepSurplus = useMemo(
-    () => (isToday ? getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg, today }) : null),
-    [isToday, today, stepLogs, baseStepGoal, weightKg],
-  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -243,11 +227,6 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
           מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isLiveDay && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
         </p>
       )}
-      {stepSurplus && (
-        <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          {describeStepSurplus(stepSurplus, coverage.overshootKcal)}
-        </p>
-      )}
       {isToday && shouldOfferRebalance(coverage) && (
         <button
           type="button"
@@ -260,11 +239,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </button>
       )}
 
-      <WeeklyCalorieCard
-        budget={calorieBudget}
-        isToday={isToday}
-        onChooseAllowance={isLiveDay ? (days) => onChooseStepAllowance(days, selectedDate) : undefined}
-      />
+      <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} />
 
 
       <button

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
-import { buildRebalanceOptions, getActiveAdjustment, getDailyTargets, getWeeklyEnergyBalance } from './weeklyBalance';
+import { applyRebalanceChoice, buildRebalanceOptions, getActiveAdjustment, getDailyTargets, getWeeklyEnergyBalance } from './weeklyBalance';
 
 // 2026-10-04 is a Sunday: the app's weeks run Sunday to Saturday.
 const SUNDAY = '2026-10-04';
@@ -117,17 +117,9 @@ describe('buildRebalanceOptions', () => {
     expect(options.stepsOneDay).toMatchObject({ steps: 10000, date: '2026-10-08', isToday: false, capped: false });
   });
 
-  it('credits steps already walked above the goal against the overshoot', () => {
-    const options = buildRebalanceOptions(400, plan, WEDNESDAY, [{ date: WEDNESDAY, steps: 2000 }]);
-    expect(options.extraStepsWalkedToday).toBe(2000);
-    expect(options.netExcessKcal).toBe(320);
-    expect(options.netStepsNeeded).toBe(8000);
-  });
-
-  it('needs nothing when the extra steps already cover the overshoot', () => {
-    const options = buildRebalanceOptions(400, plan, WEDNESDAY, [{ date: WEDNESDAY, steps: 12000 }]);
+  it('needs nothing when there is no overshoot', () => {
+    const options = buildRebalanceOptions(0, plan, WEDNESDAY);
     expect(options.netStepsNeeded).toBe(0);
-    expect(options.netExcessKcal).toBe(0);
     expect(options.taper.available).toBe(false);
     expect(options.stepsOneDay.goalIncrease).toBe(0);
   });
@@ -150,5 +142,32 @@ describe('buildRebalanceOptions', () => {
     expect(options.taper.available).toBe(false);
     expect(options.stepsSpread.available).toBe(false);
     expect(options.stepsOneDay).toMatchObject({ isToday: true, date: SATURDAY });
+  });
+});
+
+const rebalanceBase = { weekStart: '2026-10-04', stepAllowance: { '2026-10-08': 100 } };
+
+describe('applyRebalanceChoice', () => {
+  it('lowers the next days, and replaces an earlier walking choice', () => {
+    const withSteps = { ...rebalanceBase, steps: { boost: 1000, days: 2, fromDate: '2026-10-09' } };
+    const next = applyRebalanceChoice(withSteps, { kind: 'taper', reductionKcal: 98, fromDate: '2026-10-09' });
+    expect(next.calorie).toEqual({ reductionKcal: 98, fromDate: '2026-10-09' });
+    expect(next.steps).toBeUndefined();
+  });
+  it('walks more, and replaces an earlier lowered-target choice', () => {
+    const withTaper = { ...rebalanceBase, calorie: { reductionKcal: 98, fromDate: '2026-10-09' } };
+    const next = applyRebalanceChoice(withTaper, { kind: 'steps', boost: 2400, days: 2, fromDate: '2026-10-09' });
+    expect(next.steps).toMatchObject({ boost: 2400, days: 2 });
+    expect(next.calorie).toBeUndefined();
+  });
+  it('"carry on as usual" clears both, so the planned compensation can be cancelled', () => {
+    const both = { ...rebalanceBase, calorie: { reductionKcal: 98, fromDate: '2026-10-09' }, steps: { boost: 1000, days: 2, fromDate: '2026-10-09' } };
+    const next = applyRebalanceChoice(both, { kind: 'keep' });
+    expect(next.calorie).toBeUndefined();
+    expect(next.steps).toBeUndefined();
+  });
+  it('never touches the step allowances the user put on days', () => {
+    expect(applyRebalanceChoice(rebalanceBase, { kind: 'keep' }).stepAllowance).toEqual({ '2026-10-08': 100 });
+    expect(applyRebalanceChoice(rebalanceBase, { kind: 'taper', reductionKcal: 50, fromDate: '2026-10-09' }).stepAllowance).toEqual({ '2026-10-08': 100 });
   });
 });

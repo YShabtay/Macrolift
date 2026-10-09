@@ -40,13 +40,6 @@ export function getStepAllowanceKcal(adjustment: WeeklyBalanceAdjustment | undef
   return kcal && kcal > 0 ? Math.round(kcal) : 0;
 }
 
-/** The step allowances put on the days from the start of the week through `upTo` (the part of the step credit already spent), or all of the week's when omitted. */
-export function sumStepAllowance(adjustment: WeeklyBalanceAdjustment | undefined, date: string, upTo?: string): number {
-  const active = getActiveAdjustment(adjustment, date);
-  if (!active?.stepAllowance) return 0;
-  return Object.entries(active.stepAllowance).reduce((sum, [day, kcal]) => (kcal > 0 && day >= active.weekStart && (!upTo || day <= upTo) ? sum + Math.round(kcal) : sum), 0);
-}
-
 /**
  * The calorie/macro target for one date. The base plan unless a rebalance reduction covers that date (same week, on or after its
  * start date); the cut comes out of fat and carbs in proportion to their calories, protein stays put. A step allowance the user put on
@@ -128,7 +121,7 @@ export function getCarriedBonus(
   return bonus > 0 ? { steps: bonus, toDate: steps.fromDate } : null;
 }
 
-/** The daily step goal for a date: the base goal plus the net (credit-adjusted) rebalance boost that covers it. */
+/** The daily step goal for a date in the fixed-goal mode: the base goal plus the rebalance boost that covers it. */
 export function getEffectiveStepGoal(
   baseGoal: number,
   adjustment: WeeklyBalanceAdjustment | undefined,
@@ -151,32 +144,6 @@ export function getTomorrowAdjustments(
     calorieReductionKcal: getDailyTargets(plan, adjustment, tomorrow).reductionKcal,
     stepBoost: getStepBoostBreakdown(baseStepGoal, adjustment, tomorrow, stepLogs).net,
   };
-}
-
-export interface BonusStepDay {
-  date: string;
-  /** Steps walked above that day's goal. */
-  steps: number;
-}
-
-/**
- * Days this week (Sunday through today) on which more steps were logged than that day's goal. Reads the saved per-day history, so a day
- * filled in or corrected afterwards counts immediately. These steps are already burned energy: they offset the day's calorie overshoot.
- */
-export function getBonusStepDays(
-  stepLogs: StepLog[],
-  baseGoal: number,
-  adjustment: WeeklyBalanceAdjustment | undefined,
-  today: string,
-): BonusStepDay[] {
-  const weekStart = getWeekStart(today);
-  const days: BonusStepDay[] = [];
-  for (let i = 0; i <= daysBetween(weekStart, today); i++) {
-    const date = addDays(weekStart, i);
-    const bonus = getStepsForDate(stepLogs, date) - getEffectiveStepGoal(baseGoal, adjustment, date, stepLogs);
-    if (bonus > 0) days.push({ date, steps: bonus });
-  }
-  return days;
 }
 
 export interface WeeklyEnergyBalance {
@@ -219,15 +186,7 @@ export function getWeeklyEnergyBalance(
 export interface RebalanceOptions {
   /** The one-time overshoot to make up for (total, not per day). */
   excessKcal: number;
-  /** Steps walked today above today's goal - already burned, so they are credited against the overshoot. */
-  extraStepsWalkedToday: number;
-  /** Of those, the steps walked on earlier days of this week (e.g. yesterday, possibly entered afterwards). */
-  extraStepsEarlier: number;
-  /** True when the earlier bonus steps all come from yesterday alone. */
-  earlierWasYesterday: boolean;
-  /** The overshoot left to make up after crediting those steps (kcal). */
-  netExcessKcal: number;
-  /** Steps still needed after crediting today's extra steps; 0 means the overshoot is already fully covered. */
+  /** The steps that burn the whole overshoot; 0 when there is nothing to make up. */
   netStepsNeeded: number;
   /** Days left in the week after today (Saturday = 0). The week is the scope: nothing carries into the next one. */
   daysRemaining: number;
@@ -258,20 +217,10 @@ export interface RebalanceOptions {
  * Splits a ONE-TIME overshoot of `excessKcal` into the rebalance options. The surplus is a single pool: spread over the remaining days
  * it is divided (190 kcal over 2 days = 95 per day), never repeated per day. With no days left, spreading options aren't available.
  */
-export function buildRebalanceOptions(
-  surplusKcal: number,
-  plan: NutritionPlan,
-  today: string,
-  bonusDays: BonusStepDay[] = [],
-): RebalanceOptions {
-  // Steps walked above the daily goal (today or earlier this week) already burned part of the overshoot: take them off the debt first.
-  const extraStepsToday = bonusDays.filter((d) => d.date === today).reduce((sum, d) => sum + d.steps, 0);
-  const extraStepsEarlier = bonusDays.filter((d) => d.date !== today).reduce((sum, d) => sum + d.steps, 0);
-  const extraSteps = Math.max(0, Math.round(extraStepsToday + extraStepsEarlier));
-  const earlierWasYesterday = bonusDays.filter((d) => d.date !== today).every((d) => d.date === addDays(today, -1));
+export function buildRebalanceOptions(surplusKcal: number, plan: NutritionPlan, today: string): RebalanceOptions {
   const totalStepsRequired = Math.round((surplusKcal / KCAL_PER_1000_STEPS) * 1000);
-  const netStepsNeeded = Math.max(0, totalStepsRequired - extraSteps);
-  const excessKcal = Math.max(0, Math.round(surplusKcal - (extraSteps * KCAL_PER_1000_STEPS) / 1000));
+  const netStepsNeeded = totalStepsRequired;
+  const excessKcal = Math.max(0, Math.round(surplusKcal));
   const weekEnd = getWeekEnd(today);
   const daysRemaining = Math.max(daysBetween(today, weekEnd), 0);
   const tomorrow = addDays(today, 1);
@@ -297,10 +246,6 @@ export function buildRebalanceOptions(
 
   return {
     excessKcal: surplusKcal,
-    extraStepsWalkedToday: extraSteps,
-    extraStepsEarlier: Math.round(extraStepsEarlier),
-    earlierWasYesterday,
-    netExcessKcal: excessKcal,
     netStepsNeeded,
     daysRemaining,
     fatEquivalentG: Math.round(surplusKcal / 9),
@@ -310,7 +255,7 @@ export function buildRebalanceOptions(
       steps: oneDaySteps,
       // Tomorrow's goal rises by exactly the net steps. On the last day of the week the bonus steps walked *today* are already in today's
       // count, so the goal rises by the net steps plus those; bonus from earlier days is not in today's count and is not added back.
-      goalIncrease: netStepsNeeded === 0 ? 0 : daysRemaining > 0 ? oneDaySteps : Math.min(netStepsNeeded + Math.round(extraStepsToday), MAX_ONE_DAY_STEP_BOOST),
+      goalIncrease: netStepsNeeded === 0 ? 0 : Math.min(oneDaySteps, MAX_ONE_DAY_STEP_BOOST),
       storedBoost: netStepsNeeded === 0 ? 0 : Math.min(totalStepsRequired, MAX_ONE_DAY_STEP_BOOST),
       date: daysRemaining > 0 ? tomorrow : today,
       isToday: daysRemaining === 0,
@@ -327,4 +272,22 @@ export function buildRebalanceOptions(
       capped: spreadPerDay > MAX_STEP_BOOST,
     },
   };
+}
+
+/** What the user picked on the rebalance screen (the same shape the screen reports). */
+export type RebalanceChoiceInput =
+  | { kind: 'taper'; reductionKcal: number; fromDate: string }
+  | { kind: 'steps'; boost: number; days: number; fromDate: string; toDate?: string }
+  | { kind: 'keep' };
+
+/**
+ * The week's adjustment after a rebalance choice. One way of making the overshoot up is active at a time: lowering the next days' targets, or walking
+ * more. Choosing one replaces the other, and "carry on as usual" clears both, so the screen can always be used to change or cancel what was planned.
+ * Step allowances (the credit the user put on days) are a separate thing and stay.
+ */
+export function applyRebalanceChoice(current: WeeklyBalanceAdjustment, choice: RebalanceChoiceInput): WeeklyBalanceAdjustment {
+  const { calorie: _calorie, steps: _steps, ...rest } = current;
+  if (choice.kind === 'taper') return { ...rest, calorie: { reductionKcal: choice.reductionKcal, fromDate: choice.fromDate } };
+  if (choice.kind === 'steps') return { ...rest, steps: { boost: choice.boost, days: choice.days, fromDate: choice.fromDate, toDate: choice.toDate } };
+  return rest;
 }

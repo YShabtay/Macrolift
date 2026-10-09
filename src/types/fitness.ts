@@ -386,6 +386,12 @@ export interface AppState {
   /** 'weekly' (default): stepGoal is a per-day AVERAGE for the week and surplus/shortfall carries across days; 'daily': a fixed goal for every day. */
   stepGoalMode?: 'weekly' | 'daily';
   /**
+   * What walking above the goal does. 'balance_steps' (default): the steps already walked lower what the remaining days of the week need, and the
+   * calorie budget is untouched. 'add_calories': the goal for the coming days stays as it is, and the steps above the goal on each day are added to
+   * that same day's calorie budget. One or the other, never both, so the same steps are never counted twice.
+   */
+  stepMode?: 'balance_steps' | 'add_calories';
+  /**
    * Dates the user marked a workout as done (quick-complete from the home screen). Kept in addition to the per-set `progress`
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).
    */

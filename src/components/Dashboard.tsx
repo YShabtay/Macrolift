@@ -45,7 +45,8 @@ import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import AppVersionCard from './AppVersionCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getOvershootDays, getRebalanceDebtKcal, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
-import { describeStepSurplus, getStepSurplus, type StepSurplus } from '../utils/stepSurplus';
+import { useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
+import { getStepMode, type StepMode } from '../utils/weeklySteps';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
@@ -190,7 +191,7 @@ interface DashboardProps {
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
-  onChooseStepAllowance: (days: number | null, from?: string) => void;
+  onSaveStepMode: (mode: StepMode) => void;
   onClearStepRebalance: () => void;
   userId: string;
   onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
@@ -309,7 +310,7 @@ export default function Dashboard({
   onApplyRebalance,
   onUpdateProfileFull,
   onImportAppState,
-  onChooseStepAllowance,
+  onSaveStepMode,
   onClearStepRebalance,
   userId,
   onRestoreSnapshot,
@@ -318,6 +319,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [tab, setTab] = useState<Tab>('dashboard');
   // Which workout sub-view the workout screen opens on. Plain navigation always lands on "today's workout"; only the
+  const effectiveWeeklyBalance = useEffectiveWeeklyBalance(appState);
   // dashboard's "full calendar" link asks for the calendar.
   const [workoutEntryView, setWorkoutEntryView] = useState<WorkoutView>('today');
   // Opening a screen starts it from the top (the page scroll would otherwise carry over from the previous screen); tapping the
@@ -404,6 +406,7 @@ export default function Dashboard({
               onSaveWeightLog={onSaveWeightLog}
               onSaveSteps={onSaveSteps}
               onSaveStepGoal={onSaveStepGoal}
+              onSaveStepMode={onSaveStepMode}
               onClearStepRebalance={onClearStepRebalance}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
@@ -434,13 +437,9 @@ export default function Dashboard({
             <FoodTracker
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
-              weeklyBalance={appState.weeklyBalance}
-              stepLogs={appState.stepLogs}
-              baseStepGoal={getBaseStepGoal(appState)}
-              weightKg={appState.profile.metrics.weightKg}
+              weeklyBalance={effectiveWeeklyBalance}
               metrics={appState.profile.metrics}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
-              onChooseStepAllowance={onChooseStepAllowance}
               onOpenRebalance={() => selectTab('dashboard')}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
@@ -528,6 +527,7 @@ function DashboardTab({
   onSaveWeightLog,
   onSaveSteps,
   onSaveStepGoal,
+  onSaveStepMode,
   onClearStepRebalance,
   onDeleteFood,
   onUpdateFood,
@@ -547,6 +547,7 @@ function DashboardTab({
   onSaveSteps: (date: string, steps: number) => void;
   onSaveStepGoal: (goal: number, mode: 'weekly' | 'daily') => void;
   /** Removes the extra steps a calorie rebalance added to the week. */
+  onSaveStepMode: (mode: StepMode) => void;
   onClearStepRebalance: () => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
@@ -582,24 +583,21 @@ function DashboardTab({
     appState.stepLogs.length === 0;
   const todaysFoodEntries = useMemo(() => foodLog.filter((f) => f.date === today), [foodLog, today]);
   const eatenToday = useMemo(() => sumTotals(todaysFoodEntries), [todaysFoodEntries]);
-  const weeklyBalance = appState.weeklyBalance;
+  const weeklyBalance = useEffectiveWeeklyBalance(appState);
+  const stepMode = getStepMode(appState);
   const baseStepGoal = getBaseStepGoal(appState);
   const tomorrowAdjustments = getTomorrowAdjustments(nutritionPlan, weeklyBalance, baseStepGoal, today, stepLogs);
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, today), [nutritionPlan, weeklyBalance, today]);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
   const overshootCoverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: today }),
-    [foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal, today],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: today }),
+    [foodLog, nutritionPlan, weeklyBalance, today],
   );
   // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
   // The rebalance is offered for the week's overshoot so far - earlier days included - not only when today is over, and stays available once chosen.
   const showRebalanceButton = shouldOfferRebalance(overshootCoverage);
   const openRebalanceKcal = getOpenRebalanceDebtKcal(overshootCoverage);
   // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
-  const stepSurplus = useMemo(
-    () => getStepSurplus({ stepLogs, goalSteps: baseStepGoal, weightKg: profile.metrics.weightKg, today: today }),
-    [stepLogs, baseStepGoal, profile.metrics.weightKg, today],
-  );
   // The rebalance options work from what is really left to make up (the week after the net step credit), so they agree with the coverage verdict.
   const rebalanceDebtKcal = getRebalanceDebtKcal(overshootCoverage);
   const rebalanceOvershootDays = useMemo(
@@ -767,7 +765,6 @@ function DashboardTab({
           targets={todayTargets}
           rebalance={{ offered: showRebalanceButton, openKcal: openRebalanceKcal }}
           coverage={overshootCoverage}
-          stepSurplus={stepSurplus}
           tomorrowReductionKcal={tomorrowAdjustments.calorieReductionKcal}
           onOpenRebalance={() => setIsRebalanceOpen(true)}
           onApplyTargetAdjustment={onApplyTargetAdjustment}
@@ -787,13 +784,13 @@ function DashboardTab({
         stepLogs={stepLogs}
         baseGoalSteps={baseStepGoal}
         goalMode={appState.stepGoalMode ?? 'weekly'}
-        weeklyBalance={weeklyBalance}
+        weeklyBalance={appState.weeklyBalance}
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}
-        onOpenNutrition={() => onNavigate('nutrition')}
+        stepMode={stepMode}
+        onSaveStepMode={onSaveStepMode}
         onClearRebalanceSteps={onClearStepRebalance}
-        creditKcal={overshootCoverage.stepsKcal}
       />
 
       <WeeklySummaryCard appState={appState} />
@@ -827,6 +824,7 @@ function DashboardTab({
           options={rebalanceOptions}
           coverage={overshootCoverage}
           overshootDays={rebalanceOvershootDays}
+          canWalkMore={stepMode === 'balance_steps'}
           baseStepGoal={baseStepGoal}
           onChoose={(choice) => {
             onApplyRebalance(choice);
@@ -1115,7 +1113,6 @@ function NutritionCard({
   targets,
   rebalance,
   coverage,
-  stepSurplus,
   tomorrowReductionKcal,
   onOpenRebalance,
   onApplyTargetAdjustment,
@@ -1130,8 +1127,6 @@ function NutritionCard({
   rebalance: { offered: boolean; openKcal: number };
   /** Whether today's overshoot is already covered by the week's steps or its calorie balance (then it is shown as covered). */
   coverage: OvershootCoverage;
-  /** How this week's walking compares with the step average the target assumes (null when there is nothing to say). */
-  stepSurplus: StepSurplus | null;
   /** Calories the weekly rebalance will take off tomorrow's target (0 if none). */
   tomorrowReductionKcal: number;
   onOpenRebalance: () => void;
@@ -1184,9 +1179,6 @@ function NutritionCard({
         )}
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
-        )}
-        {stepSurplus && (
-          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-lime-700 dark:text-lime-400">{describeStepSurplus(stepSurplus, isOver ? Math.round(-remainingCalories) : 0)}</p>
         )}
         {targets.reductionKcal === 0 && getCalorieRange(nutritionPlan) && (
           <p className="mt-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{describeRangeShort(getCalorieRange(nutritionPlan)!)}</p>

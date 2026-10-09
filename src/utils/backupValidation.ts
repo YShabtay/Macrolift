@@ -314,6 +314,7 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   }
   if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (candidate.stepGoalMode === 'weekly' || candidate.stepGoalMode === 'daily') state.stepGoalMode = candidate.stepGoalMode;
+  if (candidate.stepMode === 'balance_steps' || candidate.stepMode === 'add_calories') state.stepMode = candidate.stepMode;
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];
 
   const summary: RestoreSummary = {

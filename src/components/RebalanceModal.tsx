@@ -17,6 +17,8 @@ interface RebalanceModalProps {
   overshootDays: { date: string; overKcal: number }[];
   /** The user's own daily step goal (without any rebalance boost). */
   baseStepGoal: number;
+  /** Whether making it up by walking more is offered: not in the mode where steps above the goal become calories (the goal never changes there). */
+  canWalkMore: boolean;
   onChoose: (choice: RebalanceChoice) => void;
   onClose: () => void;
 }
@@ -24,10 +26,8 @@ interface RebalanceModalProps {
 const WEEKDAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
-export default function RebalanceModal({ options, coverage, overshootDays, baseStepGoal, onChoose, onClose }: RebalanceModalProps) {
-  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG, totalStepsToBurn, extraStepsWalkedToday, netExcessKcal, netStepsNeeded } = options;
-  const isFullyCovered = netStepsNeeded === 0;
-  const creditedKcal = excessKcal - netExcessKcal;
+export default function RebalanceModal({ options, coverage, overshootDays, baseStepGoal, canWalkMore, onChoose, onClose }: RebalanceModalProps) {
+  const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG } = options;
 
   function choose(choice: RebalanceChoice) {
     onChoose(choice);
@@ -78,14 +78,6 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
             {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל
             {coverage.overshootKcal === 0 && coverage.weekOverSoFarKcal > 0 ? ' (מימים קודמים; היום עוד אפשר לאכול לפי היעד)' : ''}.
           </p>
-          {(coverage.bonusSteps > 0 || coverage.shortfallSteps > 0) && (
-            <p className="mt-1">
-              הצעדים השבוע: {coverage.bonusSteps.toLocaleString()} מעל היעד
-              {coverage.shortfallSteps > 0 ? `, ${coverage.shortfallSteps.toLocaleString()} פחות מהיעד בימים אחרים` : ''} - נטו שווים כ-
-              {Math.abs(coverage.stepsKcal + coverage.stepAllowanceSpentKcal).toLocaleString()} קק״ל
-              {coverage.stepAllowanceSpentKcal > 0 ? `, ומתוכם ${coverage.stepAllowanceSpentKcal.toLocaleString()} כבר הוספת ליעד של הימים שבחרת` : ''}.
-            </p>
-          )}
           {coverage.plannedCompensationKcal > 0 && <p className="mt-1">כבר תוכנן איזון של כ-{coverage.plannedCompensationKcal.toLocaleString()} קק״ל (יעדים מופחתים בשאר השבוע או הליכה נוספת).</p>}
           <p className="mt-1 font-bold text-zinc-900 dark:text-zinc-100">נותרו לאזן: {excessKcal.toLocaleString()} קק״ל.</p>
         </div>
@@ -99,7 +91,7 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
           {taper.available ? (
             <>
               <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-                {creditedKcal > 0 ? `החריגה של ${excessKcal} קק״ל קוזזה בכ-${creditedKcal} קק״ל מהצעדים שכבר הלכת, ונותרו ${netExcessKcal} קק״ל` : `החריגה החד-פעמית של ${excessKcal} קק״ל`}{' '}
+                {`החריגה של ${excessKcal} קק״ל`}{' '}
                 {daysRemaining === 1 ? 'לפיזור על היום שנותר בשבוע' : `מתחלקת על פני ${daysRemaining} הימים שנותרו בשבוע`}.{' '}
                 {daysRemaining === 1 ? (
                   <>
@@ -123,12 +115,13 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
             </>
           ) : (
             <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
-              {isFullyCovered ? 'הצעדים שהלכת היום כבר כיסו את החריגה - אין צורך בקיזוז קלורי.' : 'השבוע מסתיים היום, ולכן אין ימים לפזר עליהם. אפשר לאזן בתנועה או להמשיך כרגיל.'}
+              {canWalkMore ? 'השבוע מסתיים היום, ולכן אין ימים לפזר עליהם. אפשר לאזן בתנועה או להמשיך כרגיל.' : 'השבוע מסתיים היום, ולכן אין ימים לפזר עליהם. אפשר להמשיך כרגיל.'}
             </p>
           )}
         </div>
 
         {/* Option 2: steps (NEAT) - one day, or spread */}
+        {canWalkMore && (
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">
           <p className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
             <Footprints className="h-4 w-4 text-lime-700 dark:text-lime-400" />
@@ -136,19 +129,9 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
           </p>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
             {excessKcal} קק״ל שווים לכ-{Math.round((excessKcal / 40) * 1000).toLocaleString()} צעדים בסך הכל (כ-40 קק״ל ל-1,000 צעדים)
-            {extraStepsWalkedToday > 0 && !isFullyCovered && (
-              <>
-                {' '}
-                ואחרי הקיזוז נותרו <b>{totalStepsToBurn.toLocaleString()}</b>
-              </>
-            )}
             .
           </p>
-          {isFullyCovered ? (
-            <button type="button" onClick={() => choose({ kind: 'keep' })} className="btn-primary text-sm">
-              השאר יעד רגיל למחר ✓
-            </button>
-          ) : (
+          {(
             <>
               <button
                 type="button"
@@ -179,6 +162,7 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
             </>
           )}
         </div>
+        )}
 
         {/* Option 3: keep going */}
         <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5">

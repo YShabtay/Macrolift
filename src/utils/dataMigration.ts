@@ -222,6 +222,8 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   else delete state.stepGoal;
   if (raw.stepGoalMode === 'weekly' || raw.stepGoalMode === 'daily') state.stepGoalMode = raw.stepGoalMode;
   else delete state.stepGoalMode;
+  if (raw.stepMode === 'balance_steps' || raw.stepMode === 'add_calories') state.stepMode = raw.stepMode;
+  else delete state.stepMode;
 
   if (Array.isArray(raw.completedWorkoutDates)) state.completedWorkoutDates = raw.completedWorkoutDates.filter(isIsoDate);
   else delete state.completedWorkoutDates;

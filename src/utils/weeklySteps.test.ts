@@ -1,78 +1,112 @@
 import { describe, expect, it } from 'vitest';
 import type { StepLog } from '../types/fitness';
-import { getWeeklyStepsPlan } from './weeklySteps';
+import { getStepMode, getWeeklyStepsPlan, stepBonusKcal, withStepMode } from './weeklySteps';
 
-// The user's week (Sunday 4 Oct start), goal 4,500 a day.
 const GOAL = 4500;
 const steps = (date: string, n: number): StepLog => ({ date, steps: n });
-const WEEK: StepLog[] = [steps('2026-10-04', 8846), steps('2026-10-05', 3818), steps('2026-10-06', 5821), steps('2026-10-07', 2344)];
+// Sunday 4 Oct to Saturday 10 Oct.
 
 describe('getWeeklyStepsPlan', () => {
-  it('turns a surplus into a lighter day: the whole of it today, or spread over the days left', () => {
-    const plan = getWeeklyStepsPlan(GOAL, undefined, WEEK, '2026-10-08'); // Thursday: 3 days left (Thu, Fri, Sat)
-    expect(plan.balanceBefore).toBe(2829); // +4,346 -682 +1,321 -2,156
+  it('shares what is left of the week over the days after the viewed day, and the average so far lowers it', () => {
+    // Sunday-Thursday at 5,300 a day: Friday and Saturday are left.
+    const logs = ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'].map((d) => steps(d, 5300));
+    const plan = getWeeklyStepsPlan(GOAL, logs, '2026-10-08');
     expect(plan.weeklyTarget).toBe(31500);
-    expect(plan.remainingFromDate).toBe(31500 - 20829);
-    expect(plan.paceToday).toBe(Math.ceil(10671 / 3)); // 3,557 a day
-    expect(plan.takeAllToday).toBe(10671 - GOAL * 2); // 1,671 today and the plain average after
+    expect(plan.daysPassed).toBe(5);
+    expect(plan.daysRemaining).toBe(2);
+    expect(plan.totalStepsWalked).toBe(26500);
+    expect(plan.averageSoFar).toBe(5300);
+    expect(plan.remainingNeeded).toBe(5000);
+    expect(plan.adjustedDailyTarget).toBe(2500); // each of the two days needs 2,500, less than the 4,500 goal
   });
 
-  it('turns a gap into a heavier day: all of it today, or spread', () => {
-    const behind = [steps('2026-10-04', 2000), steps('2026-10-05', 3000)];
-    const plan = getWeeklyStepsPlan(GOAL, undefined, behind, '2026-10-06'); // Tuesday: 5 days left
-    expect(plan.balanceBefore).toBe(-4000); // -2,500 and -1,500
-    expect(plan.paceToday).toBe(Math.ceil((31500 - 5000) / 5)); // 5,300
-    expect(plan.takeAllToday).toBe(GOAL + 4000); // 8,500: the plain day plus the whole gap
+  it('asks for more when the days so far were short', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-04', 2000), steps('2026-10-05', 2000)], '2026-10-05');
+    expect(plan.daysRemaining).toBe(5);
+    expect(plan.remainingNeeded).toBe(31500 - 4000);
+    expect(plan.adjustedDailyTarget).toBe(Math.round(27500 / 5));
   });
 
-  it('lets today be a rest day when the surplus already covers it', () => {
-    const plan = getWeeklyStepsPlan(GOAL, undefined, [steps('2026-10-04', 30000)], '2026-10-05');
-    expect(plan.takeAllToday).toBe(Math.max(0, 31500 - 30000 - GOAL * 5));
-    expect(plan.takeAllToday).toBe(0);
+  it('counts a day with no entry as 0 steps, not as a day on target', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-04', 6000)], '2026-10-08');
+    expect(plan.totalStepsWalked).toBe(6000);
+    expect(plan.averageSoFar).toBe(1200); // 6,000 over the 5 days since Sunday
+    expect(plan.remainingNeeded).toBe(25500);
   });
 
-  it('counts a day with no entry as exactly on target, not as zero steps (same rule as the calorie side)', () => {
-    const plan = getWeeklyStepsPlan(GOAL, undefined, [steps('2026-10-04', 8846)], '2026-10-08');
-    expect(plan.unloggedDaysBefore).toBe(3);
-    expect(plan.balanceBefore).toBe(4346);
-    expect(plan.walkedThisWeek).toBe(8846);
-    expect(plan.averageSoFar).toBe(4423); // the logged Sunday and today (nothing logged yet), not the unknown days
+  it('reaches zero once the week is done, and never asks for a negative number', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-04', 40000)], '2026-10-05');
+    expect(plan.remainingNeeded).toBe(0);
+    expect(plan.adjustedDailyTarget).toBe(0);
   });
 
-  it('a day logged as zero is a real zero', () => {
-    const plan = getWeeklyStepsPlan(GOAL, undefined, [steps('2026-10-04', 0)], '2026-10-05');
-    expect(plan.unloggedDaysBefore).toBe(0);
-    expect(plan.balanceBefore).toBe(-GOAL);
+  it('on Saturday there is nothing after the day, so the whole rest is shown against one day (no division by zero)', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-04', 20000), steps('2026-10-10', 3000)], '2026-10-10');
+    expect(plan.daysPassed).toBe(7);
+    expect(plan.daysRemaining).toBe(1);
+    expect(plan.adjustedDailyTarget).toBe(31500 - 23000);
   });
 
-  it('on the last day, "all today" and the spread are the same number', () => {
-    const plan = getWeeklyStepsPlan(GOAL, undefined, WEEK, '2026-10-10');
-    expect(plan.daysLeft).toBe(1);
-    expect(plan.takeAllToday).toBe(plan.remainingFromDate);
+  it('adds extra walking a calorie rebalance asked for to the week\'s total', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-04', 5000)], '2026-10-04', 4725);
+    expect(plan.weeklyTarget).toBe(31500 + 4725);
+    expect(plan.remainingNeeded).toBe(31500 + 4725 - 5000);
   });
 
-  it('gives the two numbers the card shows: the average walked so far and the steps each remaining day needs', () => {
-    // Sunday-Thursday logged, viewed on Friday: two days left (Friday and Saturday).
-    const plan = getWeeklyStepsPlan(GOAL, undefined, [...WEEK, steps('2026-10-08', 5758)], '2026-10-09');
-    expect(plan.averageBefore).toBe(5317); // (8,846 + 3,818 + 5,821 + 2,344 + 5,758) / 5
-    expect(plan.daysLeft).toBe(2);
-    expect(plan.paceToday).toBe(Math.ceil((31500 - 26587) / 2)); // 2,457 a day to finish on the average of 4,500
+  it('counts only steps from Sunday of that week through the viewed day', () => {
+    const plan = getWeeklyStepsPlan(GOAL, [steps('2026-10-03', 9999), steps('2026-10-04', 1000), steps('2026-10-09', 7777)], '2026-10-05');
+    expect(plan.totalStepsWalked).toBe(1000);
+  });
+});
+
+describe('stepBonusKcal', () => {
+  it('turns steps above the goal into calories by body weight (0.04 kcal a step at 70 kg)', () => {
+    expect(stepBonusKcal(8500, 4500, 70)).toBe(160);
+    expect(stepBonusKcal(8500, 4500, 84)).toBe(192);
+  });
+  it('is 0 at or under the goal', () => {
+    expect(stepBonusKcal(4500, 4500, 70)).toBe(0);
+    expect(stepBonusKcal(1000, 4500, 70)).toBe(0);
+  });
+});
+
+describe('withStepMode', () => {
+  const logs = [steps('2026-10-05', 6500), steps('2026-10-06', 3000), steps('2026-10-07', 8500)];
+  const base = { mode: 'add_calories' as const, stepLogs: logs, targetDailySteps: GOAL, weightKg: 70, today: '2026-10-07' };
+
+  it('in the calorie mode puts each day\'s steps above the goal on that same day only', () => {
+    expect(withStepMode(undefined, base)?.stepAllowance).toEqual({ '2026-10-05': 80, '2026-10-07': 160 });
   });
 
-  it('averages only the days that have an entry, and has no average before the first completed day', () => {
-    expect(getWeeklyStepsPlan(GOAL, undefined, [steps('2026-10-04', 6000)], '2026-10-08').averageBefore).toBe(6000);
-    expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-04').averageBefore).toBeNull();
-    expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-08').averageBefore).toBeNull(); // nothing logged: unknown, not zero
+  it('in the steps mode leaves calories alone, and drops anything an older version saved', () => {
+    const saved = { weekStart: '2026-10-04', stepAllowance: { '2026-10-06': 500 }, calorie: { reductionKcal: 90, fromDate: '2026-10-08' } };
+    const out = withStepMode(saved, { ...base, mode: 'balance_steps' });
+    expect(out?.stepAllowance).toBeUndefined();
+    expect(out?.calorie).toEqual({ reductionKcal: 90, fromDate: '2026-10-08' }); // the user's own rebalance choice stays
   });
 
-  it('shows where a pace above the goal comes from: the extra steps a calorie rebalance added (the number that looked unexplained)', () => {
-    // Sunday-Thursday averaged 5,343, goal 4,500, plus 4,725 extra steps from a calorie rebalance, viewed on Friday with 2 days left.
-    const logs = [steps('2026-10-04', 5343), steps('2026-10-05', 5343), steps('2026-10-06', 5343), steps('2026-10-07', 5343), steps('2026-10-08', 5343)];
-    const adjustment = { weekStart: '2026-10-04', steps: { boost: 2363, days: 2, fromDate: '2026-10-09' } };
-    const plan = getWeeklyStepsPlan(GOAL, adjustment, logs, '2026-10-09');
-    expect(plan.averageBefore).toBe(5343);
-    expect(plan.rebalanceExtraSteps).toBe(4726);
-    expect(plan.paceToday).toBe(Math.ceil((31500 + 4726 - 26715) / 2)); // 4,756: not the 4,500 the user set, nor the 2,393 the plain average would give
-    expect(getWeeklyStepsPlan(GOAL, undefined, logs, '2026-10-09').paceToday).toBe(Math.ceil((31500 - 26715) / 2));
+  it('drops a "walk more" choice in the calorie mode (the goal for the coming days does not change there), and keeps a calorie cut', () => {
+    const saved = { weekStart: '2026-10-04', steps: { boost: 1000, days: 2, fromDate: '2026-10-08' }, calorie: { reductionKcal: 90, fromDate: '2026-10-08' } };
+    const out = withStepMode(saved, base);
+    expect(out?.steps).toBeUndefined();
+    expect(out?.calorie).toBeDefined();
+    expect(withStepMode(saved, { ...base, mode: 'balance_steps' })?.steps).toEqual(saved.steps);
+  });
+
+  it('ignores steps from other weeks and days after today', () => {
+    const out = withStepMode(undefined, { ...base, stepLogs: [steps('2026-10-03', 20000), steps('2026-10-09', 20000), steps('2026-10-06', 5500)] });
+    expect(out?.stepAllowance).toEqual({ '2026-10-06': 40 });
+  });
+
+  it('is undefined when there is nothing to carry', () => {
+    expect(withStepMode(undefined, { ...base, stepLogs: [] })).toBeUndefined();
+    expect(withStepMode(undefined, { ...base, mode: 'balance_steps' })).toBeUndefined();
+  });
+});
+
+describe('getStepMode', () => {
+  it('defaults to balancing the steps', () => {
+    expect(getStepMode({})).toBe('balance_steps');
+    expect(getStepMode({ stepMode: 'add_calories' })).toBe('add_calories');
   });
 });

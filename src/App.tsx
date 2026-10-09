@@ -14,9 +14,7 @@ import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
 import { useToday } from './hooks/useToday';
-import { chooseStepAllowance } from './utils/stepAllowance';
-import { applyRebalanceChoice } from './utils/rebalanceChoice';
-import { getBaseStepGoal } from './utils/stepGoalSync';
+import type { StepMode } from './utils/weeklySteps';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -57,7 +55,7 @@ import { hasSeenStandaloneWelcome, hasSeenWelcomeGuide, isStandalone, markStanda
 import WelcomeGuide from './components/WelcomeGuide';
 import PullToRefresh from './components/PullToRefresh';
 import type { RebalanceChoice } from './components/RebalanceModal';
-import { getActiveAdjustment } from './utils/weeklyBalance';
+import { applyRebalanceChoice, getActiveAdjustment } from './utils/weeklyBalance';
 
 async function loadState(userId: string): Promise<AppState | null> {
   // Boot already repaired what's on disk; this keeps the in-memory copy safe too (e.g. after a restore or an unwritable repair).
@@ -631,13 +629,9 @@ export default function App() {
     });
   }
 
-  /** Puts the week's net step credit on today and the next days (days = 1: today only), or with null shares it over every day left. */
-  function handleChooseStepAllowance(days: number | null, from?: string) {
-    setAppState((prev) =>
-      prev
-        ? { ...prev, weeklyBalance: chooseStepAllowance({ adjustment: prev.weeklyBalance, stepLogs: prev.stepLogs, baseStepGoal: getBaseStepGoal(prev), today: todayIso(), days, from }) }
-        : prev,
-    );
+  /** What walking above the step goal does: lowers what the coming days need (calories untouched), or is added to that day's calories. */
+  function handleSaveStepMode(mode: StepMode) {
+    setAppState((prev) => (prev ? { ...prev, stepMode: mode } : prev));
   }
 
   function handleSaveCustomPlan(plan: WorkoutPlan) {
@@ -746,7 +740,7 @@ export default function App() {
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
-        onChooseStepAllowance={handleChooseStepAllowance}
+        onSaveStepMode={handleSaveStepMode}
         onClearStepRebalance={handleClearStepRebalance}
         userId={userId}
         onRestoreSnapshot={handleRestoreSnapshot}
