@@ -792,6 +792,7 @@ function DashboardTab({
         onSaveGoal={onSaveStepGoal}
         onOpenNutrition={() => onNavigate('nutrition')}
         onClearRebalanceSteps={onClearStepRebalance}
+        creditKcal={overshootCoverage.stepsKcal}
       />
 
       <WeeklySummaryCard appState={appState} />

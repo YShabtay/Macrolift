@@ -25,6 +25,8 @@ interface StepsTrackerProps {
   onOpenNutrition?: () => void;
   /** Removes the extra steps a calorie rebalance added to the week (the choice "make up the overshoot by walking"). */
   onClearRebalanceSteps?: () => void;
+  /** The week's unspent step credit in kcal (negative when short of the goal): the same number the nutrition screens use. */
+  creditKcal?: number;
 }
 
 /** Weekly mode folds a rebalance's extra walking into the week's total, so the per-day boost breakdown doesn't apply. */
@@ -46,7 +48,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, onOpenNutrition, onClearRebalanceSteps }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, onOpenNutrition, onClearRebalanceSteps, creditKcal = 0 }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -226,7 +228,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
 
-          {isWeekly && <WeeklySummary weekly={weekly} baseGoal={baseGoalSteps} isToday={isToday} onOpenNutrition={onOpenNutrition} onEditGoal={() => setIsEditingGoal(true)} onClearRebalanceSteps={onClearRebalanceSteps} />}
+          {isWeekly && <WeeklySummary weekly={weekly} baseGoal={baseGoalSteps} isToday={isToday} onOpenNutrition={onOpenNutrition} onEditGoal={() => setIsEditingGoal(true)} onClearRebalanceSteps={onClearRebalanceSteps} creditKcal={creditKcal} />}
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -311,6 +313,7 @@ function WeeklySummary({
   onOpenNutrition,
   onEditGoal,
   onClearRebalanceSteps,
+  creditKcal,
 }: {
   weekly: ReturnType<typeof getWeeklyStepsPlan>;
   baseGoal: number;
@@ -318,6 +321,7 @@ function WeeklySummary({
   onOpenNutrition?: () => void;
   onEditGoal: () => void;
   onClearRebalanceSteps?: () => void;
+  creditKcal: number;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const done = weekly.walkedThisWeek >= weekly.weeklyTarget;
@@ -357,6 +361,20 @@ function WeeklySummary({
         </p>
       )}
       {!done && weekly.capped && <p className="mt-0.5 text-[11px] text-zinc-500">מוגבל ל-150% מהממוצע, חלק מהפער לא יושלם השבוע</p>}
+
+      {isToday && Math.abs(creditKcal) >= 40 && (
+        <p className="mt-1 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+          {creditKcal > 0 ? `עודף הליכה = כ-${fmt(creditKcal)} קק״ל שאפשר לאכול` : `חוסר הליכה = כ-${fmt(Math.abs(creditKcal))} קק״ל פחות לאכול`}
+          {onOpenNutrition && (
+            <>
+              {' · '}
+              <button type="button" onClick={onOpenNutrition} className="font-semibold underline">
+                בתזונה
+              </button>
+            </>
+          )}
+        </p>
+      )}
 
       <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className="mt-1.5 text-[11px] font-semibold text-zinc-500 underline">
         {showDetails ? 'פחות' : 'פירוט'}

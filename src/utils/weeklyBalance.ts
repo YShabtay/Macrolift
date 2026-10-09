@@ -81,36 +81,20 @@ export function getDailyTargets(plan: NutritionPlan, adjustment: WeeklyBalanceAd
 export interface StepBoostBreakdown {
   /** True when a step boost covers this date. */
   active: boolean;
-  /** Extra steps per day the rebalance asked for, before crediting anything. */
+  /** Extra steps per day the rebalance asked for (already net of the spare steps walked when it was chosen). */
   gross: number;
-  /** Steps per day already covered by bonus steps walked on earlier days of the week. */
+  /** Kept for the daily-goal screens; always 0 now that the boost is stored net. */
   credited: number;
-  /** What is actually added to the goal: gross minus credited, never below 0. */
+  /** What is added to the goal on that day. */
   net: number;
-  /** True when every credited day is the day right before `date`. */
+  /** Always false now; kept for the daily-goal screens. */
   creditFromYesterdayOnly: boolean;
 }
 
-/** Bonus steps (above the plain base goal) on each day of the week that precedes `before`. */
-function bonusBefore(stepLogs: StepLog[], baseGoal: number, weekStart: string, before: string): { total: number; onlyYesterday: boolean; days: string[] } {
-  let total = 0;
-  const days: string[] = [];
-  for (let i = 0; i <= daysBetween(weekStart, before); i++) {
-    const date = addDays(weekStart, i);
-    if (date >= before) break;
-    const bonus = getStepsForDate(stepLogs, date) - baseGoal;
-    if (bonus > 0) {
-      total += bonus;
-      days.push(date);
-    }
-  }
-  return { total, onlyYesterday: days.every((d) => d === addDays(before, -1)), days };
-}
-
 /**
- * How a temporary step boost applies on `date`. The boost stored is the full amount the rebalance needs; the bonus steps the user already
- * walked on days before the boost starts (yesterday, or any earlier day this week - including ones filled in afterwards) are subtracted,
- * shared evenly across the days the boost covers. Computed from the live history on every read, so edits to earlier days show up at once.
+ * How a temporary step boost applies on `date`. The boost stored is already net: when it was chosen, the spare steps walked that week had been taken
+ * off what there was to make up (the rebalance screen works from the overshoot after the net step credit), so nothing is subtracted again here.
+ * Subtracting them a second time counted the same steps twice and made the step screens disagree with the calorie ones.
  */
 export function getStepBoostBreakdown(
   baseGoal: number,
@@ -118,22 +102,13 @@ export function getStepBoostBreakdown(
   date: string,
   stepLogs: StepLog[] = [],
 ): StepBoostBreakdown {
+  void baseGoal;
+  void stepLogs;
   const none: StepBoostBreakdown = { active: false, gross: 0, credited: 0, net: 0, creditFromYesterdayOnly: false };
   const active = getActiveAdjustment(adjustment, date);
   const steps = active?.steps;
   if (!active || !steps || date < steps.fromDate || (steps.toDate && date > steps.toDate)) return none;
-
-  const lastDay = steps.toDate ?? getWeekEnd(steps.fromDate);
-  const days = Math.max(steps.days ?? daysBetween(steps.fromDate, lastDay) + 1, 1);
-  const credit = bonusBefore(stepLogs, baseGoal, active.weekStart, steps.fromDate);
-  const credited = Math.min(Math.round(credit.total / days), steps.boost);
-  return {
-    active: true,
-    gross: steps.boost,
-    credited,
-    net: Math.max(steps.boost - credited, 0),
-    creditFromYesterdayOnly: credit.days.length > 0 && credit.onlyYesterday,
-  };
+  return { active: true, gross: steps.boost, credited: 0, net: steps.boost, creditFromYesterdayOnly: false };
 }
 
 /**
