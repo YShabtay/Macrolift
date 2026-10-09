@@ -24,6 +24,8 @@ interface StepsTrackerProps {
   /** What walking above the goal does: lowers what the coming days need (calories untouched), or is added to that day's calories (the goal stays). */
   stepMode: StepMode;
   onSaveStepMode: (mode: StepMode) => void;
+  /** In the "add calories" mode: the calories in the week's bank that today's target includes (carried from earlier days plus today's steps); 0 otherwise. */
+  bankKcal?: number;
   /** Removes the extra steps a calorie rebalance added to the week (the choice "make up the overshoot by walking"). */
   onClearRebalanceSteps?: () => void;
 }
@@ -47,7 +49,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, onClearRebalanceSteps }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, bankKcal = 0, onClearRebalanceSteps }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -133,6 +135,8 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
           </button>
         </div>
       </div>
+
+      <StepModeToggle mode={stepMode} onChange={onSaveStepMode} />
 
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
         <div className="flex shrink-0 flex-col items-center">
@@ -229,8 +233,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
 
-          <StepsSummary weekly={isWeekly ? weekly : null} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} onClearRebalanceSteps={onClearRebalanceSteps} />
-          <StepModeToggle mode={stepMode} onChange={onSaveStepMode} />
+          <StepsSummary weekly={isWeekly ? weekly : null} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} bankKcal={bankKcal} onClearRebalanceSteps={onClearRebalanceSteps} />
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -311,6 +314,7 @@ function StepsSummary({
   baseGoal,
   stepsOnDay,
   isToday,
+  bankKcal,
   onClearRebalanceSteps,
 }: {
   weekly: ReturnType<typeof getWeeklyStepsPlan> | null;
@@ -319,6 +323,7 @@ function StepsSummary({
   baseGoal: number;
   stepsOnDay: number;
   isToday: boolean;
+  bankKcal: number;
   onClearRebalanceSteps?: () => void;
 }) {
   const fmt = (n: number) => n.toLocaleString('he-IL');
@@ -339,8 +344,8 @@ function StepsSummary({
             {weekly.stepsNeeded === 0
               ? 'יעד השבוע הושג 🎉 כל צעד נוסף הוא בונוס'
               : weekly.daysRemaining === 1
-                ? `${isToday ? 'היום האחרון בשבוע' : 'היום האחרון'}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים כדי לסיים על היעד`
-                : `נשארו ${weekly.daysRemaining} ימים${isToday ? ' (כולל היום)' : ''}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים ביום כדי לסיים על היעד`}
+                ? `${isToday ? 'היום האחרון בשבוע' : 'היום האחרון'}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים כדי לעמוד בממוצע השבועי`
+                : `נשארו ${weekly.daysRemaining} ימים${isToday ? ' (כולל היום)' : ''}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים ביום כדי לעמוד בממוצע השבועי`}
           </p>
           {weekly.stepsNeeded > 0 && stepsOnDay > 0 && (
             <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
@@ -360,15 +365,18 @@ function StepsSummary({
               )}
             </p>
           )}
-          <p className="mt-0.5 text-[11px] text-zinc-500">הקלוריות לא מושפעות מהצעדים.</p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">תקציב הקלוריות להיום רגיל: יעד הבסיס, בלי תוספת מצעדים.</p>
         </>
       )}
       {mode === 'add_calories' && (
         <>
-          <p className="mt-1 text-xs font-bold text-lime-700 dark:text-lime-400">
-            {bonus > 0 ? `${dayWord}: ${fmt(stepsOnDay - baseGoal)} צעדים מעל היעד = ${fmt(bonus)} קק״ל שנוספו ליעד הקלוריות` : `צעדים מעל ${fmt(baseGoal)} ${dayWord} יתווספו ליעד הקלוריות של אותו יום`}
+          <p className="mt-1 text-sm font-extrabold text-lime-700 dark:text-lime-400">יתרת בנק קלוריות: +{fmt(bankKcal)} קק״ל</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+            {bonus > 0 ? `${dayWord}: ${fmt(stepsOnDay - baseGoal)} צעדים מעל היעד = +${fmt(bonus)} קק״ל` : `צעדים מעל ${fmt(baseGoal)} ${dayWord} יצטרפו לבנק`}
           </p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">יעד הצעדים נשאר {fmt(baseGoal)}. קלוריות שלא נוצלו מתגלגלות לימים הבאים באותו שבוע.</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
+            יעד הצעדים היומי נשאר {fmt(baseGoal)}. תקציב הקלוריות להיום כולל את הבנק, וקלוריות שלא נוצלו מתגלגלות לימים הבאים באותו שבוע.
+          </p>
         </>
       )}
     </div>
@@ -377,28 +385,30 @@ function StepsSummary({
 
 /** Two clear choices, one active: the steps above the goal lower what the coming days need, or they become calories on the same day. Never both. */
 function StepModeToggle({ mode, onChange }: { mode: StepMode; onChange: (mode: StepMode) => void }) {
-  const options: { value: StepMode; label: string }[] = [
-    { value: 'balance_steps', label: 'איזון צעדים' },
-    { value: 'add_calories', label: 'המרה לקלוריות' },
+  const options: { value: StepMode; label: string; hint: string }[] = [
+    { value: 'balance_steps', label: 'איזון צעדים', hint: 'עודף צעדים מוריד את היעד לימים הבאים' },
+    { value: 'add_calories', label: 'תוספת קלוריות', hint: 'עודף צעדים מתווסף לקלוריות' },
   ];
   return (
-    <div role="radiogroup" aria-label="מה עושים עם צעדים מעל היעד" className="grid grid-cols-2 gap-2">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={mode === o.value}
-          onClick={() => onChange(o.value)}
-          className={`rounded-lg border px-2 py-1.5 text-xs font-semibold transition ${
-            mode === o.value
-              ? 'border-lime-400/50 bg-lime-400/10 text-lime-700 dark:text-lime-400'
-              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label="מה עושים עם עודף צעדים" className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800 dark:bg-zinc-900">
+      {options.map((o) => {
+        const selected = mode === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(o.value)}
+            className={`flex flex-col items-center rounded-xl px-2 py-2 text-center transition-all duration-200 active:scale-[0.97] ${
+              selected ? 'bg-lime-400 text-zinc-950 shadow-[0_4px_14px_-6px_rgba(163,230,53,0.8)]' : 'text-zinc-600 hover:bg-white/60 dark:text-zinc-400 dark:hover:bg-zinc-800'
+            }`}
+          >
+            <span className="text-sm font-extrabold">{o.label}</span>
+            <span className={`text-[10px] leading-tight ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{o.hint}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
