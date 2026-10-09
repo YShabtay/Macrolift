@@ -4,7 +4,7 @@ import type { StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
-import { getCarriedBonus, getStepBoostBreakdown, type StepBoostBreakdown } from '../utils/weeklyBalance';
+import { KCAL_PER_1000_STEPS, getCarriedBonus, getStepBoostBreakdown, type StepBoostBreakdown } from '../utils/weeklyBalance';
 import { getWeeklyStepsPlan, type StepGoalMode } from '../utils/weeklySteps';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
@@ -21,6 +21,8 @@ interface StepsTrackerProps {
   /** Saves (or overwrites) the step count of one date - works for today and for past days alike. */
   onSaveSteps: (date: string, steps: number) => void;
   onSaveGoal: (goal: number, mode: StepGoalMode) => void;
+  /** Opens the nutrition screen, where the step credit is turned into calories. */
+  onOpenNutrition?: () => void;
 }
 
 /** Weekly mode folds a rebalance's extra walking into the week's total, so the per-day boost breakdown doesn't apply. */
@@ -42,7 +44,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, onOpenNutrition }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -222,7 +224,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
 
-          {isWeekly && <WeeklySummary weekly={weekly} baseGoal={baseGoalSteps} />}
+          {isWeekly && <WeeklySummary weekly={weekly} baseGoal={baseGoalSteps} isToday={isToday} onOpenNutrition={onOpenNutrition} onEditGoal={() => setIsEditingGoal(true)} />}
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -295,32 +297,104 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
   );
 }
 
-/** This week's total against its target, and how earlier days change what today asks for. */
-function WeeklySummary({ weekly, baseGoal }: { weekly: ReturnType<typeof getWeeklyStepsPlan>; baseGoal: number }) {
+/**
+ * This week's total against its target, and what the days before it mean for today, in plain terms: with a surplus today can be lighter (all of it
+ * today, or spread over the days left) or the surplus can simply be kept, with a gap today can make it up (all at once or spread) or the average can
+ * be changed. The surplus or gap is also worth calories, which the nutrition side already counts, so the card says so and links there.
+ */
+function WeeklySummary({
+  weekly,
+  baseGoal,
+  isToday,
+  onOpenNutrition,
+  onEditGoal,
+}: {
+  weekly: ReturnType<typeof getWeeklyStepsPlan>;
+  baseGoal: number;
+  isToday: boolean;
+  onOpenNutrition?: () => void;
+  onEditGoal: () => void;
+}) {
   const percent = weekly.weeklyTarget > 0 ? Math.min(100, Math.round((weekly.walkedThisWeek / weekly.weeklyTarget) * 100)) : 0;
   const done = weekly.walkedThisWeek >= weekly.weeklyTarget;
   const ahead = weekly.balanceBefore > 0;
   const behind = weekly.balanceBefore < 0;
+  const fmt = (n: number) => n.toLocaleString('he-IL');
+  const gapSteps = Math.abs(weekly.balanceBefore);
+  const gapKcal = Math.round((gapSteps * KCAL_PER_1000_STEPS) / 1000);
+  const lastDay = weekly.daysLeft === 1;
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
       <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-        <span className="font-bold text-zinc-900 dark:text-zinc-100">השבוע: {weekly.walkedThisWeek.toLocaleString()} / {weekly.weeklyTarget.toLocaleString()}</span>
-        <span className="font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">ממוצע {weekly.averageSoFar.toLocaleString()} ליום</span>
+        <span className="font-bold text-zinc-900 dark:text-zinc-100">השבוע: {fmt(weekly.walkedThisWeek)} / {fmt(weekly.weeklyTarget)}</span>
+        <span className="font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">ממוצע {fmt(weekly.averageSoFar)} ליום</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
         <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${percent}%` }} />
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-        {done
-          ? 'יעד השבוע הושג! 🎉 כל צעד נוסף הוא בונוס.'
-          : ahead
-            ? `עודף של ${weekly.balanceBefore.toLocaleString()} צעדים מהימים הקודמים מקזז את היעד של היום 💪`
-            : behind
-              ? `חסרים ${Math.abs(weekly.balanceBefore).toLocaleString()} צעדים מהימים הקודמים - הם מתחלקים על שאר השבוע (${weekly.daysLeft} ימים).`
-              : `היעד להיום הוא הממוצע שלך (${baseGoal.toLocaleString()}).`}
-        {weekly.capped && ' היעד מוגבל ל-150% מהממוצע, ולכן חלק מהפער לא יושלם השבוע.'}
-      </p>
+
+      <div className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+        {done ? (
+          <p>יעד השבוע הושג! 🎉 כל צעד נוסף הוא בונוס.</p>
+        ) : isToday && ahead ? (
+          <>
+            <p className="font-semibold text-lime-700 dark:text-lime-400">
+              הלכת {fmt(gapSteps)} צעדים מעל הממוצע בימים הקודמים (כ-{fmt(gapKcal)} קק״ל). אפשר:
+            </p>
+            <ul className="mt-1 list-disc ps-4">
+              <li>{weekly.takeAllToday === 0 ? 'היום אפשר גם לא ללכת, ושאר הימים כרגיל' : `היום מספיק ללכת ${fmt(weekly.takeAllToday)}, ושאר הימים כרגיל`}</li>
+              {!lastDay && <li>או ללכת {fmt(weekly.paceToday)} ביום עד סוף השבוע (פריסה על {weekly.daysLeft} ימים)</li>}
+              <li>או ללכת כרגיל ולצבור עוד לשאר השבוע</li>
+            </ul>
+          </>
+        ) : isToday && behind ? (
+          <>
+            <p className="font-semibold text-orange-700 dark:text-orange-400">
+              חסרים {fmt(gapSteps)} צעדים מהימים הקודמים (כ-{fmt(gapKcal)} קק״ל פחות שרפת מהמתוכנן). אפשר:
+            </p>
+            <ul className="mt-1 list-disc ps-4">
+              <li>
+                להשלים הכול היום: {fmt(weekly.takeAllToday)} צעדים{weekly.takeAllToday > baseGoal * 1.5 ? ' (הרבה, עדיף לפרוס)' : ''}
+              </li>
+              {!lastDay && (
+                <li>
+                  או לפרוס: {fmt(weekly.paceToday)} ביום עד סוף השבוע ({weekly.daysLeft} ימים){weekly.capped ? ', עד התקרה של 150% מהממוצע' : ''}
+                </li>
+              )}
+              <li>
+                או לעדכן את הממוצע השבועי, אם זה הקצב האמיתי שלך (
+                <button type="button" onClick={onEditGoal} className="font-semibold underline">
+                  עריכת הממוצע
+                </button>
+                )
+              </li>
+            </ul>
+          </>
+        ) : (
+          <p>
+            {ahead
+              ? `עודף של ${fmt(gapSteps)} צעדים מהימים הקודמים מקזז את היעד של היום 💪`
+              : behind
+                ? `חסרים ${fmt(gapSteps)} צעדים מהימים הקודמים - הם מתחלקים על שאר השבוע (${weekly.daysLeft} ימים).`
+                : `היעד להיום הוא הממוצע שלך (${fmt(baseGoal)}).`}
+            {weekly.capped && ' היעד מוגבל ל-150% מהממוצע, ולכן חלק מהפער לא יושלם השבוע.'}
+          </p>
+        )}
+        {isToday && !done && (ahead || behind) && (
+          <p className="mt-1.5">
+            {ahead
+              ? 'ההליכה העודפת שרפה אנרגיה, ולכן אפשר לאכול יותר: היום, מחר או בפריסה. הבחירה בלשונית התזונה, והיא מתעדכנת בכל המסכים. '
+              : 'הליכה נמוכה מהתכנון כבר מוחסרת מהקלוריות המומלצות לשאר השבוע, ואם תשלים אותה היא תחזור. '}
+            {onOpenNutrition && (
+              <button type="button" onClick={onOpenNutrition} className="font-semibold underline">
+                לתזונה
+              </button>
+            )}
+          </p>
+        )}
+        {weekly.unloggedDaysBefore > 0 && <p className="mt-1.5 text-zinc-500">ימים בלי הזנת צעדים ({weekly.unloggedDaysBefore}) נחשבים כעומדים ביעד.</p>}
+      </div>
     </div>
   );
 }

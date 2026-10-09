@@ -30,8 +30,15 @@ export interface WeeklyStepsPlan {
   paceToday: number;
   /** True when the pace was capped because covering the whole gap in the days left would be unrealistic. */
   capped: boolean;
-  /** Steps ahead (+) or behind (-) of the plain daily average over the days before the viewed date. */
+  /**
+   * What the viewed date alone would have to walk so that every later day can be the plain average: the whole surplus taken as a lighter day
+   * (down to 0) or the whole gap made up in one day. `paceToday` is the same thing spread evenly over the days left.
+   */
+  takeAllToday: number;
+  /** Steps ahead (+) or behind (-) of the plain daily average over the days before the viewed date. Days with no entry count as on target. */
   balanceBefore: number;
+  /** Days before the viewed date with no step entry: treated as exactly on target, like in the calorie accounting, not as zero steps. */
+  unloggedDaysBefore: number;
   /** Whole-week steps so far (through the viewed date, or the whole week for a past week). */
   walkedThisWeek: number;
   /** Average steps per day over the days counted so far this week. */
@@ -59,8 +66,17 @@ export function getWeeklyStepsPlan(
   const extra = stepsBoost ? stepsBoost.boost * boostDays : 0;
   const weeklyTarget = baseGoal * 7 + extra;
 
+  // A day with no entry is unknown, not zero: it counts as exactly on target, the same rule the calorie side uses, so the two never disagree.
   let walkedBefore = 0;
-  for (let i = 0; i < dayIndex; i++) walkedBefore += getStepsForDate(stepLogs, addDays(weekStart, i));
+  let unloggedDaysBefore = 0;
+  for (let i = 0; i < dayIndex; i++) {
+    const day = addDays(weekStart, i);
+    if (stepLogs.some((s) => s.date === day)) walkedBefore += getStepsForDate(stepLogs, day);
+    else {
+      walkedBefore += baseGoal;
+      unloggedDaysBefore += 1;
+    }
+  }
   const walkedOnDate = getStepsForDate(stepLogs, date);
 
   const remainingFromDate = Math.max(weeklyTarget - walkedBefore, 0);
@@ -68,7 +84,7 @@ export function getWeeklyStepsPlan(
   const maxPace = Math.round(baseGoal * MAX_PACE_MULTIPLE);
   const paceToday = Math.min(rawPace, Math.max(maxPace, baseGoal));
 
-  const walkedThisWeek = walkedBefore + walkedOnDate;
+  const walkedThisWeek = walkedBefore - baseGoal * unloggedDaysBefore + walkedOnDate;
   return {
     weekStart,
     weeklyTarget,
@@ -77,9 +93,11 @@ export function getWeeklyStepsPlan(
     daysLeft,
     remainingFromDate,
     paceToday,
+    takeAllToday: Math.max(0, remainingFromDate - baseGoal * (daysLeft - 1)),
+    unloggedDaysBefore,
     capped: rawPace > paceToday,
     balanceBefore: walkedBefore - baseGoal * dayIndex,
     walkedThisWeek,
-    averageSoFar: Math.round(walkedThisWeek / (dayIndex + 1)),
+    averageSoFar: Math.round(walkedThisWeek / Math.max(dayIndex + 1 - unloggedDaysBefore, 1)),
   };
 }

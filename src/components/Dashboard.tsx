@@ -784,6 +784,7 @@ function DashboardTab({
         weightKg={profile.metrics.weightKg}
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}
+        onOpenNutrition={() => onNavigate('nutrition')}
       />
 
       <WeeklySummaryCard appState={appState} />

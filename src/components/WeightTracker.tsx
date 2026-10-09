@@ -12,6 +12,7 @@ import {
 import type { BulkWeightEntry } from '../utils/bulkWeightParser';
 import WeightTrendChart from './WeightTrendChart';
 import BulkWeightModal from './BulkWeightModal';
+import WeightEditModal from './WeightEditModal';
 import Toast from './Toast';
 
 interface WeightTrackerProps {
@@ -178,6 +179,7 @@ function FullTracker({
   const [expandedWeek, setExpandedWeek] = useState<string | null>(summaries[summaries.length - 1]?.weekStart ?? null);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<WeightLog | null>(null);
 
   // logs for the selected date can change from outside this form (bulk import, another
   // device) - keep the weight field in sync without an effect, same pattern as Settings.tsx.
@@ -204,9 +206,12 @@ function FullTracker({
     onSave(formDate, num);
   }
 
-  function loadEntryForEdit(log: WeightLog) {
-    setFormDate(log.date);
-    setFormWeight(String(log.weightKg));
+  function saveEditedEntry(entry: WeightLog, next: { date: string; weightKg: number }) {
+    // Moving a weigh-in to another day: drop the old record first, then save under the new date (a save on an existing date replaces that day's weigh-in).
+    if (next.date !== entry.date) onDelete(entry.id);
+    onSave(next.date, next.weightKg, entry.notes);
+    setEditingEntry(null);
+    setToastMessage('השקילה עודכנה');
   }
 
   function handleBulkImportConfirm(entries: BulkWeightEntry[]) {
@@ -315,7 +320,7 @@ function FullTracker({
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => loadEntryForEdit(entry)}
+                            onClick={() => setEditingEntry(entry)}
                             aria-label="עריכה"
                             className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-lime-700 dark:hover:text-lime-400"
                           >
@@ -344,6 +349,21 @@ function FullTracker({
         <div className="glass-card p-8 text-center">
           <p className="text-sm text-zinc-600 dark:text-zinc-500">עדיין אין שקילות. הזן/י את השקילה הראשונה למעלה כדי להתחיל לעקוב.</p>
         </div>
+      )}
+
+      {editingEntry && (
+        <WeightEditModal
+          entry={editingEntry}
+          takenDates={logs.filter((l) => l.id !== editingEntry.id).map((l) => l.date)}
+          today={today}
+          onSave={(next) => saveEditedEntry(editingEntry, next)}
+          onDelete={() => {
+            onDelete(editingEntry.id);
+            setEditingEntry(null);
+            setToastMessage('השקילה נמחקה');
+          }}
+          onClose={() => setEditingEntry(null)}
+        />
       )}
 
       {isBulkModalOpen && (
