@@ -37,6 +37,8 @@ export interface WeeklyStepsPlan {
   takeAllToday: number;
   /** Steps ahead (+) or behind (-) of the plain daily average over the days before the viewed date. Days with no entry count as on target. */
   balanceBefore: number;
+  /** Average steps per day over the days before the viewed date that have an entry (the days still ahead and the day itself are not counted); null when there are none. */
+  averageBefore: number | null;
   /** Days before the viewed date with no step entry: treated as exactly on target, like in the calorie accounting, not as zero steps. */
   unloggedDaysBefore: number;
   /** Whole-week steps so far (through the viewed date, or the whole week for a past week). */
@@ -68,11 +70,15 @@ export function getWeeklyStepsPlan(
 
   // A day with no entry is unknown, not zero: it counts as exactly on target, the same rule the calorie side uses, so the two never disagree.
   let walkedBefore = 0;
+  let loggedStepsBefore = 0;
   let unloggedDaysBefore = 0;
   for (let i = 0; i < dayIndex; i++) {
     const day = addDays(weekStart, i);
-    if (stepLogs.some((s) => s.date === day)) walkedBefore += getStepsForDate(stepLogs, day);
-    else {
+    if (stepLogs.some((s) => s.date === day)) {
+      const n = getStepsForDate(stepLogs, day);
+      walkedBefore += n;
+      loggedStepsBefore += n;
+    } else {
       walkedBefore += baseGoal;
       unloggedDaysBefore += 1;
     }
@@ -95,6 +101,7 @@ export function getWeeklyStepsPlan(
     paceToday,
     takeAllToday: Math.max(0, remainingFromDate - baseGoal * (daysLeft - 1)),
     unloggedDaysBefore,
+    averageBefore: dayIndex - unloggedDaysBefore > 0 ? Math.round(loggedStepsBefore / (dayIndex - unloggedDaysBefore)) : null,
     capped: rawPace > paceToday,
     balanceBefore: walkedBefore - baseGoal * dayIndex,
     walkedThisWeek,

@@ -315,7 +315,7 @@ function WeeklySummary({
   onOpenNutrition?: () => void;
   onEditGoal: () => void;
 }) {
-  const percent = weekly.weeklyTarget > 0 ? Math.min(100, Math.round((weekly.walkedThisWeek / weekly.weeklyTarget) * 100)) : 0;
+  const [showDetails, setShowDetails] = useState(false);
   const done = weekly.walkedThisWeek >= weekly.weeklyTarget;
   const ahead = weekly.balanceBefore > 0;
   const behind = weekly.balanceBefore < 0;
@@ -323,18 +323,34 @@ function WeeklySummary({
   const gapSteps = Math.abs(weekly.balanceBefore);
   const gapKcal = Math.round((gapSteps * KCAL_PER_1000_STEPS) / 1000);
   const lastDay = weekly.daysLeft === 1;
+  const daysLabel = weekly.daysLeft === 1 ? 'נשאר יום אחד' : `נשארו ${weekly.daysLeft} ימים`;
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-        <span className="font-bold text-zinc-900 dark:text-zinc-100">השבוע: {fmt(weekly.walkedThisWeek)} / {fmt(weekly.weeklyTarget)}</span>
-        <span className="font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">ממוצע {fmt(weekly.averageSoFar)} ליום</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-        <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${percent}%` }} />
-      </div>
+      {/* The two numbers that matter, and nothing else by default: the average walked so far, and what each remaining day needs to finish on the goal. */}
+      {weekly.averageBefore !== null && (
+        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+          ממוצע עד {isToday ? 'אתמול' : 'אז'}: <span className="tabular-nums">{fmt(weekly.averageBefore)}</span> ליום
+          <span className="font-normal text-zinc-500"> · יעד {fmt(baseGoal)}</span>
+        </p>
+      )}
+      <p className="mt-1 text-xs font-bold text-lime-700 dark:text-lime-400">
+        {done
+          ? 'ממוצע השבוע הושג 🎉 כל צעד הוא בונוס'
+          : `${daysLabel}${isToday ? ' (כולל היום)' : ''}: ${fmt(weekly.paceToday)} צעדים ביום כדי לסיים על הממוצע`}
+      </p>
+      {!done && weekly.capped && <p className="mt-0.5 text-[11px] text-zinc-500">מוגבל ל-150% מהממוצע, חלק מהפער לא יושלם השבוע</p>}
 
-      <div className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+      <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className="mt-1.5 text-[11px] font-semibold text-zinc-500 underline">
+        {showDetails ? 'פחות' : 'פירוט'}
+      </button>
+
+      {showDetails && (
+        <div className="mt-1.5 border-t border-zinc-200 pt-2 dark:border-zinc-800">
+          <p className="mb-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">
+            השבוע: {fmt(weekly.walkedThisWeek)} / {fmt(weekly.weeklyTarget)}
+          </p>
+      <div className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
         {done ? (
           <p>יעד השבוע הושג! 🎉 כל צעד נוסף הוא בונוס.</p>
         ) : isToday && ahead ? (
@@ -395,6 +411,8 @@ function WeeklySummary({
         )}
         {weekly.unloggedDaysBefore > 0 && <p className="mt-1.5 text-zinc-500">ימים בלי הזנת צעדים ({weekly.unloggedDaysBefore}) נחשבים כעומדים ביעד.</p>}
       </div>
+        </div>
+      )}
     </div>
   );
 }

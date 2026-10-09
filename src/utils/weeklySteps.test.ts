@@ -50,4 +50,18 @@ describe('getWeeklyStepsPlan', () => {
     expect(plan.daysLeft).toBe(1);
     expect(plan.takeAllToday).toBe(plan.remainingFromDate);
   });
+
+  it('gives the two numbers the card shows: the average walked so far and the steps each remaining day needs', () => {
+    // Sunday-Thursday logged, viewed on Friday: two days left (Friday and Saturday).
+    const plan = getWeeklyStepsPlan(GOAL, undefined, [...WEEK, steps('2026-10-08', 5758)], '2026-10-09');
+    expect(plan.averageBefore).toBe(5317); // (8,846 + 3,818 + 5,821 + 2,344 + 5,758) / 5
+    expect(plan.daysLeft).toBe(2);
+    expect(plan.paceToday).toBe(Math.ceil((31500 - 26587) / 2)); // 2,457 a day to finish on the average of 4,500
+  });
+
+  it('averages only the days that have an entry, and has no average before the first completed day', () => {
+    expect(getWeeklyStepsPlan(GOAL, undefined, [steps('2026-10-04', 6000)], '2026-10-08').averageBefore).toBe(6000);
+    expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-04').averageBefore).toBeNull();
+    expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-08').averageBefore).toBeNull(); // nothing logged: unknown, not zero
+  });
 });
