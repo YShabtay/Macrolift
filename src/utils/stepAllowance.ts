@@ -19,14 +19,17 @@ export function chooseStepAllowance(params: {
   baseStepGoal: number;
   today: string;
   days: number | null;
+  /** The day the allocation starts from: today by default, or yesterday when the user is still logging it (a late-night entry). Earlier days keep what they have. */
+  from?: string;
 }): WeeklyBalanceAdjustment {
   const { adjustment, stepLogs, baseStepGoal, today, days } = params;
-  const weekStart = getWeekStart(today);
-  const active = getActiveAdjustment(adjustment, today) ?? { weekStart };
-  const kept = Object.fromEntries(Object.entries(active.stepAllowance ?? {}).filter(([day, kcal]) => day < today && kcal > 0));
+  const start = params.from ?? today;
+  const weekStart = getWeekStart(start);
+  const active = getActiveAdjustment(adjustment, start) ?? { weekStart };
+  const kept = Object.fromEntries(Object.entries(active.stepAllowance ?? {}).filter(([day, kcal]) => day < start && kcal > 0));
 
-  const daysLeft = 7 - daysBetween(weekStart, today);
-  const credit = getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: active, asOf: today }).netKcal;
+  const daysLeft = 7 - daysBetween(weekStart, start);
+  const credit = getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: active, asOf: start, realToday: today }).netKcal;
   const spentBefore = Object.values(kept).reduce((a, b) => a + b, 0);
   const available = credit - spentBefore;
 
@@ -34,7 +37,7 @@ export function chooseStepAllowance(params: {
   if (days !== null && days < daysLeft && available >= MIN_ALLOWANCE_CREDIT_KCAL) {
     const n = Math.max(1, Math.round(days));
     const perDay = Math.round(available / n);
-    for (let i = 0; i < n; i++) entries[addDaysIso(today, i)] = perDay;
+    for (let i = 0; i < n; i++) entries[addDaysIso(start, i)] = perDay;
   }
 
   const { stepAllowance: _previous, ...rest } = active;

@@ -45,6 +45,16 @@ describe('chooseStepAllowance', () => {
     expect(after.calorie).toEqual(before.calorie);
     expect(choose(null, before).stepAllowance).toBeUndefined();
   });
+  it('can start from yesterday while it is still being logged, using the credit as it stood that day, and leaves earlier days alone', () => {
+    // Yesterday is Wednesday: the credit as of Wednesday counts the finished Monday and Wednesday as well.
+    const fromWed = chooseStepAllowance({ adjustment: undefined, stepLogs: STEPS, baseStepGoal: 4500, today: TODAY, days: 1, from: '2026-10-07' });
+    expect(fromWed.stepAllowance).toEqual({ '2026-10-07': 113 });
+    const earlier = { weekStart: '2026-10-04', stepAllowance: { '2026-10-06': 30, '2026-10-08': 99 } };
+    const next = chooseStepAllowance({ adjustment: earlier, stepLogs: STEPS, baseStepGoal: 4500, today: TODAY, days: 2, from: '2026-10-07' }).stepAllowance!;
+    expect(next['2026-10-06']).toBe(30); // before the start: kept
+    expect(next['2026-10-08']).toBe(42); // replaced: (113 - 30) / 2
+    expect(next['2026-10-07']).toBe(42);
+  });
   it('does nothing when there is no real credit', () => {
     const noSteps = chooseStepAllowance({ adjustment: undefined, stepLogs: [], baseStepGoal: 4500, today: TODAY, days: 1 });
     expect(noSteps.stepAllowance).toBeUndefined();

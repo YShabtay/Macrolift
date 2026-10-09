@@ -5,9 +5,12 @@ import { formatDateDisplay } from '../utils/weightCalculations';
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
 export default function WeeklyCalorieCard({
   budget,
+  isToday = true,
   onChooseAllowance,
 }: {
   budget: WeeklyCalorieBudget;
+  /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */
+  isToday?: boolean;
   /** Puts the step credit on today and the next days (1 = today only), or with null leaves it shared over every day left. */
   onChooseAllowance?: (days: number | null) => void;
 }) {
@@ -41,7 +44,7 @@ export default function WeeklyCalorieCard({
 
       {budget.pace && (
         <p className="mt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-          <span className="font-bold">מומלץ להיום: {budget.pace.kcal.toLocaleString()} קק״ל</span>
+          <span className="font-bold">{isToday ? 'מומלץ להיום' : 'מומלץ ליום הזה'}: {budget.pace.kcal.toLocaleString()} קק״ל</span>
           {budget.pace.kcal !== budget.pace.target && <span className="text-zinc-500"> (היעד היומי {budget.pace.target.toLocaleString()})</span>}
           <br />
           <span className="text-zinc-600 dark:text-zinc-400">
@@ -51,7 +54,7 @@ export default function WeeklyCalorieCard({
                 budget.pace.allowanceDays === 0
                   ? `שמתחלקת על ${budget.pace.daysLeft} הימים הקרובים (כ-${Math.round(budget.pace.stepCreditKcal / budget.pace.daysLeft).toLocaleString()} ליום)`
                   : budget.pace.allowanceDays === 1
-                    ? 'שמנוצלת היום בלבד (היא כבר בתוך יעד היום)'
+                    ? (isToday ? 'שמנוצלת היום בלבד (היא כבר בתוך יעד היום)' : 'שמנוצלת ביום הזה בלבד (היא כבר בתוך היעד שלו)')
                     : `שמנוצלת על ${budget.pace.allowanceDays} ימים (היא כבר בתוך יעד כל אחד מהם)`
               }, כי השבוע הלכת נטו יותר מיעד הצעדים.`}
             {budget.pace.stepCreditKcal <= -10 && ` כולל הפחתה של כ-${Math.abs(budget.pace.stepCreditKcal).toLocaleString()} קק״ל לכל שאר השבוע (כ-${Math.round(Math.abs(budget.pace.stepCreditKcal) / budget.pace.daysLeft).toLocaleString()} ליום), כי השבוע הלכת נטו פחות מיעד הצעדים.`}
@@ -80,7 +83,7 @@ export default function WeeklyCalorieCard({
                       : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
-                  {days === 1 ? 'היום בלבד' : isAll ? `כל ${days} הימים` : `${days} ימים`}
+                  {days === 1 ? (isToday ? 'היום בלבד' : 'היום הזה בלבד') : isAll ? `כל ${days} הימים` : `${days} ימים`}
                 </button>
               );
             })}

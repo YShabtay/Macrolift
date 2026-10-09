@@ -190,7 +190,7 @@ interface DashboardProps {
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
-  onChooseStepAllowance: (days: number | null) => void;
+  onChooseStepAllowance: (days: number | null, from?: string) => void;
   userId: string;
   onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
   onReset: () => void | Promise<void>;

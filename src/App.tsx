@@ -625,10 +625,10 @@ export default function App() {
   }
 
   /** Puts the week's net step credit on today and the next days (days = 1: today only), or with null shares it over every day left. */
-  function handleChooseStepAllowance(days: number | null) {
+  function handleChooseStepAllowance(days: number | null, from?: string) {
     setAppState((prev) =>
       prev
-        ? { ...prev, weeklyBalance: chooseStepAllowance({ adjustment: prev.weeklyBalance, stepLogs: prev.stepLogs, baseStepGoal: getBaseStepGoal(prev), today: todayIso(), days }) }
+        ? { ...prev, weeklyBalance: chooseStepAllowance({ adjustment: prev.weeklyBalance, stepLogs: prev.stepLogs, baseStepGoal: getBaseStepGoal(prev), today: todayIso(), days, from }) }
         : prev,
     );
   }

@@ -53,7 +53,7 @@ import PwaInstallBanner from './PwaInstallBanner';
 import { useInstallBanner } from '../hooks/useInstallBanner';
 import { parseDecimal } from '../utils/decimalInput';
 import { calculateRemaining, getEntriesForDate, getEntryTitle, getMealForCurrentTime, MEAL_LABELS, MEAL_ORDER, sumTotals } from '../utils/nutritionLog';
-import { formatDateDisplay, parseIsoDate } from '../utils/weightCalculations';
+import { formatDateDisplay, getWeekStart, parseIsoDate } from '../utils/weightCalculations';
 import { formatMacro } from '../utils/formatMacro';
 
 // Nutrition-tab-only header photo (gym/workout imagery is reserved for the dashboard hero).
@@ -78,7 +78,7 @@ interface FoodTrackerProps {
   metrics: UserMetrics;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   /** Puts the week's step credit on today and the next days (1 = today only), or with null shares it over every day left. */
-  onChooseStepAllowance: (days: number | null) => void;
+  onChooseStepAllowance: (days: number | null, from?: string) => void;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
@@ -124,13 +124,18 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   const entriesForDate = useMemo(() => getEntriesForDate(foodLog, selectedDate), [foodLog, selectedDate]);
   const recentFoods = useMemo(() => getRecentFoods(foodLog), [foodLog]);
   // The week's walking against the step goal, in calories: the same number the coverage check uses, so every card moves together.
+  // Today, and yesterday while it is still being filled in (a late-night entry, or the morning after): both are "live" days that get the room left, the
+  // step-credit choice and the weekly pace, computed as of that day. Older days stay plain history.
+  const isToday = selectedDate === today;
+  const isLiveDay = isToday || (selectedDate === shiftDate(today, -1) && getWeekStart(selectedDate) === getWeekStart(today));
+  const liveDate = isLiveDay ? selectedDate : today;
   const stepCreditKcal = useMemo(
-    () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: today }).netKcal,
-    [stepLogs, baseStepGoal, weeklyBalance, today],
+    () => getStepCredit({ stepLogs, baseGoal: baseStepGoal, adjustment: weeklyBalance, asOf: liveDate, realToday: today }).netKcal,
+    [stepLogs, baseStepGoal, weeklyBalance, liveDate, today],
   );
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, today, stepCreditKcal],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate, stepCreditKcal),
+    [foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate, stepCreditKcal],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);
@@ -144,7 +149,6 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
   const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
   // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
-  const isToday = selectedDate === today;
   const coverage = useMemo(
     () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, stepLogs, baseStepGoal, today: selectedDate, realToday: today }),
     [selectedDate, today, foodLog, nutritionPlan, weeklyBalance, stepLogs, baseStepGoal],
@@ -221,7 +225,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {targets.allowanceKcal > 0 && (
         <p className="-mb-2 text-center text-[11px] font-semibold text-lime-700 dark:text-lime-400">
-          יעד היום כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד
+          {isToday ? 'יעד היום' : 'יעד היום הזה'} כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד
         </p>
       )}
       {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (
@@ -236,7 +240,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
-          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isToday && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
+          מאוזן: עברת את היעד ב-{Math.abs(Math.round(remaining.calories))} קק״ל, אבל {describeCoverage(coverage)}. {isLiveDay && describeRoom(coverage)} {isToday && 'אין צורך באיזון.'}
         </p>
       )}
       {stepSurplus && (
@@ -254,7 +258,11 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, ste
         </button>
       )}
 
-      <WeeklyCalorieCard budget={calorieBudget} onChooseAllowance={isToday ? onChooseStepAllowance : undefined} />
+      <WeeklyCalorieCard
+        budget={calorieBudget}
+        isToday={isToday}
+        onChooseAllowance={isLiveDay ? (days) => onChooseStepAllowance(days, selectedDate) : undefined}
+      />
 
 
       <button
