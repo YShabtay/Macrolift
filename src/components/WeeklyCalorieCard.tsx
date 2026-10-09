@@ -5,9 +5,7 @@ import { formatDateDisplay } from '../utils/weightCalculations';
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
 export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: WeeklyCalorieBudget; /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */ isToday?: boolean }) {
   const percent = budget.weeklyTarget > 0 ? Math.min(Math.round((budget.eaten / budget.weeklyTarget) * 100), 100) : 0;
-  // Over the week's target but inside the range's top is still inside what the app recommends: shown calmly, as "above the target".
-  const isOver = budget.eaten > budget.weeklyCeiling;
-  const isAboveTarget = budget.remaining < 0 && !isOver;
+  const isOver = budget.remaining < 0;
 
   return (
     <div className="glass-card p-4 sm:p-5">
@@ -27,11 +25,7 @@ export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: 
           <span className="font-medium text-zinc-500"> / {budget.weeklyTarget.toLocaleString()} קק״ל</span>
         </p>
         <p className={`text-xs font-bold tabular-nums ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
-          {isOver
-            ? `חריגה של ${(budget.eaten - budget.weeklyCeiling).toLocaleString()}`
-            : isAboveTarget
-              ? `מעל היעד ב-${Math.abs(budget.remaining).toLocaleString()}, בתוך הטווח`
-              : `נשארו ${budget.remaining.toLocaleString()}`}
+          {isOver ? `חריגה של ${Math.abs(budget.remaining).toLocaleString()}` : `נשארו ${budget.remaining.toLocaleString()}`}
         </p>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">

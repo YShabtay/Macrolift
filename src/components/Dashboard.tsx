@@ -1146,8 +1146,7 @@ function NutritionCard({
   const macros = targets.macros;
   const remainingCalories = targetCalories - eaten.calories;
   const isOver = remainingCalories < 0;
-  // Over the target but inside the recommended range, or covered by the week: shown calmly, not as an overshoot.
-  const isCovered = isOver && (coverage.isCovered || coverage.isWithinRange);
+  const isCovered = isOver && coverage.isCovered;
   const progressPercent = targetCalories > 0 ? Math.min((eaten.calories / targetCalories) * 100, 100) : 0;
 
   return (
