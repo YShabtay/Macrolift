@@ -65,7 +65,8 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
   const extraSteps = walksMore ? getStepBoostExtraSteps(weeklyBalance, selectedDate) : 0;
   const weekly = useMemo(() => getWeeklyStepsPlan(baseGoalSteps, stepLogs, selectedDate, extraSteps), [baseGoalSteps, stepLogs, selectedDate, extraSteps]);
   const boost = isWeekly || !walksMore ? NO_BOOST : getStepBoostBreakdown(baseGoalSteps, weeklyBalance, selectedDate, stepLogs);
-  const goalSteps = baseGoalSteps + boost.net;
+  // Weekly goal with the "balance steps" mode: today's goal is what the week still needs shared over today and the days after it. Otherwise the goal as set.
+  const goalSteps = isWeekly && walksMore ? weekly.targetForTodayAndRemaining : baseGoalSteps + boost.net;
   const tomorrowBoost = isToday && !isWeekly && walksMore ? getStepBoostBreakdown(baseGoalSteps, weeklyBalance, shiftDate(today, 1), stepLogs) : null;
 
   // Endowed progress: when bonus steps from earlier days are being credited against a rebalance, the ring shows them as already walked
@@ -326,21 +327,26 @@ function StepsSummary({
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
-      {weekly && (
+      {weekly && weekly.averageBefore !== null && (
         <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-          ממוצע מתחילת השבוע: <span className="tabular-nums">{fmt(weekly.averageSoFar)}</span> ליום
+          ממוצע עד {isToday ? 'אתמול' : 'אז'}: <span className="tabular-nums">{fmt(weekly.averageBefore)}</span> ליום
           <span className="font-normal text-zinc-500"> · יעד {fmt(baseGoal)}</span>
         </p>
       )}
       {mode === 'balance_steps' && weekly && (
         <>
           <p className="mt-1 text-xs font-bold text-lime-700 dark:text-lime-400">
-            {weekly.remainingNeeded === 0
+            {weekly.stepsNeeded === 0
               ? 'יעד השבוע הושג 🎉 כל צעד נוסף הוא בונוס'
-              : weekly.daysPassed >= 7
-                ? `נשאר להשלים ${fmt(weekly.remainingNeeded)} צעדים כדי לסיים על היעד`
-                : `${weekly.daysRemaining === 1 ? 'נשאר יום אחד' : `נשארו ${weekly.daysRemaining} ימים`}: ${fmt(weekly.adjustedDailyTarget)} צעדים ביום כדי לסיים על היעד`}
+              : weekly.daysRemaining === 1
+                ? `${isToday ? 'היום האחרון בשבוע' : 'היום האחרון'}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים כדי לסיים על היעד`
+                : `נשארו ${weekly.daysRemaining} ימים${isToday ? ' (כולל היום)' : ''}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים ביום כדי לסיים על היעד`}
           </p>
+          {weekly.stepsNeeded > 0 && stepsOnDay > 0 && (
+            <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+              {weekly.leftToday === 0 ? `${isToday ? 'להיום' : 'ליום הזה'} הושלם היעד` : `נשארו ${isToday ? 'להיום' : 'ליום הזה'}: ${fmt(weekly.leftToday)} צעדים`}
+            </p>
+          )}
           {weekly.weeklyTarget > weekly.targetDailySteps * 7 && (
             <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               כולל {fmt(weekly.weeklyTarget - weekly.targetDailySteps * 7)} צעדים שהוספת כדי לפצות על חריגה בקלוריות.
@@ -362,7 +368,7 @@ function StepsSummary({
           <p className="mt-1 text-xs font-bold text-lime-700 dark:text-lime-400">
             {bonus > 0 ? `${dayWord}: ${fmt(stepsOnDay - baseGoal)} צעדים מעל היעד = ${fmt(bonus)} קק״ל שנוספו ליעד הקלוריות` : `צעדים מעל ${fmt(baseGoal)} ${dayWord} יתווספו ליעד הקלוריות של אותו יום`}
           </p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">יעד הצעדים לשאר השבוע נשאר {fmt(baseGoal)}.</p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">יעד הצעדים נשאר {fmt(baseGoal)}. קלוריות שלא נוצלו מתגלגלות לימים הבאים באותו שבוע.</p>
         </>
       )}
     </div>

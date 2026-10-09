@@ -1,6 +1,8 @@
-import type { AppState, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
+import type { AppState, FoodEntry, NutritionPlan, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { getStepsForDate } from './stepsCalculations';
-import { getActiveAdjustment } from './weeklyBalance';
+import { getActiveAdjustment, getDailyTargets } from './weeklyBalance';
+import { sumTotals } from './nutritionLog';
+import { addDaysIso } from './dateMath';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 export type StepGoalMode = 'weekly' | 'daily';
@@ -27,49 +29,55 @@ export interface WeeklyStepsPlan {
   targetDailySteps: number;
   /** The week's total goal: 7 x the daily goal, plus any extra walking a calorie rebalance asked for. */
   weeklyTarget: number;
-  /** Days of the week from Sunday up to and including the viewed day (1-7). */
-  daysPassed: number;
-  /** Days after the viewed day (at least 1, so the share below never divides by zero; on Saturday it is the rest of the week's total on one day). */
+  /** Days of the week before the viewed day (0 on Sunday). */
+  daysBefore: number;
+  /** Days left in the week counting the viewed day itself, through Saturday (7 on Sunday, 1 on Saturday). Never below 1. */
   daysRemaining: number;
-  /** Steps actually walked from Sunday through the viewed day. A day with no entry counts as 0 steps. */
-  totalStepsWalked: number;
-  /** Steps walked on the viewed day itself. */
+  /** Steps walked from Sunday through the day before the viewed day. A day with no entry counts as 0 steps. */
+  walkedBeforeToday: number;
+  /** Average steps per day over the days before the viewed day; null on Sunday, when there is none yet. */
+  averageBefore: number | null;
+  /** Steps walked on the viewed day so far. */
   stepsOnDay: number;
-  /** Average steps per day since Sunday (through the viewed day). */
-  averageSoFar: number;
-  /** What is still missing from the week's total (0 once it is reached). */
-  remainingNeeded: number;
-  /** What each of the days after the viewed day needs to walk to finish on the weekly goal. Walking above the average so far lowers it. */
-  adjustedDailyTarget: number;
+  /** What the week still needs, counted from the start of the viewed day (0 once the week's target is reached). */
+  stepsNeeded: number;
+  /** What the viewed day and each day after it needs to walk to finish on the weekly goal. Walking above the average before lowers it, a short day raises it. */
+  targetForTodayAndRemaining: number;
+  /** What is still left of that target today (0 once reached); updates as the day's steps are entered. */
+  leftToday: number;
 }
 
 /**
- * The weekly step plan, Sunday to Saturday. The user sets a daily goal (4,500 -> 31,500 for the week); what has been walked so far is taken off the
- * week's total and the rest is shared over the days that are left, so walking above the average so far lowers the goal of the coming days, and a short
- * day raises it. A day with no entry counts as 0 steps. Computed live from the history, so editing an earlier day updates it at once.
- * `extraSteps` is walking a calorie rebalance asked for, added to the week's total.
+ * The weekly step plan, Sunday to Saturday. The user sets a daily goal (4,500 -> 31,500 for the week). What was walked on the days BEFORE the viewed day
+ * is taken off the week's total and the rest is shared over the viewed day and the days after it, so walking above the average so far lowers the goal,
+ * and a short day raises it. The viewed day counts as a day still to walk until it is over, so on a morning with nothing entered yet the number is a
+ * sensible daily target, and it stays the same while the day's steps are entered (what is left of it is `leftToday`). A day with no entry counts as 0
+ * steps. Computed live from the history, so editing an earlier day updates it at once. `extraSteps` is walking a calorie rebalance asked for, added to the
+ * week's total.
  */
 export function getWeeklyStepsPlan(targetDailySteps: number, stepLogs: StepLog[], date: string, extraSteps = 0): WeeklyStepsPlan {
   const weekStart = getWeekStart(date);
-  const daysPassed = daysBetween(weekStart, date) + 1;
-  const daysRemaining = Math.max(7 - daysPassed, 1);
+  const daysBefore = daysBetween(weekStart, date);
+  const daysRemaining = Math.max(7 - daysBefore, 1);
   const weeklyTarget = targetDailySteps * 7 + extraSteps;
 
+  const walkedBeforeToday = stepLogs.filter((s) => s.date >= weekStart && s.date < date).reduce((sum, s) => sum + s.steps, 0);
   const stepsOnDay = getStepsForDate(stepLogs, date);
-  const totalStepsWalked = stepLogs.filter((s) => s.date >= weekStart && s.date <= date).reduce((sum, s) => sum + s.steps, 0);
-  const remainingNeeded = Math.max(0, weeklyTarget - totalStepsWalked);
+  const stepsNeeded = Math.max(0, weeklyTarget - walkedBeforeToday);
+  const targetForTodayAndRemaining = Math.round(stepsNeeded / daysRemaining);
 
   return {
     weekStart,
     targetDailySteps,
     weeklyTarget,
-    daysPassed,
+    daysBefore,
     daysRemaining,
-    totalStepsWalked,
+    walkedBeforeToday,
+    averageBefore: daysBefore > 0 ? Math.round(walkedBeforeToday / daysBefore) : null,
     stepsOnDay,
-    averageSoFar: Math.round(totalStepsWalked / daysPassed),
-    remainingNeeded,
-    adjustedDailyTarget: Math.round(remainingNeeded / daysRemaining),
+    stepsNeeded,
+    targetForTodayAndRemaining,
+    leftToday: Math.max(0, targetForTodayAndRemaining - stepsOnDay),
   };
 }
 
@@ -79,31 +87,80 @@ export function stepBonusKcal(steps: number, targetDailySteps: number, weightKg:
   return surplus > 0 ? Math.round(surplus * (weightKg / 70) * KCAL_PER_STEP_AT_70KG) : 0;
 }
 
+export interface StepCalorieBank {
+  /** What to add to each day's target (date -> kcal): the part of the bank that day actually ate, and for today everything available. */
+  allowance: Record<string, number>;
+  /** What came into today from earlier days of the week, unspent. */
+  carriedIntoToday: number;
+  /** Calories earned from today's steps so far. */
+  bonusToday: number;
+  /** Today's whole allowance: what is carried in plus what today's steps earned. */
+  availableToday: number;
+}
+
+/**
+ * The week's calorie bank in the 'add_calories' mode. Each day's steps above the goal earn calories; calories not eaten that day are not lost at midnight,
+ * they carry to the next days of the same week until they are used up by eating above the base target (or the week ends on Sunday).
+ *
+ * For a day before today: it spent min(what was available, what it ate above its base target), and that spent part is what is added to its target (so
+ * eaten minus target stays honest and the same calories are never in two days' targets). For today: its target includes everything available (carried in
+ * plus today's steps so far). The base target of a day is its target without any step calories, so a lowered target from a rebalance still applies.
+ */
+export function getStepCalorieBank(params: {
+  baseAdjustment: WeeklyBalanceAdjustment | undefined;
+  plan: NutritionPlan;
+  stepLogs: StepLog[];
+  foodLog: FoodEntry[];
+  targetDailySteps: number;
+  weightKg: number;
+  today: string;
+}): StepCalorieBank {
+  const { baseAdjustment, plan, stepLogs, foodLog, targetDailySteps, weightKg, today } = params;
+  const weekStart = getWeekStart(today);
+  const allowance: Record<string, number> = {};
+  let bank = 0;
+  let bonusToday = 0;
+  let carriedIntoToday = 0;
+
+  for (let i = 0; i <= daysBetween(weekStart, today); i++) {
+    const day = addDaysIso(weekStart, i);
+    const bonus = stepBonusKcal(getStepsForDate(stepLogs, day), targetDailySteps, weightKg);
+    const available = bank + bonus;
+    if (day === today) {
+      carriedIntoToday = bank;
+      bonusToday = bonus;
+      if (available > 0) allowance[day] = available;
+      return { allowance, carriedIntoToday, bonusToday, availableToday: available };
+    }
+    const base = getDailyTargets(plan, baseAdjustment, day).calories;
+    const eaten = sumTotals(foodLog.filter((f) => f.date === day)).calories;
+    const used = Math.min(available, Math.max(0, Math.round(eaten - base)));
+    if (used > 0) allowance[day] = used;
+    bank = available - used;
+  }
+  return { allowance, carriedIntoToday, bonusToday, availableToday: 0 };
+}
+
 /**
  * The adjustment every calorie screen should read for the current week, with the step mode applied.
- * - 'add_calories': each day's steps above the goal become calories on that same day's target (carried in `stepAllowance`, which the daily-target
- *   function adds), and a "walk more" rebalance is dropped: the goal for the coming days does not change in this mode.
+ * - 'add_calories': the calorie bank above (each day's steps above the goal become calories on the target, unspent calories carrying to the next days of
+ *   the week), and a "walk more" rebalance is dropped: the goal for the coming days does not change in this mode.
  * - 'balance_steps': the calorie budget is untouched by steps.
- * Nothing is stored: it is derived from the step history on every read, so editing a day's steps changes that day's calories at once.
+ * Nothing is stored: it is derived from the step and food history on every read, so editing a day changes the numbers at once.
  */
 export function withStepMode(
   adjustment: WeeklyBalanceAdjustment | undefined,
-  params: { mode: StepMode; stepLogs: StepLog[]; targetDailySteps: number; weightKg: number; today: string },
+  params: { mode: StepMode; stepLogs: StepLog[]; foodLog: FoodEntry[]; plan: NutritionPlan; targetDailySteps: number; weightKg: number; today: string },
 ): WeeklyBalanceAdjustment | undefined {
-  const { mode, stepLogs, targetDailySteps, weightKg, today } = params;
+  const { mode, today } = params;
   const weekStart = getWeekStart(today);
   const current = getActiveAdjustment(adjustment, today);
-  // Whatever step allowance was saved by an older version is never trusted: the only allowance is the one derived from the steps below.
+  // Whatever step allowance was saved by an older version is never trusted: the only allowance is the one derived below.
   const { stepAllowance: _saved, ...kept } = current ?? { weekStart };
   if (mode === 'balance_steps') return current ? kept : undefined;
 
   const { steps: _walkMore, ...withoutWalkMore } = kept;
-  const bonus: Record<string, number> = {};
-  for (const log of stepLogs) {
-    if (log.date < weekStart || log.date > today) continue;
-    const kcal = stepBonusKcal(log.steps, targetDailySteps, weightKg);
-    if (kcal > 0) bonus[log.date] = kcal;
-  }
-  const hasBonus = Object.keys(bonus).length > 0;
-  return hasBonus || current ? { ...withoutWalkMore, ...(hasBonus ? { stepAllowance: bonus } : {}) } : undefined;
+  const { allowance } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today });
+  const hasBonus = Object.keys(allowance).length > 0;
+  return hasBonus || current ? { ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}) } : undefined;
 }

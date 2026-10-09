@@ -1175,7 +1175,7 @@ function NutritionCard({
           <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
         </div>
         {targets.allowanceKcal > 0 && (
-          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">יעד היום כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד</p>
+          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">יעד בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה שנשארה מימים קודמים השבוע)</p>
         )}
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>

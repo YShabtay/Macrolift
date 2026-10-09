@@ -19,17 +19,17 @@ const FOOD = [meal(DAYS[0], 2400), meal(DAYS[1], 2400), meal(DAYS[2], 2400), mea
 const STEPS: StepLog[] = DAYS.map((date) => ({ date, steps: 5500 }));
 const FRIDAY = '2026-10-09';
 const adjustmentFor = (mode: 'balance_steps' | 'add_calories', base?: Parameters<typeof withStepMode>[0]) =>
-  withStepMode(base, { mode, stepLogs: STEPS, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
+  withStepMode(base, { mode, stepLogs: STEPS, foodLog: FOOD, plan: PLAN, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
 const coverageFor = (adjustment: ReturnType<typeof adjustmentFor>) => getOvershootCoverage({ foodLog: FOOD, plan: PLAN, adjustment, today: FRIDAY });
 
 describe('mode "balance steps" (the default): walking changes only what the days left need', () => {
   const adjustment = adjustmentFor('balance_steps');
 
-  it('shows the average so far and a lower goal for the two days left', () => {
-    const plan = getWeeklyStepsPlan(GOAL, STEPS, '2026-10-08');
-    expect(plan.averageSoFar).toBe(5500);
+  it('shows the average so far and a lower goal for Friday and Saturday, even on a Friday morning with nothing entered yet', () => {
+    const plan = getWeeklyStepsPlan(GOAL, STEPS, FRIDAY);
+    expect(plan.averageBefore).toBe(5500);
     expect(plan.daysRemaining).toBe(2);
-    expect(plan.adjustedDailyTarget).toBe((31500 - 27500) / 2); // 2,000 a day
+    expect(plan.targetForTodayAndRemaining).toBe((31500 - 27500) / 2); // 2,000 a day
   });
 
   it('leaves every calorie number alone', () => {
@@ -52,10 +52,13 @@ describe('mode "balance steps" (the default): walking changes only what the days
 describe('mode "add calories": walking changes only the calories of the day it was walked on', () => {
   const adjustment = adjustmentFor('add_calories');
 
-  it('adds each day\'s steps above the goal to that day\'s target, and nothing to the other days', () => {
-    // 1,000 steps above the goal at 70 kg = 40 kcal.
-    for (const day of DAYS) expect(getDailyTargets(PLAN, adjustment, day).calories).toBe(2440);
-    expect(getDailyTargets(PLAN, adjustment, FRIDAY).calories).toBe(2400); // Friday has no steps yet
+  it('rolls the bank forward: unspent step calories wait, are spent on the day that eats above the base, and what is left reaches today', () => {
+    // 1,000 steps above the goal at 70 kg = 40 kcal a day. Sunday to Tuesday ate the base only, so 120 waited; Wednesday ate 400 above and spent 160.
+    expect(getDailyTargets(PLAN, adjustment, DAYS[0]).calories).toBe(2400);
+    expect(getDailyTargets(PLAN, adjustment, DAYS[3]).calories).toBe(2400 + 160);
+    expect(getDailyTargets(PLAN, adjustment, DAYS[4]).calories).toBe(2400); // Thursday ate the base: its 40 kcal waited
+    expect(getDailyTargets(PLAN, adjustment, FRIDAY).calories).toBe(2400 + 40); // and Friday's target is the base plus that bank
+    expect(getDailyTargets(PLAN, adjustment, FRIDAY).allowanceKcal).toBe(40);
   });
 
   it('keeps the step goal for the days left exactly as set', () => {
@@ -65,17 +68,17 @@ describe('mode "add calories": walking changes only the calories of the day it w
 
   it('the overshoot shrinks by the calories the steps added, once, and the budget card agrees', () => {
     const c = coverageFor(adjustment);
-    expect(c.weekOverSoFarKcal).toBe(200); // 400 over on Wednesday, less 5 x 40 kcal from the steps, with Wednesday itself at 2,800 against 2,440
-    expect(getRebalanceDebtKcal(c)).toBe(200);
+    expect(c.weekOverSoFarKcal).toBe(240); // Wednesday 2,800 against a target of 2,560 (the bank it spent); the other days ate the base
+    expect(getRebalanceDebtKcal(c)).toBe(240);
     const pace = getWeeklyCalorieBudget(FOOD, PLAN, adjustment, FRIDAY, FRIDAY).pace!;
-    expect(pace.stepBonusKcal).toBe(0); // today has no steps yet
-    expect(pace.target).toBe(2400);
+    expect(pace.stepBonusKcal).toBe(40); // the bank that reached today
+    expect(pace.target).toBe(2440);
   });
 
-  it('walking today adds to today and to nothing else', () => {
-    const withToday = withStepMode(undefined, { mode: 'add_calories', stepLogs: [...STEPS, { date: FRIDAY, steps: 9500 }], targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
-    expect(getDailyTargets(PLAN, withToday, FRIDAY).calories).toBe(2400 + 200); // 5,000 above the goal
-    expect(getDailyTargets(PLAN, withToday, '2026-10-10').calories).toBe(2400); // Saturday is untouched
+  it('walking today adds to today (on top of the bank) and to nothing else', () => {
+    const withToday = withStepMode(undefined, { mode: 'add_calories', stepLogs: [...STEPS, { date: FRIDAY, steps: 9500 }], foodLog: FOOD, plan: PLAN, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
+    expect(getDailyTargets(PLAN, withToday, FRIDAY).calories).toBe(2400 + 40 + 200); // the bank plus 5,000 steps above the goal
+    expect(getDailyTargets(PLAN, withToday, '2026-10-10').calories).toBe(2400); // Saturday is untouched until it is its turn
   });
 
   it('a "walk more" rebalance is not available here: it is dropped, the goal does not change', () => {
@@ -89,7 +92,7 @@ describe('switching between the two modes', () => {
     const steps = adjustmentFor('balance_steps');
     const calories = adjustmentFor('add_calories');
     expect(coverageFor(steps).weekOverSoFarKcal).toBe(400);
-    expect(coverageFor(calories).weekOverSoFarKcal).toBe(200);
-    expect(getWeeklyStepsPlan(GOAL, STEPS, '2026-10-08').adjustedDailyTarget).toBe(2000); // the step side only reads the steps in either mode
+    expect(coverageFor(calories).weekOverSoFarKcal).toBe(240);
+    expect(getWeeklyStepsPlan(GOAL, STEPS, FRIDAY).targetForTodayAndRemaining).toBe(2000); // the step side only reads the steps in either mode
   });
 });

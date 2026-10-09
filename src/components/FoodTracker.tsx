@@ -209,7 +209,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
 
       {targets.allowanceKcal > 0 && (
         <p className="-mb-2 text-center text-[11px] font-semibold text-lime-700 dark:text-lime-400">
-          {isToday ? 'יעד היום' : 'יעד היום הזה'} כולל {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מהצעדים שהלכת מעל היעד
+          יעד בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה שנשארה מימים קודמים השבוע)
         </p>
       )}
       {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (

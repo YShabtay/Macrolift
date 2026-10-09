@@ -10,9 +10,9 @@ import { useToday } from './useToday';
  */
 export function useEffectiveWeeklyBalance(appState: AppState): WeeklyBalanceAdjustment | undefined {
   const today = useToday();
-  const { weeklyBalance, stepLogs, profile } = appState;
+  const { weeklyBalance, stepLogs, foodLog, nutritionPlan, profile } = appState;
   const mode = getStepMode(appState);
   const goal = getBaseStepGoal(appState);
   const weightKg = profile.metrics.weightKg;
-  return useMemo(() => withStepMode(weeklyBalance, { mode, stepLogs, targetDailySteps: goal, weightKg, today }), [weeklyBalance, stepLogs, mode, goal, weightKg, today]);
+  return useMemo(() => withStepMode(weeklyBalance, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today }), [weeklyBalance, stepLogs, foodLog, nutritionPlan, mode, goal, weightKg, today]);
 }
