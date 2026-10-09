@@ -37,6 +37,8 @@ export interface WeeklyStepsPlan {
   takeAllToday: number;
   /** Steps ahead (+) or behind (-) of the plain daily average over the days before the viewed date. Days with no entry count as on target. */
   balanceBefore: number;
+  /** Extra steps in the week's total that the user chose in a calorie rebalance (an overshoot made up by walking); 0 when none. Part of every remaining day's pace. */
+  rebalanceExtraSteps: number;
   /** Average steps per day over the days before the viewed date that have an entry (the days still ahead and the day itself are not counted); null when there are none. */
   averageBefore: number | null;
   /** Days before the viewed date with no step entry: treated as exactly on target, like in the calorie accounting, not as zero steps. */
@@ -101,6 +103,7 @@ export function getWeeklyStepsPlan(
     paceToday,
     takeAllToday: Math.max(0, remainingFromDate - baseGoal * (daysLeft - 1)),
     unloggedDaysBefore,
+    rebalanceExtraSteps: extra,
     averageBefore: dayIndex - unloggedDaysBefore > 0 ? Math.round(loggedStepsBefore / (dayIndex - unloggedDaysBefore)) : null,
     capped: rawPace > paceToday,
     balanceBefore: walkedBefore - baseGoal * dayIndex,

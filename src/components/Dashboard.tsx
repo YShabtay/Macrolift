@@ -191,6 +191,7 @@ interface DashboardProps {
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onChooseStepAllowance: (days: number | null, from?: string) => void;
+  onClearStepRebalance: () => void;
   userId: string;
   onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
   onReset: () => void | Promise<void>;
@@ -309,6 +310,7 @@ export default function Dashboard({
   onUpdateProfileFull,
   onImportAppState,
   onChooseStepAllowance,
+  onClearStepRebalance,
   userId,
   onRestoreSnapshot,
   onReset,
@@ -402,6 +404,7 @@ export default function Dashboard({
               onSaveWeightLog={onSaveWeightLog}
               onSaveSteps={onSaveSteps}
               onSaveStepGoal={onSaveStepGoal}
+              onClearStepRebalance={onClearStepRebalance}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
               onNavigate={selectTab}
@@ -525,6 +528,7 @@ function DashboardTab({
   onSaveWeightLog,
   onSaveSteps,
   onSaveStepGoal,
+  onClearStepRebalance,
   onDeleteFood,
   onUpdateFood,
   onNavigate,
@@ -542,6 +546,8 @@ function DashboardTab({
   onSaveWeightLog: (date: string, weightKg: number, notes?: string) => void;
   onSaveSteps: (date: string, steps: number) => void;
   onSaveStepGoal: (goal: number, mode: 'weekly' | 'daily') => void;
+  /** Removes the extra steps a calorie rebalance added to the week. */
+  onClearStepRebalance: () => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
   onNavigate: (tab: Tab) => void;
@@ -785,6 +791,7 @@ function DashboardTab({
         onSaveSteps={onSaveSteps}
         onSaveGoal={onSaveStepGoal}
         onOpenNutrition={() => onNavigate('nutrition')}
+        onClearRebalanceSteps={onClearStepRebalance}
       />
 
       <WeeklySummaryCard appState={appState} />

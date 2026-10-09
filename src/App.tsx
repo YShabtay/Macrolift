@@ -624,6 +624,15 @@ export default function App() {
     });
   }
 
+  /** Removes the extra steps a calorie rebalance added to the week's step total (the "make up the overshoot by walking" choice). */
+  function handleClearStepRebalance() {
+    setAppState((prev) => {
+      if (!prev?.weeklyBalance?.steps) return prev;
+      const { steps: _removed, ...rest } = prev.weeklyBalance;
+      return { ...prev, weeklyBalance: rest };
+    });
+  }
+
   /** Puts the week's net step credit on today and the next days (days = 1: today only), or with null shares it over every day left. */
   function handleChooseStepAllowance(days: number | null, from?: string) {
     setAppState((prev) =>
@@ -740,6 +749,7 @@ export default function App() {
         onUpdateProfileFull={handleUpdateProfileFull}
         onImportAppState={handleImportAppState}
         onChooseStepAllowance={handleChooseStepAllowance}
+        onClearStepRebalance={handleClearStepRebalance}
         userId={userId}
         onRestoreSnapshot={handleRestoreSnapshot}
         onReset={handleReset}

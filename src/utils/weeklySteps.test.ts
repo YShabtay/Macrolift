@@ -64,4 +64,15 @@ describe('getWeeklyStepsPlan', () => {
     expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-04').averageBefore).toBeNull();
     expect(getWeeklyStepsPlan(GOAL, undefined, [], '2026-10-08').averageBefore).toBeNull(); // nothing logged: unknown, not zero
   });
+
+  it('shows where a pace above the goal comes from: the extra steps a calorie rebalance added (the number that looked unexplained)', () => {
+    // Sunday-Thursday averaged 5,343, goal 4,500, plus 4,725 extra steps from a calorie rebalance, viewed on Friday with 2 days left.
+    const logs = [steps('2026-10-04', 5343), steps('2026-10-05', 5343), steps('2026-10-06', 5343), steps('2026-10-07', 5343), steps('2026-10-08', 5343)];
+    const adjustment = { weekStart: '2026-10-04', steps: { boost: 2363, days: 2, fromDate: '2026-10-09' } };
+    const plan = getWeeklyStepsPlan(GOAL, adjustment, logs, '2026-10-09');
+    expect(plan.averageBefore).toBe(5343);
+    expect(plan.rebalanceExtraSteps).toBe(4726);
+    expect(plan.paceToday).toBe(Math.ceil((31500 + 4726 - 26715) / 2)); // 4,756: not the 4,500 the user set, nor the 2,393 the plain average would give
+    expect(getWeeklyStepsPlan(GOAL, undefined, logs, '2026-10-09').paceToday).toBe(Math.ceil((31500 - 26715) / 2));
+  });
 });
