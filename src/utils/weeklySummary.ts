@@ -17,7 +17,6 @@ export interface WeeklySummary {
   steps: { average: number; daysLogged: number; goal: number };
   nutrition: { daysLogged: number; avgCalories: number; targetCalories: number; avgProteinG: number; targetProteinG: number };
   weight: { latest: number | null; changeKg: number | null };
-  insights: string[];
 }
 
 type SummaryState = Pick<
@@ -80,20 +79,6 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
   const baseline = earlier?.weightKg ?? (weekWeights.length > 1 ? weekWeights[0].weightKg : null);
   const changeKg = latest !== null && baseline !== null ? round1(latest - baseline) : null;
 
-  // A few plain observations, most useful first.
-  const insights: string[] = [];
-  const weekOver = weekEnd <= today;
-  if (doneDates.length > 0 && doneDates.length >= planned) insights.push(`עמדת ביעד האימונים: ${doneDates.length} מתוך ${planned} 💪`);
-  else if (weekOver && planned > doneDates.length) insights.push(`בוצעו ${doneDates.length} אימונים מתוך ${planned} מתוכננים. גם שבוע קצר נחשב, ממשיכים הלאה.`);
-  if (personalRecords > 0) insights.push(`שברת ${personalRecords} ${personalRecords === 1 ? 'שיא אישי' : 'שיאים אישיים'} 🏆`);
-  if (foodDays.length >= 3 && state.nutritionPlan.macros.proteinG > 0 && avgProteinG < state.nutritionPlan.macros.proteinG * 0.85) {
-    insights.push(`חלבון ממוצע ${avgProteinG} ג׳ ליום, מתחת ליעד (${state.nutritionPlan.macros.proteinG}). אפשר להוסיף מנת חלבון ליום.`);
-  }
-  if (foodDays.length >= 3 && Math.abs(avgCalories - state.nutritionPlan.targetCalories) <= state.nutritionPlan.targetCalories * 0.1) {
-    insights.push('הקלוריות הממוצעות קרובות ליעד. יציבות טובה 👌');
-  }
-  if (stepDays.length >= 3 && stepsAverage >= stepGoal) insights.push(`ממוצע הצעדים (${stepsAverage.toLocaleString()}) עמד ביעד 👟`);
-
   return {
     weekStart,
     weekEnd,
@@ -105,6 +90,5 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
     steps: { average: stepsAverage, daysLogged: stepDays.length, goal: stepGoal },
     nutrition: { daysLogged: foodDays.length, avgCalories, targetCalories: state.nutritionPlan.targetCalories, avgProteinG, targetProteinG: state.nutritionPlan.macros.proteinG },
     weight: { latest, changeKg },
-    insights: insights.slice(0, 3),
   };
 }

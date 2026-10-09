@@ -160,15 +160,6 @@ function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCol
               />
             )}
           </div>
-          {summary.insights.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-1.5">
-              {summary.insights.map((line) => (
-                <li key={line} className="rounded-lg bg-lime-400/10 px-3 py-2 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          )}
         </>
       )}
 
