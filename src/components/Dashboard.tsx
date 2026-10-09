@@ -44,6 +44,7 @@ import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import AppVersionCard from './AppVersionCard';
+import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
@@ -743,6 +744,17 @@ function DashboardTab({
         onSetTarget={(targetKg) => onUpdateProfileFull({ targetWeightKg: targetKg ?? undefined })}
         onSwitchToMaintain={() => onUpdateProfileFull({ goal: 'maintain', goalIntensity: undefined, bulkingPlan: undefined })}
       />
+
+      {!targetReached && (
+        <WeeklyTrendNoteCard
+          weightLogs={weightLogs}
+          foodLog={foodLog}
+          metrics={profile.metrics}
+          profileCreatedAt={profile.createdAt}
+          nutritionPlan={nutritionPlan}
+          onApply={onApplyTargetAdjustment}
+        />
+      )}
 
       {!targetReached && (
         <TargetCheckCard
@@ -1789,6 +1801,17 @@ function ProgressTab({
       <div className="flex justify-center">
         <CalorieAdjustControl metrics={progressMetrics} onApply={onApplyTargetAdjustment} />
       </div>
+
+      {!targetReached && (
+        <WeeklyTrendNoteCard
+          weightLogs={weightLogs}
+          foodLog={appState.foodLog}
+          metrics={appState.profile.metrics}
+          profileCreatedAt={appState.profile.createdAt}
+          nutritionPlan={appState.nutritionPlan}
+          onApply={onApplyTargetAdjustment}
+        />
+      )}
 
       {!targetReached && (
         <TargetCheckCard
