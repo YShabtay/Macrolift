@@ -105,7 +105,9 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
     }
     return days;
   }, [stepLogs, today, baseGoalSteps, weeklyBalance, isWeekly]);
-  const historyMax = Math.max(...last7Days.map((d) => d.steps), goalSteps, 1);
+  // In the calorie mode every day is measured against the goal as set and what is above it is shown as calories, so the bars stop at the goal.
+  const inCalorieMode = stepMode === 'add_calories';
+  const historyMax = inCalorieMode ? Math.max(baseGoalSteps, 1) : Math.max(...last7Days.map((d) => d.steps), goalSteps, 1);
 
   return (
     <div className="glass-card p-5 transition hover:border-lime-400/30 hover:shadow-glow sm:p-6">
@@ -248,6 +250,11 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
 
       <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800 pt-4">
         <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-500">7 הימים האחרונים - לחצו על יום כדי לראות או לתקן את הצעדים שלו</p>
+        {inCalorieMode && (
+          <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
+            כל יום נמדד מול {baseGoalSteps.toLocaleString('he-IL')}. המספר מעל העמודה הוא הקלוריות שנוספו מצעדים עודפים באותו יום (קק״ל).
+          </p>
+        )}
         <div className="flex items-end justify-between gap-1.5">
           {last7Days.map((d) => (
             <button
@@ -260,13 +267,17 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
                 d.date === selectedDate ? 'bg-lime-400/10 ring-1 ring-lime-400/50' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
               }`}
             >
-              <span className="text-[9px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-500">
-                {d.steps > 0 ? (d.steps >= 1000 ? `${(d.steps / 1000).toFixed(1)}k` : d.steps) : '-'}
-              </span>
+              {inCalorieMode && stepBonusKcal(d.steps, baseGoalSteps, weightKg) > 0 ? (
+                <span className="text-[10px] font-extrabold tabular-nums text-lime-700 dark:text-lime-400">+{stepBonusKcal(d.steps, baseGoalSteps, weightKg)}</span>
+              ) : (
+                <span className="text-[9px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-500">
+                  {d.steps > 0 ? (d.steps >= 1000 ? `${(d.steps / 1000).toFixed(1)}k` : d.steps) : '-'}
+                </span>
+              )}
               <div className="flex h-14 w-full items-end overflow-hidden rounded bg-white dark:bg-zinc-900">
                 <div
                   className={`w-full rounded-t transition-all ${d.steps >= d.goal && d.steps > 0 ? 'bg-lime-400' : 'bg-zinc-200 dark:bg-zinc-700'}`}
-                  style={{ height: d.steps > 0 ? `${Math.max((d.steps / historyMax) * 100, 6)}%` : '0%' }}
+                  style={{ height: d.steps > 0 ? `${Math.min(Math.max((d.steps / historyMax) * 100, 6), 100)}%` : '0%' }}
                 />
               </div>
               <span className="text-[9px] text-zinc-500 dark:text-zinc-600">{WEEKDAY_LETTERS[d.weekday]}</span>
