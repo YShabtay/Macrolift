@@ -6,7 +6,7 @@ import {
   describeRoom,
   getOpenRebalanceDebtKcal,
   getOvershootCoverage,
-  getOvershootDays,
+  getWeekBreakdown,
   getRebalanceDebtKcal,
   shouldOfferRebalance,
 } from './overshoot';
@@ -80,12 +80,23 @@ describe('planned compensation and the open amount', () => {
   });
 });
 
-describe('getOvershootDays', () => {
-  it('lists the days that went over, with how much', () => {
-    const log = [meal('2026-10-04', 2400), meal('2026-10-05', 2800), meal('2026-10-06', 2650)];
-    expect(getOvershootDays({ foodLog: log, plan: PLAN, adjustment: undefined, today: '2026-10-06' })).toEqual([
-      { date: '2026-10-05', overKcal: 400 },
-      { date: '2026-10-06', overKcal: 250 },
+describe('getWeekBreakdown', () => {
+  it('lists every logged day with eaten, target and the difference, and adds up to the week over so far', () => {
+    const log = [meal('2026-10-04', 2300), meal('2026-10-05', 2800), meal('2026-10-06', 2650)];
+    const rows = getWeekBreakdown({ foodLog: log, plan: PLAN, adjustment: undefined, today: '2026-10-06' });
+    expect(rows.map((r) => [r.date, r.eatenKcal, r.targetKcal, r.diffKcal, r.isToday])).toEqual([
+      ['2026-10-04', 2300, 2400, -100, false],
+      ['2026-10-05', 2800, 2400, 400, false],
+      ['2026-10-06', 2650, 2400, 250, true],
     ]);
+    // Days before today add up as they are; today adds only its overshoot.
+    const beforeToday = rows.filter((r) => !r.isToday).reduce((sum, r) => sum + r.diffKcal, 0);
+    expect(beforeToday + Math.max(rows[2].diffKcal, 0)).toBe(coverage(log, '2026-10-06').weekOverSoFarKcal);
+  });
+
+  it('skips days with nothing logged, and shows a day\'s step calories in its target', () => {
+    const adjustment = { weekStart: '2026-10-04', stepAllowance: { '2026-10-05': 100 } };
+    const rows = getWeekBreakdown({ foodLog: [meal('2026-10-05', 2500)], plan: PLAN, adjustment, today: '2026-10-06' });
+    expect(rows).toEqual([{ date: '2026-10-05', eatenKcal: 2500, targetKcal: 2500, diffKcal: 0, isToday: false }]);
   });
 });

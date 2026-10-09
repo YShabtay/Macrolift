@@ -74,19 +74,33 @@ export function shouldOfferRebalance(c: OvershootCoverage): boolean {
   return getRebalanceDebtKcal(c) > COVERAGE_TOLERANCE_KCAL;
 }
 
-/** The days of the week up to `today` that went over their target (with food logged), for showing where the overshoot came from. */
-export function getOvershootDays(params: { foodLog: FoodEntry[]; plan: NutritionPlan; adjustment: WeeklyBalanceAdjustment | undefined; today: string }): { date: string; overKcal: number }[] {
+export interface WeekDayRow {
+  date: string;
+  eatenKcal: number;
+  /** The day's target, with any step calories it carries. */
+  targetKcal: number;
+  /** Eaten minus target (negative = under). */
+  diffKcal: number;
+  isToday: boolean;
+}
+
+/**
+ * Every day of the week up to `today` that has food logged, with what was eaten against the target. This is the table behind "the week is over by X": the
+ * days before today add up as they are (under-eating cancels over-eating), and today counts only if it is over, because its unspent target is not a credit.
+ */
+export function getWeekBreakdown(params: { foodLog: FoodEntry[]; plan: NutritionPlan; adjustment: WeeklyBalanceAdjustment | undefined; today: string }): WeekDayRow[] {
   const { foodLog, plan, adjustment, today } = params;
   const weekStart = getWeekStart(today);
-  const days: { date: string; overKcal: number }[] = [];
+  const rows: WeekDayRow[] = [];
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const day = addDaysIso(weekStart, i);
     const entries = getEntriesForDate(foodLog, day);
     if (entries.length === 0) continue;
-    const over = Math.round(sumTotals(entries).calories - getDailyTargets(plan, adjustment, day).calories);
-    if (over >= 20) days.push({ date: day, overKcal: over });
+    const eatenKcal = Math.round(sumTotals(entries).calories);
+    const targetKcal = Math.round(getDailyTargets(plan, adjustment, day).calories);
+    rows.push({ date: day, eatenKcal, targetKcal, diffKcal: eatenKcal - targetKcal, isToday: day === today });
   }
-  return days;
+  return rows;
 }
 
 /** One line saying why the overshoot is covered. */

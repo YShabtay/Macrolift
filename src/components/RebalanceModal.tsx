@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { Footprints, Scale, Sparkles, TrendingDown, X } from 'lucide-react';
 import type { RebalanceOptions } from '../utils/weeklyBalance';
 import { parseIsoDate } from '../utils/weightCalculations';
-import type { OvershootCoverage } from '../utils/overshoot';
+import type { OvershootCoverage, WeekDayRow } from '../utils/overshoot';
 
 export type RebalanceChoice =
   | { kind: 'taper'; reductionKcal: number; fromDate: string }
@@ -13,8 +13,8 @@ interface RebalanceModalProps {
   options: RebalanceOptions;
   /** The same week accounting the food tab uses, so the screens never disagree about whether the overshoot is covered. */
   coverage: OvershootCoverage;
-  /** The days of the week that went over their target, so it is clear where the overshoot came from. */
-  overshootDays: { date: string; overKcal: number }[];
+  /** Every logged day of the week with eaten against target, so it is clear where the number comes from. */
+  weekDays: WeekDayRow[];
   /** The user's own daily step goal (without any rebalance boost). */
   baseStepGoal: number;
   /** Whether making it up by walking more is offered: not in the mode where steps above the goal become calories (the goal never changes there). */
@@ -26,7 +26,7 @@ interface RebalanceModalProps {
 const WEEKDAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
-export default function RebalanceModal({ options, coverage, overshootDays, baseStepGoal, canWalkMore, onChoose, onClose }: RebalanceModalProps) {
+export default function RebalanceModal({ options, coverage, weekDays, baseStepGoal, canWalkMore, onChoose, onClose }: RebalanceModalProps) {
   const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG } = options;
 
   function choose(choice: RebalanceChoice) {
@@ -67,16 +67,38 @@ export default function RebalanceModal({ options, coverage, overshootDays, baseS
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3.5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
           <p className="mb-1 text-sm font-bold text-zinc-900 dark:text-zinc-100">איך חישבנו כמה לאזן</p>
-          {overshootDays.length > 0 && (
-            <p>
-              הימים שחרגו השבוע:{' '}
-              {overshootDays.map((d) => `${WEEKDAY_SHORT[parseIsoDate(d.date).getDay()]} (+${d.overKcal.toLocaleString()})`).join(', ')}.
-            </p>
+          {weekDays.length > 0 && (
+            <table className="mt-1 w-full text-[11px] tabular-nums">
+              <thead>
+                <tr className="text-zinc-500">
+                  <th className="py-0.5 text-start font-semibold">יום</th>
+                  <th className="py-0.5 text-start font-semibold">אכלת</th>
+                  <th className="py-0.5 text-start font-semibold">יעד</th>
+                  <th className="py-0.5 text-start font-semibold">הפרש</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekDays.map((d) => (
+                  <tr key={d.date} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <td className="py-0.5">
+                      {WEEKDAY_SHORT[parseIsoDate(d.date).getDay()]}
+                      {d.isToday ? ' (היום)' : ''}
+                    </td>
+                    <td className="py-0.5">{d.eatenKcal.toLocaleString()}</td>
+                    <td className="py-0.5">{d.targetKcal.toLocaleString()}</td>
+                    <td className={`py-0.5 font-semibold ${d.diffKcal > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
+                      {d.diffKcal > 0 ? '+' : ''}
+                      {d.diffKcal.toLocaleString()}
+                      {d.isToday && d.diffKcal < 0 ? ' (לא נספר)' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
           <p className="mt-1">
-            סך החריגה השבוע: {coverage.weekOverSoFarKcal > 0 ? '+' : ''}
-            {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל
-            {coverage.overshootKcal === 0 && coverage.weekOverSoFarKcal > 0 ? ' (מימים קודמים; היום עוד אפשר לאכול לפי היעד)' : ''}.
+            סך הכול: {coverage.weekOverSoFarKcal > 0 ? '+' : ''}
+            {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל. ימים מתחת ליעד מקזזים ימים מעליו, והיום עצמו נספר רק אם חרגת, כי מה שעוד לא אכלת היום הוא לא "חיסכון".
           </p>
           {coverage.plannedCompensationKcal > 0 && <p className="mt-1">כבר תוכנן איזון של כ-{coverage.plannedCompensationKcal.toLocaleString()} קק״ל (יעדים מופחתים בשאר השבוע או הליכה נוספת).</p>}
           <p className="mt-1 font-bold text-zinc-900 dark:text-zinc-100">נותרו לאזן: {excessKcal.toLocaleString()} קק״ל.</p>

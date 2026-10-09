@@ -44,7 +44,7 @@ import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import AppVersionCard from './AppVersionCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
-import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getOvershootDays, getRebalanceDebtKcal, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
+import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
 import { getStepMode, type StepMode } from '../utils/weeklySteps';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
@@ -600,8 +600,8 @@ function DashboardTab({
   // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
   // The rebalance options work from what is really left to make up (the week after the net step credit), so they agree with the coverage verdict.
   const rebalanceDebtKcal = getRebalanceDebtKcal(overshootCoverage);
-  const rebalanceOvershootDays = useMemo(
-    () => (isRebalanceOpen ? getOvershootDays({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []),
+  const rebalanceWeekDays = useMemo(
+    () => (isRebalanceOpen ? getWeekBreakdown({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []),
     [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance, today],
   );
   const rebalanceOptions = useMemo(
@@ -823,7 +823,7 @@ function DashboardTab({
         <RebalanceModal
           options={rebalanceOptions}
           coverage={overshootCoverage}
-          overshootDays={rebalanceOvershootDays}
+          weekDays={rebalanceWeekDays}
           canWalkMore={stepMode === 'balance_steps'}
           baseStepGoal={baseStepGoal}
           onChoose={(choice) => {
