@@ -8,39 +8,37 @@ const DARK = '#09090b';
 mkdirSync('public/icons', { recursive: true });
 
 /**
- * The logo: a barbell whose bar climbs like a trend line (strength and progress). Drawn on a 512 grid and centered, inside the central 73% so it also fits the
- * safe zone of a maskable icon. The same geometry is in src/components/LogoMark.tsx.
+ * The logo: a bold, centered dumbbell on a lime tile, the same everywhere (home screen, browser tab, inside the app). Drawn on a 512 grid inside the central
+ * 73%, so it also fits the safe zone of a maskable icon. The same geometry is in src/components/LogoMark.tsx.
  */
-function barbell(color) {
+function dumbbell(color) {
   return `
-    <path d="M166 316 H206 L326 196 H346" fill="none" stroke="${color}" stroke-width="36" stroke-linejoin="round" />
-    <rect x="130" y="241" width="36" height="150" rx="18" fill="${color}" />
-    <rect x="94" y="261" width="28" height="110" rx="14" fill="${color}" />
-    <rect x="70" y="296" width="16" height="40" rx="8" fill="${color}" />
-    <rect x="346" y="121" width="36" height="150" rx="18" fill="${color}" />
-    <rect x="390" y="141" width="28" height="110" rx="14" fill="${color}" />
-    <rect x="426" y="176" width="16" height="40" rx="8" fill="${color}" />
+    <rect x="161" y="238" width="190" height="36" rx="18" fill="${color}" />
+    <rect x="116" y="156" width="52" height="200" rx="20" fill="${color}" />
+    <rect x="344" y="156" width="52" height="200" rx="20" fill="${color}" />
+    <rect x="70" y="186" width="38" height="140" rx="16" fill="${color}" />
+    <rect x="404" y="186" width="38" height="140" rx="16" fill="${color}" />
   `;
 }
 
-// "any" icon: a gently rounded dark square (the OS may mask it further).
+// "any" icon: a gently rounded lime square (the OS may mask it further).
 const anySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="${DARK}" />
-  ${barbell(LIME)}
+  <rect width="512" height="512" rx="112" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>`;
 
 // Full-bleed square for the maskable icon and the iOS home-screen icon (the OS rounds the corners itself).
 const fullBleedSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="${DARK}" />
-  ${barbell(LIME)}
+  <rect width="512" height="512" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>`;
 
-// The browser-tab icon: the same mark on a small rounded square.
+// The browser-tab icon: the same mark on a rounded lime square.
 const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="${DARK}" />
-  ${barbell(LIME)}
+  <rect width="512" height="512" rx="112" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>
 `;
 writeFileSync('public/favicon.svg', faviconSvg);
