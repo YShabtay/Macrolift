@@ -79,7 +79,7 @@ Most tracking apps share the same weaknesses:
 - Built-in gym programs plus **home programs** (no equipment, or dumbbells and bands) at three levels, where the level picks a harder variation of each movement. Plus a custom plan builder, with a weekly volume view per muscle group.
 - **Gym programs follow the declared training experience** (same weekly sets for everyone, since no research ties training age to a different volume): a beginner (under a year, or not training yet) gets stable machine, cable and dumbbell versions instead of the technical barbell lifts (squat, Romanian deadlift, bench, row, standing press, wide pull-up, Bulgarian split squat) with a moderate rep range, plus light acclimation sets noted for the first two weeks; 1-3 years keeps the base program with a progression tip; over 3 years swaps the machine shoulder press for the Arnold press on variation days. Every swap can be reverted with "back to the original exercise". The current split a trainee reports is information only: each split exists for one weekly frequency, so the chosen days decide it and a mismatch is explained instead of forced. The personalisation notes show on the workout screen.
 - Guided workout mode: per-set logging, warm-up sets, plate calculator, rest timer (works in the background and with notifications).
-- Exercise swap, exercise videos, workout calendar, streaks and a weekly summary with week navigation.
+- Exercise swap, exercise videos, workout calendar, streaks and a weekly summary with week navigation. Workouts are counted over the last 7 days and the streak in 7-day blocks, not Sunday-Saturday weeks, so a training week that starts on a Saturday one week and a Sunday the next keeps its streak.
 
 **Progress**
 - Weight trend (weekly averages), circumference measurements, progress photos with side-by-side comparison, and an AI progress review.
@@ -139,7 +139,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-379 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+385 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -157,6 +157,7 @@ npm test
 | Calibration (`calibration`) | Measuring maintenance from intake and the weight trend, ignoring partly logged days and out-of-window data, asking for more data instead of guessing, trusting a noisy trend less, capping the correction |
 | Gym programs by experience (`workoutAdaptation`, `programSelection`) | Beginner, intermediate and advanced selections differ where intended, a missing experience is left untouched, every beginner swap is a listed beginner-level option, weekly sets per muscle (and the 12-16 range for the big four) stay identical in every template, no exercise repeats in a session, swaps are revertible, injury swaps win, and the current split never changes the program |
 | Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |
+| Workout weeks (`workoutStats`, `streaks`) | The count over the 7 days ending today (a Saturday session is not lost), future and older days ignored, a Sun/Tue/Thu week followed by a Sat/Mon/Wed week keeps the streak, a short latest block does not break it but a missed block does, one missed session forgiven |
 | Utilities (`plates`, `chatFormat`) | Plate loading and warm-up ramps, Markdown clean-up for coach replies |
 
 The tests were checked for real sensitivity by temporarily breaking the code (for example changing the lean-bulk surplus or the week start day) and confirming the right tests fail. Dates are pinned to one time zone so results don't depend on the machine.

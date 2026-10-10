@@ -1,28 +1,28 @@
 import type { Exercise, SetProgressEntry, WorkoutPlan } from '../types/fitness';
 import { isWorkoutDateDone } from './scheduleHelpers';
-import { getWeekEnd, getWeekStart, todayIso } from './weightCalculations';
+import { addDaysIso } from './dateMath';
+import { todayIso } from './weightCalculations';
 
 /**
- * Counts distinct dates, within the Sunday-Saturday calendar week containing `today`, on which a
- * workout-plan day was completed. "Completed" is decided by the same `isDayCompleted` the
- * calendar uses, so the dashboard and calendar can never disagree about what counts. All dates
- * are local YYYY-MM-DD strings (no UTC conversion), compared lexicographically.
+ * Counts distinct dates, within the 7 days ending on `today`, on which a workout-plan day was completed. Workouts are not tied to the Sunday-Saturday
+ * week the rest of the app uses: someone who starts a training week on a Saturday one week and on a Sunday the next sees the same count either way.
+ * "Completed" is decided by the same `isDayCompleted` the calendar uses, so the dashboard and calendar can never disagree about what counts. All
+ * dates are local YYYY-MM-DD strings (no UTC conversion), compared lexicographically.
  */
-export function countCompletedWorkoutsThisWeek(
+export function countCompletedWorkoutsLast7Days(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
   today: string = todayIso(),
   completedDates: readonly string[] = [],
 ): number {
-  const weekStart = getWeekStart(today);
-  const weekEnd = getWeekEnd(today);
+  const windowStart = addDaysIso(today, -6);
 
-  const datesThisWeek = new Set(
-    [...progress.map((p) => p.date), ...completedDates].filter((d) => d >= weekStart && d <= weekEnd),
+  const datesInWindow = new Set(
+    [...progress.map((p) => p.date), ...completedDates].filter((d) => d >= windowStart && d <= today),
   );
 
   let completedCount = 0;
-  for (const date of datesThisWeek) {
+  for (const date of datesInWindow) {
     if (isWorkoutDateDone(workoutPlan, progress, date, completedDates)) completedCount++;
   }
   return completedCount;

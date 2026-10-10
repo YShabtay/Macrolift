@@ -1,7 +1,6 @@
 import type { AppState } from '../types/fitness';
 import { isWorkoutDateDone } from './scheduleHelpers';
 import { addDaysIso } from './dateMath';
-import { getWeekStart } from './weightCalculations';
 
 const MAX_LOOKBACK_WEEKS = 104;
 const MAX_LOOKBACK_DAYS = 400;
@@ -39,20 +38,21 @@ export function weeklyWorkoutTarget(daysPerWeek: number): number {
 }
 
 /**
- * Consecutive weeks (Sunday-Saturday) that reached the weekly workout target. The current week counts once it has reached it, but being
- * short of it so far doesn't break the streak - the week isn't over yet.
+ * Consecutive training weeks that reached the weekly workout target. A training week is a block of 7 days counted back from today (not the Sunday-Saturday
+ * calendar week), so a person who starts one week on a Saturday and the next on a Sunday keeps the streak. The latest block counts once it has reached the
+ * target, but being short of it so far doesn't break the streak - the days of a block can still come.
  */
 export function getWorkoutStreakWeeks(state: StreakState, today: string): number {
-  const perWeek = new Map<string, number>();
-  for (const date of getDoneWorkoutDates(state)) {
-    const week = getWeekStart(date);
-    perWeek.set(week, (perWeek.get(week) ?? 0) + 1);
-  }
+  const done = new Set(getDoneWorkoutDates(state));
+  const inBlock = (blockEnd: string) => {
+    let count = 0;
+    for (let i = 0; i < 7; i++) if (done.has(addDaysIso(blockEnd, -i))) count += 1;
+    return count;
+  };
   const target = weeklyWorkoutTarget(state.workoutPlan.daysPerWeek);
-  const currentWeek = getWeekStart(today);
-  let cursor = (perWeek.get(currentWeek) ?? 0) >= target ? currentWeek : addDaysIso(currentWeek, -7);
+  let cursor = inBlock(today) >= target ? today : addDaysIso(today, -7);
   let streak = 0;
-  while ((perWeek.get(cursor) ?? 0) >= target && streak < MAX_LOOKBACK_WEEKS) {
+  while (inBlock(cursor) >= target && streak < MAX_LOOKBACK_WEEKS) {
     streak += 1;
     cursor = addDaysIso(cursor, -7);
   }
