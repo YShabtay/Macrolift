@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, Check, Dumbbell, Minus, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Copy, Dumbbell, Minus, Plus, Search, Trash2, X } from 'lucide-react';
 import type { DayWorkout, Equipment, Exercise, MuscleGroup, WorkoutPlan } from '../types/fitness';
 import { createPlanExercise, getExerciseLibrary, type LibraryExercise } from '../data/workoutTemplates';
 import { MUSCLE_LABELS } from '../utils/planVolume';
+import { copyExercisesInto, duplicateSession } from '../utils/planCopy';
 import WeeklyVolume from './WeeklyVolume';
 
 const MIN_SESSIONS = 2;
@@ -74,6 +75,21 @@ export default function PlanBuilder({ plan, onSave, onClose }: PlanBuilderProps)
     const day = makeDay(days.length);
     setDays((prev) => [...prev, day]);
     setSelectedId(day.id);
+  }
+
+  /** A new session that starts as a copy of the selected one, so a similar workout does not have to be entered again. */
+  function duplicateSelectedSession() {
+    if (days.length >= MAX_SESSIONS || !selected) return;
+    const copy = duplicateSession(selected, `אימון ${String.fromCharCode(65 + days.length)}`);
+    setDays((prev) => [...prev, copy]);
+    setSelectedId(copy.id);
+  }
+
+  /** Copies another session's exercises into the selected one (all of them into an empty session, added after the existing ones otherwise). */
+  function copyFromSession(sourceId: string) {
+    const source = days.find((d) => d.id === sourceId);
+    if (!source || !selected) return;
+    updateDay(selected.id, (d) => copyExercisesInto(d, source, MAX_EXERCISES_PER_SESSION));
   }
 
   function removeSession(id: string) {
@@ -159,6 +175,16 @@ export default function PlanBuilder({ plan, onSave, onClose }: PlanBuilderProps)
                 אימון
               </button>
             )}
+            {days.length < MAX_SESSIONS && selected && selected.exercises.length > 0 && (
+              <button
+                type="button"
+                onClick={duplicateSelectedSession}
+                className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-400 dark:border-zinc-600 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-lime-400"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                שכפל את {selected.dayLabel || 'האימון'}
+              </button>
+            )}
           </div>
 
           {selected && (
@@ -184,6 +210,30 @@ export default function PlanBuilder({ plan, onSave, onClose }: PlanBuilderProps)
                   />
                 </div>
               </div>
+
+              {days.some((d) => d.id !== selected.id && d.exercises.length > 0) && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-[11px] font-semibold text-zinc-600 dark:text-zinc-500">העתק תרגילים מאימון אחר</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) copyFromSession(e.target.value);
+                    }}
+                    aria-label="העתק תרגילים מאימון אחר"
+                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-lime-400"
+                  >
+                    <option value="">בחר אימון להעתקה...</option>
+                    {days
+                      .filter((d) => d.id !== selected.id && d.exercises.length > 0)
+                      .map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.dayLabel || 'ללא שם'} ({d.exercises.length} תרגילים)
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-zinc-500">{selected.exercises.length === 0 ? 'התרגילים יועתקו לאימון הזה, ואפשר לשנות אותם אחר כך.' : 'התרגילים יתווספו אחרי התרגילים שכבר יש באימון הזה.'}</p>
+                </div>
+              )}
 
               <ul className="mt-3 flex flex-col gap-2">
                 {selected.exercises.map((exercise, index) => (
