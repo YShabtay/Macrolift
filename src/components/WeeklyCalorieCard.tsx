@@ -1,5 +1,5 @@
 import { CalendarRange } from 'lucide-react';
-import type { WeeklyCalorieBudget } from '../utils/calorieBudget';
+import { shouldShowPace, type WeeklyCalorieBudget } from '../utils/calorieBudget';
 import { formatDateDisplay } from '../utils/weightCalculations';
 
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
@@ -32,7 +32,7 @@ export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: 
         <div className={`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-orange-400' : 'bg-lime-400'}`} style={{ width: `${percent}%` }} />
       </div>
 
-      {budget.pace && (
+      {budget.pace && shouldShowPace(budget.pace) && (
         <p className="mt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
           <span className="font-bold">{isToday ? 'מומלץ להיום' : 'מומלץ ליום הזה'}: {budget.pace.kcal.toLocaleString()} קק״ל</span>
           {budget.pace.kcal !== budget.pace.target && <span className="text-zinc-500"> (היעד היומי {budget.pace.target.toLocaleString()})</span>}

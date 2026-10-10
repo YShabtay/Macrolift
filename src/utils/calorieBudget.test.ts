@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan } from '../types/fitness';
-import { getWeeklyCalorieBudget } from './calorieBudget';
+import { getWeeklyCalorieBudget, shouldShowPace } from './calorieBudget';
 
 // A week against a 2,412 target; today is Thursday 8 October.
 const PLAN = { bmr: 1613, tdee: 2383, targetCalories: 2412, macros: { proteinG: 138, fatG: 62, carbsG: 326 }, calorieDeficitOrSurplus: 29 } as NutritionPlan;
@@ -37,5 +37,20 @@ describe('getWeeklyCalorieBudget pace', () => {
       // Wednesday ate 2,690 against a target raised by 100: only 2,590 of it came out of the base budget.
       expect(budget.pace!.kcal).toBe(Math.round((16884 - 9788 + 100) / 3));
     });
+  });
+});
+
+describe('shouldShowPace: no second, lower number next to the day\'s target', () => {
+  it('is hidden when the week is over, because the recommendation would be lower than what today\'s target lets the person eat', () => {
+    const pace = getWeeklyCalorieBudget(LOG, PLAN, undefined, TODAY, TODAY).pace!;
+    expect(pace.kcal).toBeLessThan(pace.target);
+    expect(shouldShowPace(pace)).toBe(false);
+  });
+
+  it('is shown when the earlier days left room', () => {
+    const light = [meal('2026-10-04', 2000), meal('2026-10-05', 2100), meal('2026-10-06', 2200), meal('2026-10-07', 2100)];
+    const pace = getWeeklyCalorieBudget(light, PLAN, undefined, TODAY, TODAY).pace!;
+    expect(pace.kcal).toBeGreaterThanOrEqual(pace.target);
+    expect(shouldShowPace(pace)).toBe(true);
   });
 });

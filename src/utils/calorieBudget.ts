@@ -7,6 +7,15 @@ import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
 export const PACE_FLEX = 0.15;
 
+/**
+ * Whether to show "recommended for today". It is shown only when it is at or above the day's own target (the week has room): when it is lower, the week is
+ * over and the weekly balance banner already says so, and the person decides there how to make it up. Showing a second, lower number next to a target
+ * they can still eat up to reads as a contradiction, and it counted the overshoot as owed today even when they chose to spread it or carry on as usual.
+ */
+export function shouldShowPace(pace: NonNullable<WeeklyCalorieBudget['pace']>): boolean {
+  return pace.kcal >= pace.target;
+}
+
 export interface WeeklyCalorieBudget {
   weekStart: string;
   weekEnd: string;
