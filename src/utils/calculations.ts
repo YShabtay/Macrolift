@@ -16,7 +16,7 @@ const BASE_ACTIVITY_FACTOR = 1.4;
 export const BASELINE_DAILY_STEPS = 4000;
 
 /** Bump when the TDEE model changes: stored plans calculated with an older model are recalculated once when the app loads. */
-export const NUTRITION_FORMULA_VERSION = 2;
+export const NUTRITION_FORMULA_VERSION = 3;
 
 /**
  * How far a person's real TDEE typically sits from the formula (about 8%, from validation studies), and how far once the formula has been
@@ -26,8 +26,12 @@ export const NUTRITION_FORMULA_VERSION = 2;
 export const TDEE_BAND = 0.08;
 export const TDEE_BAND_CALIBRATED = 0.04;
 
-/** Net energy of one strength session (about an hour, rest periods included) for a 70 kg person, a conventional estimate rather than a measurement; it scales with body weight like walking does. */
+/**
+ * Net energy of an hour of strength training (rest periods included) for a 70 kg person, a conventional estimate rather than a measurement; it scales with body
+ * weight like walking does, and with the length of the plan's sessions (see utils/sessionDuration.ts).
+ */
 export const KCAL_PER_TRAINING_SESSION = 250;
+const DEFAULT_SESSION_MINUTES = 60;
 
 /** Steps beyond this are not counted: the step average comes from a typed-in number, and an extreme one would swamp the estimate. */
 const MAX_COUNTED_STEPS = 30000;
@@ -50,11 +54,12 @@ export interface EnergyBreakdown {
  * for both sexes once body mass is accounted for, and the difference in total expenditure between the sexes is mostly lean mass, which the
  * BMR formula already captures with its sex-specific constant. Like every formula it is an average: individual metabolism differs by roughly 10%, which is what the personal calibration corrects.
  */
-export function estimateEnergyExpenditure(params: { bmr: number; weightKg: number; dailySteps: number; trainingDaysPerWeek: number }): EnergyBreakdown {
+export function estimateEnergyExpenditure(params: { bmr: number; weightKg: number; dailySteps: number; trainingDaysPerWeek: number; sessionMinutes?: number }): EnergyBreakdown {
   const baseKcal = params.bmr * BASE_ACTIVITY_FACTOR;
   const countedSteps = Math.max(Math.min(params.dailySteps, MAX_COUNTED_STEPS) - BASELINE_DAILY_STEPS, 0);
   const stepsKcal = estimateStepCalories(countedSteps, params.weightKg);
-  const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION * (params.weightKg / 70)) / 7;
+  const sessionHours = (params.sessionMinutes ?? DEFAULT_SESSION_MINUTES) / 60;
+  const trainingKcal = (Math.max(params.trainingDaysPerWeek, 0) * KCAL_PER_TRAINING_SESSION * sessionHours * (params.weightKg / 70)) / 7;
   return {
     baseKcal: Math.round(baseKcal),
     stepsKcal,
@@ -128,16 +133,18 @@ export function calculatePreciseNutrition(params: {
   age: number;
   dailyStepGoal: number;
   workoutDaysPerWeek: number;
+  /** Average length of a session in minutes; an hour when unknown. */
+  sessionMinutes?: number;
   goal: CalorieGoal;
   /** Personal correction added to the formula's TDEE (from the calibration against the user's own weight trend). */
   tdeeAdjustmentKcal?: number;
   /** A correction to the whole calorie target and range that the user accepted after the weight trend showed it was off. */
   targetAdjustmentKcal?: number;
 }) {
-  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, goal, tdeeAdjustmentKcal = 0, targetAdjustmentKcal = 0 } = params;
+  const { gender, weightKg, heightCm, age, dailyStepGoal, workoutDaysPerWeek, sessionMinutes, goal, tdeeAdjustmentKcal = 0, targetAdjustmentKcal = 0 } = params;
 
   const bmr = mifflinStJeor(gender, weightKg, heightCm, age);
-  const energy = estimateEnergyExpenditure({ bmr, weightKg, dailySteps: dailyStepGoal, trainingDaysPerWeek: workoutDaysPerWeek });
+  const energy = estimateEnergyExpenditure({ bmr, weightKg, dailySteps: dailyStepGoal, trainingDaysPerWeek: workoutDaysPerWeek, sessionMinutes });
   const formulaTdee = energy.tdee;
   const tdee = formulaTdee + Math.round(tdeeAdjustmentKcal);
 
@@ -222,6 +229,7 @@ export function calculateNutritionPlan(metrics: UserMetrics): NutritionPlan {
     age: metrics.age,
     dailyStepGoal: metrics.averageDailySteps,
     workoutDaysPerWeek: metrics.trainingDaysPerWeek,
+    sessionMinutes: metrics.sessionMinutes,
     goal: toCalorieGoal(metrics.goal, metrics.goalIntensity),
     tdeeAdjustmentKcal: metrics.tdeeAdjustmentKcal,
     targetAdjustmentKcal: metrics.targetAdjustmentKcal,

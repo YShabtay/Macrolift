@@ -127,6 +127,8 @@ export interface UserMetrics {
   averageDailySteps: number;
   trainingDaysPerWeek: TrainingDaysPerWeek;
   bodyState: BodyState;
+  /** Average length of a training session in the current plan, in minutes (from its sets and rests); read by the calorie estimate. Set whenever the plan changes. */
+  sessionMinutes?: number;
   goal: Goal;
   /** Only meaningful when goal === 'gain_muscle'; defaults to 'moderate' when omitted. */
   goalIntensity?: GoalIntensity;

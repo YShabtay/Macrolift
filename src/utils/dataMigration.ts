@@ -18,6 +18,7 @@ import { NUTRITION_FORMULA_VERSION, calculateNutritionPlan } from './calculation
 import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 import { sanitizePhases } from './phases';
+import { withSessionMinutes } from './sessionDuration';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
 export const SCHEMA_VERSION = 5;
@@ -176,8 +177,11 @@ function normalizeWorkoutPlan(raw: unknown, trainingDays: AppState['profile']['m
 export function sanitizeAppState(raw: unknown): AppState | null {
   if (!isObject(raw)) return null;
 
-  const profile = mergeProfile(undefined, isObject(raw.profile) ? raw.profile : {});
-  const metrics = profile.metrics;
+  const mergedProfile = mergeProfile(undefined, isObject(raw.profile) ? raw.profile : {});
+  const workoutPlan = normalizeWorkoutPlan(raw.workoutPlan, mergedProfile.metrics.trainingDaysPerWeek);
+  // The calorie estimate reads how long the plan's sessions are; it follows from the plan, so it is worked out again on every load.
+  const metrics = withSessionMinutes(mergedProfile.metrics, workoutPlan);
+  const profile = { ...mergedProfile, metrics };
 
   const state: AppState = {
     ...(raw as unknown as AppState),
@@ -188,7 +192,7 @@ export function sanitizeAppState(raw: unknown): AppState | null {
         ? (raw.nutritionPlan as AppState['nutritionPlan'])
         : calculateNutritionPlan(metrics),
     nutritionFormulaVersion: NUTRITION_FORMULA_VERSION,
-    workoutPlan: normalizeWorkoutPlan(raw.workoutPlan, metrics.trainingDaysPerWeek),
+    workoutPlan,
     progress: keep<SetProgressEntry>(raw.progress, (p) => typeof p.dayId === 'string' && typeof p.exerciseId === 'string' && isIsoDate(p.date)).map(normalizeProgressEntry),
     weightLogs: keep<Record<string, unknown>>(raw.weightLogs, (w) => isIsoDate(w.date) && (finite(w.weightKg) ?? 0) > 0).map((w) => ({
       ...(w as unknown as WeightLog),

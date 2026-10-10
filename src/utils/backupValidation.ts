@@ -7,6 +7,7 @@ import { MAX_TARGET_ADJUSTMENT_KCAL } from './targetCheck';
 import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
 import { sanitizePhases } from './phases';
+import { withSessionMinutes } from './sessionDuration';
 
 /** What a restore actually loaded - only pieces that were present in the file are counted. */
 export interface RestoreSummary {
@@ -257,12 +258,14 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
     return rawWeights ? weightsOnlyResult(rawWeights, invalid) : invalid('קובץ לא תקין - ודא שזהו קובץ גיבוי של MacroLift');
   }
 
-  const profile = mergeProfile(current?.profile, hasProfile ? (candidate.profile as Record<string, unknown>) : {});
-  const metrics = profile.metrics;
+  const mergedProfile = mergeProfile(current?.profile, hasProfile ? (candidate.profile as Record<string, unknown>) : {});
 
   const workoutPlan = hasValidWorkoutPlan(candidate.workoutPlan)
     ? candidate.workoutPlan
-    : (current?.workoutPlan ?? getWorkoutTemplate(suggestSplitType(metrics.trainingDaysPerWeek), metrics.trainingDaysPerWeek));
+    : (current?.workoutPlan ?? getWorkoutTemplate(suggestSplitType(mergedProfile.metrics.trainingDaysPerWeek), mergedProfile.metrics.trainingDaysPerWeek));
+  // The calorie estimate reads how long the plan's sessions are.
+  const metrics = withSessionMinutes(mergedProfile.metrics, workoutPlan);
+  const profile = { ...mergedProfile, metrics };
   const nutritionPlan = hasValidNutritionPlan(candidate.nutritionPlan)
     ? (candidate.nutritionPlan as AppState['nutritionPlan'])
     : calculateNutritionPlan(metrics);

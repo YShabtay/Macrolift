@@ -92,9 +92,11 @@ describe('sanitizeAppState', () => {
     it('recalculates a plan stored by an older model, once, and stamps the current version', () => {
       const state = sanitized({ profile, nutritionPlan: olderPlan });
       expect(state.nutritionFormulaVersion).toBe(NUTRITION_FORMULA_VERSION);
-      expect(state.nutritionPlan.tdee).toBe(2383);
-      expect(state.nutritionPlan.targetCalories).toBe(2412);
-      expect(state.nutritionPlan.targetMax).toBe(2603);
+      // The default full-body program has sessions of about 53 minutes, a little under the hour the estimate used to assume.
+      expect(state.profile.metrics.sessionMinutes).toBe(53);
+      expect(state.nutritionPlan.tdee).toBe(2371);
+      expect(state.nutritionPlan.targetCalories).toBe(2401);
+      expect(state.nutritionPlan.targetMax).toBe(2591);
     });
 
     it('keeps a plan that is already on the current model, even one the user adjusted since', () => {

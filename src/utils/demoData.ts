@@ -13,6 +13,7 @@ import type {
   WorkoutScheduleEntry,
 } from '../types/fitness';
 import { calculateNutritionPlan } from './calculations';
+import { withSessionMinutes } from './sessionDuration';
 import { getWorkoutTemplate } from '../data/workoutTemplates';
 import { formatIsoDate, getWeekStart, parseIsoDate, todayIso } from './weightCalculations';
 import { storageService } from '../services/storageService';
@@ -285,9 +286,10 @@ function buildDemoScheduleAndProgress(workoutDays: DayWorkout[]): {
 
 /** Builds a full, realistic AppState for the "guest demo" experience - a rich account a visitor can explore instantly, with no signup. */
 export async function buildDemoAppState(): Promise<AppState> {
-  const metrics = buildDemoMetrics();
+  const baseMetrics = buildDemoMetrics();
+  const workoutPlan = getWorkoutTemplate('fbw', baseMetrics.trainingDaysPerWeek);
+  const metrics = withSessionMinutes(baseMetrics, workoutPlan);
   const nutritionPlan = calculateNutritionPlan(metrics);
-  const workoutPlan = getWorkoutTemplate('fbw', metrics.trainingDaysPerWeek);
 
   const profile: UserProfile = {
     id: DEMO_USER_ID,

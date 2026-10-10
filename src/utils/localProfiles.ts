@@ -1,6 +1,7 @@
 import type { AppState, UserMetrics, UserProfile } from '../types/fitness';
 import { storageService, type AuthUser } from '../services/storageService';
 import { calculateNutritionPlan } from './calculations';
+import { withSessionMinutes } from './sessionDuration';
 import { getWorkoutTemplate, suggestSplitType } from '../data/workoutTemplates';
 import { adaptWorkoutPlan } from './workoutAdaptation';
 import { parseBackupFile, type RestoreSummary } from './backupValidation';
@@ -38,13 +39,14 @@ const GUEST_METRICS: UserMetrics = {
 };
 
 function buildGuestAppState(userId: string): AppState {
-  const metrics = GUEST_METRICS;
-  const split = suggestSplitType(metrics.trainingDaysPerWeek);
+  const split = suggestSplitType(GUEST_METRICS.trainingDaysPerWeek);
+  const guestPlan = adaptWorkoutPlan(getWorkoutTemplate(split, GUEST_METRICS.trainingDaysPerWeek), GUEST_METRICS.experience, GUEST_METRICS.targetFocus, GUEST_METRICS.gender).plan;
+  const metrics = withSessionMinutes(GUEST_METRICS, guestPlan);
   const profile: UserProfile = { id: userId, name: 'אורח', createdAt: new Date().toISOString(), metrics, isGuest: true };
   return {
     profile,
     nutritionPlan: calculateNutritionPlan(metrics),
-    workoutPlan: adaptWorkoutPlan(getWorkoutTemplate(split, metrics.trainingDaysPerWeek), metrics.experience, metrics.targetFocus, metrics.gender).plan,
+    workoutPlan: guestPlan,
     progress: [],
     weightLogs: [],
     progressPhotos: [],

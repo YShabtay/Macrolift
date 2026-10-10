@@ -19,9 +19,10 @@ function getEnergyExplanation(metrics: UserMetrics, nutritionPlan: NutritionPlan
     weightKg: metrics.weightKg,
     dailySteps: metrics.averageDailySteps,
     trainingDaysPerWeek: metrics.trainingDaysPerWeek,
+    sessionMinutes: metrics.sessionMinutes,
   });
   const adjustment = Math.round(metrics.tdeeAdjustmentKcal ?? 0);
-  const parts = `חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. החיים הרגילים של אדם פעיל במידה קלה, כולל הליכה בסיסית, מוסיפים ${energy.baseKcal}. עוד כ-${energy.stepsKcal} מהליכה מעל 4,000 צעדים (הממוצע שלך: ${metrics.averageDailySteps.toLocaleString('he-IL')}), וכ-${energy.trainingKcal} ליום מ-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע.`;
+  const parts = `חילוף החומרים שלך במנוחה (BMR) הוא ${nutritionPlan.bmr} קק״ל ליום. החיים הרגילים של אדם פעיל במידה קלה, כולל הליכה בסיסית, מוסיפים ${energy.baseKcal}. עוד כ-${energy.stepsKcal} מהליכה מעל 4,000 צעדים (הממוצע שלך: ${metrics.averageDailySteps.toLocaleString('he-IL')}), וכ-${energy.trainingKcal} ליום מ-${metrics.trainingDaysPerWeek} אימוני כוח בשבוע${metrics.sessionMinutes ? ` (כ-${metrics.sessionMinutes} דקות כל אחד, לפי הסטים והמנוחות של התוכנית שלך)` : ''}.`;
   const personal = adjustment !== 0 ? ` בנוסף יש התאמה אישית (${adjustment > 0 ? 'תוספת' : 'הפחתה'} של ${Math.abs(adjustment)} קק״ל), לפי מה שאכלת ואיך המשקל שלך השתנה.` : '';
   return `${parts}${personal} אנחנו מעריכים שאתה שורף בממוצע ${nutritionPlan.tdee} קק״ל ביום (TDEE) - זו נקודת הייחוס לחישוב היעד הקלורי שלך. זו הערכה: חילוף החומרים של אנשים שונה בכ-10%, ולכן מומלץ לבדוק אותה מול המשקל שלך (ראה "כיול אישי" בעמוד ההתקדמות).`;
 }

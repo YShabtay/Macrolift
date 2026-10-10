@@ -42,6 +42,7 @@ import { suggestSplitType } from './data/workoutTemplates';
 import { buildWorkoutProgram, gymExperienceChanged, trainingSetupChanged } from './utils/programSelection';
 import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
 import { trackGoalChange } from './utils/phases';
+import { withSessionMinutes } from './utils/sessionDuration';
 import { applyTdeeAdjustment } from './utils/calibration';
 import { applyTargetAdjustment } from './utils/targetCheck';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
@@ -77,6 +78,8 @@ function applyProgramToState(
 ): AppState {
   const updatedMetrics: UserMetrics = { ...prev.profile.metrics, ...metricsUpdates, trainingDaysPerWeek: daysPerWeek };
   const newWorkoutPlan = buildWorkoutProgram(updatedMetrics, splitType, daysPerWeek);
+  // The calorie estimate reads how long the new program's sessions are.
+  const metricsWithPlan = withSessionMinutes(updatedMetrics, newWorkoutPlan);
 
   // The old plan's day ids/exercises are about to disappear, so completed days are remembered by date.
   const completed = new Set(prev.completedWorkoutDates ?? []);
@@ -89,10 +92,10 @@ function applyProgramToState(
 
   return {
     ...prev,
-    profile: { ...prev.profile, metrics: updatedMetrics },
+    profile: { ...prev.profile, metrics: metricsWithPlan },
     workoutPlan: newWorkoutPlan,
     schedule,
-    nutritionPlan: calculateNutritionPlan(updatedMetrics),
+    nutritionPlan: calculateNutritionPlan(metricsWithPlan),
     completedWorkoutDates: [...completed].sort(),
   };
 }
@@ -108,7 +111,7 @@ function applyCustomPlanToState(prev: AppState, plan: WorkoutPlan): AppState {
   for (const date of new Set(prev.progress.map((p) => p.date))) {
     if (isDayCompleted(prev.workoutPlan, prev.progress, date)) completed.add(date);
   }
-  const metrics: UserMetrics = { ...prev.profile.metrics, trainingDaysPerWeek: plan.daysPerWeek };
+  const metrics: UserMetrics = withSessionMinutes({ ...prev.profile.metrics, trainingDaysPerWeek: plan.daysPerWeek }, plan);
   return {
     ...prev,
     profile: { ...prev.profile, metrics },
@@ -246,13 +249,15 @@ export default function App() {
 
   function handleOnboardingComplete(
     profile: UserProfile,
-    nutritionPlan: NutritionPlan,
+    _previewNutritionPlan: NutritionPlan,
     workoutPlan: WorkoutPlan,
   ) {
     setUndoResetSnapshot(null);
+    // The calorie estimate reads how long the plan's sessions are, which the onboarding screen did not know yet.
+    const metrics = withSessionMinutes(profile.metrics, workoutPlan);
     setAppState({
-      profile,
-      nutritionPlan,
+      profile: { ...profile, metrics },
+      nutritionPlan: calculateNutritionPlan(metrics),
       workoutPlan,
       progress: [],
       weightLogs: [],
