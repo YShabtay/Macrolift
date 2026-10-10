@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeft, ChevronLeft, Dumbbell, FileUp, Loader2, LogIn, Sparkles, UserPlus } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, FileUp, Loader2, LogIn, Sparkles, UserPlus } from 'lucide-react';
 import PrivacyTermsModal from './PrivacyTermsModal';
+import LogoMark from './LogoMark';
 import type { AuthUser } from '../utils/authStorage';
 
 interface WelcomeScreenProps {
@@ -50,7 +51,7 @@ export default function WelcomeScreen({
       <div className="relative flex flex-1 flex-col md:mx-auto md:w-full md:max-w-lg md:justify-center md:gap-10 md:px-8">
       <header className="relative flex items-center gap-2.5 px-6 pt-[max(env(safe-area-inset-top),1.5rem)] md:px-0 md:pt-0">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-400 text-zinc-950 shadow-lg">
-          <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
+          <LogoMark className="h-5 w-5" />
         </span>
         <span className="font-display text-xl tracking-tight">MacroLift</span>
       </header>
