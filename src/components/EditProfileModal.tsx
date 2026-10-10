@@ -8,7 +8,7 @@ import TrainingSetupPicker from './TrainingSetupPicker';
 import { draftFromPlan, parseBulkingDraft } from '../utils/bulkingPlan';
 import { validateWeightTarget } from '../utils/weightTarget';
 
-const AGE_MIN = 14;
+const AGE_MIN = 18;
 const AGE_MAX = 99;
 const HEIGHT_MIN = 120;
 const HEIGHT_MAX = 230;

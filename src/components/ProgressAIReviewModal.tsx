@@ -205,6 +205,9 @@ export default function ProgressAIReviewModal({
 
         {status === 'result' && result && (
           <div className="flex flex-col gap-4 p-4">
+            <p className="rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+              הערכה ויזואלית של AI, לא אבחון. היא עלולה לטעות, אחוז השומן הוא הערכה גסה בלבד, והתמונות נשלחו ל-Google לניתוח.
+            </p>
             <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-lime-700 dark:text-lime-400" />

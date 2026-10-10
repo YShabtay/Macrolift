@@ -76,7 +76,7 @@ Most tracking apps share the same weaknesses:
 | Noisy weight | Rolling weekly averages and a trend line. The coach only comments after enough weigh-ins (3+ in each compared week) and never on a single day. |
 | Tedious logging | A fast local database of Israeli staples, barcode scanning, voice logging, meal-photo scan, quick-add shortcuts, and Gemini as a fallback for anything else. |
 | Rigid daily targets | Weekly calorie budget: a heavy day is balanced across the rest of the week instead of "failing" the day. |
-| Privacy | No accounts and no database. Everything, photos included, is stored on the device, with JSON backup/restore for portability. |
+| Privacy | No accounts and no database. Everything, photos included, is stored on the device, with JSON backup/restore for portability. Only the AI features (coach questions, photo review, meal scan) send text or images, through the serverless proxy, to Google Gemini (free tier, so Google may use the content to improve its services). The app has its own privacy and terms page, a medical disclaimer at sign-up, and is for adults (18+). |
 | Generic training | Programs matched to days per week, gender and target-muscle focus, with weekly volume checked against the 12-16 sets/week range per muscle group. |
 
 ---

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { ArrowLeft, ChevronLeft, Dumbbell, FileUp, Loader2, LogIn, Sparkles, UserPlus } from 'lucide-react';
+import PrivacyTermsModal from './PrivacyTermsModal';
 import type { AuthUser } from '../utils/authStorage';
 
 interface WelcomeScreenProps {
@@ -34,6 +36,7 @@ export default function WelcomeScreen({
   onDemo,
   onOpenProfile,
 }: WelcomeScreenProps) {
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   return (
     // Phone: the photo fills the screen behind the content. Desktop (md+): the screen splits in half - content on one side, the photo in a frame on the other.
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-zinc-950 text-white md:grid md:grid-cols-2">
@@ -118,7 +121,12 @@ export default function WelcomeScreen({
             {isDemoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-lime-300" />}
             {isDemoLoading ? 'טוען נתוני דמו...' : 'רוצה להתרשם קודם? נסו משתמש דמו'}
           </button>
-          <p className="text-[11px] leading-relaxed text-zinc-400">אורח, הרשמה ושחזור נשמרים על המכשיר בלבד, בלי שרת.</p>
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            אורח, הרשמה ושחזור נשמרים על המכשיר בלבד, בלי חשבון בענן.{' '}
+            <button type="button" onClick={() => setIsPrivacyOpen(true)} className="underline underline-offset-2 hover:text-zinc-200">
+              פרטיות ותנאי שימוש
+            </button>
+          </p>
         </div>
       </main>
       </div>
@@ -129,6 +137,7 @@ export default function WelcomeScreen({
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/50 via-transparent to-zinc-950/20" />
         </div>
       </div>
+      {isPrivacyOpen && <PrivacyTermsModal onClose={() => setIsPrivacyOpen(false)} />}
     </div>
   );
 }

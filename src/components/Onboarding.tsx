@@ -232,7 +232,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       case 3:
         return (
           form.gender !== null &&
-          Number(form.age) >= 14 &&
+          Number(form.age) >= 18 &&
           Number(form.age) <= 99 &&
           Number(form.heightCm) >= 120 &&
           Number(form.heightCm) <= 230 &&
@@ -569,7 +569,7 @@ function StepMetrics({
           onChange={(v) => setForm((f) => ({ ...f, age: v }))}
           placeholder="למשל 28"
           suffix="שנים"
-          min={14}
+          min={18}
           max={99}
         />
 

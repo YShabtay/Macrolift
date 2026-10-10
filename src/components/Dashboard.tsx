@@ -27,6 +27,7 @@ import {
   Ruler,
   RotateCcw,
   Scale,
+  ShieldCheck,
   Smartphone,
   Sparkles,
   Target,
@@ -44,6 +45,7 @@ import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import AppVersionCard from './AppVersionCard';
+import PrivacyTermsModal from './PrivacyTermsModal';
 import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
@@ -2039,6 +2041,7 @@ function ProfileTab({
   const { profile, nutritionPlan } = appState;
   const { metrics } = profile;
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isWelcomeGuideOpen, setIsWelcomeGuideOpen] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(() => getLastBackupAt());
@@ -2392,6 +2395,12 @@ function ProfileTab({
       <AutoBackupCard userId={userId} refreshKey={appState} onRestore={onRestoreSnapshot} />
 
       <AppVersionCard />
+
+      <button type="button" onClick={() => setIsPrivacyOpen(true)} className="btn-secondary self-start">
+        <ShieldCheck className="h-4 w-4" />
+        פרטיות ותנאי שימוש
+      </button>
+      {isPrivacyOpen && <PrivacyTermsModal onClose={() => setIsPrivacyOpen(false)} />}
 
       <div className="flex flex-wrap gap-3">
         <button

@@ -424,6 +424,9 @@ export default function AICoachDrawer({ appState, userId, onAddFood }: AICoachDr
                         <Send className="h-4 w-4 -scale-x-100" />
                       </button>
                     </div>
+                    <p className="mt-1.5 text-center text-[10px] leading-snug text-zinc-500">
+                      תשובות ה-AI עלולות לטעות ואינן ייעוץ רפואי. השאלות והתמונות נשלחות ל-Google.
+                    </p>
                   </div>
                 </>
               )}
