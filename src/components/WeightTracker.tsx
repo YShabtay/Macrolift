@@ -24,6 +24,8 @@ interface WeightTrackerProps {
   onBulkImport?: (entries: BulkWeightEntry[]) => void;
   /** Compact renders just the dashboard "morning weigh-in" card. */
   compact?: boolean;
+  /** Full view only: show just these weigh-ins in the chart and the weekly list (one period), under this chart title. The entry form and the current week stay on everything. */
+  period?: { logs: WeightLog[]; title: string };
 }
 
 export default function WeightTracker({
@@ -32,6 +34,7 @@ export default function WeightTracker({
   onDelete = () => {},
   onBulkImport = () => {},
   compact = false,
+  period,
 }: WeightTrackerProps) {
   const today = todayIso();
   const todayLog = getLogForDate(logs, today);
@@ -50,6 +53,7 @@ export default function WeightTracker({
       onDelete={onDelete}
       onBulkImport={onBulkImport}
       today={today}
+      period={period}
     />
   );
 }
@@ -163,7 +167,9 @@ function FullTracker({
   onDelete,
   onBulkImport,
   today,
+  period,
 }: {
+  period?: { logs: WeightLog[]; title: string };
   logs: WeightLog[];
   summaries: WeeklyWeightSummary[];
   onSave: (date: string, weightKg: number, notes?: string) => void;
@@ -192,7 +198,9 @@ function FullTracker({
   }
 
   const currentWeek = summaries[summaries.length - 1] ?? null;
-  const recentWeeks = summaries.slice(-8);
+  // One period shows all of its weeks; everything shows the last eight, like before.
+  const periodSummaries = useMemo(() => (period ? buildWeeklySummaries(period.logs) : null), [period]);
+  const recentWeeks = periodSummaries ?? summaries.slice(-8);
 
   function handleDateChange(date: string) {
     setFormDate(date);
@@ -276,9 +284,9 @@ function FullTracker({
         )}
       </div>
 
-      {recentWeeks.length > 0 && (
+      {(recentWeeks.length > 0 || period) && (
         <div className="glass-card p-5 sm:p-6">
-          <WeightTrendChart logs={logs} title="מגמת משקל" />
+          <WeightTrendChart logs={period ? period.logs : logs} title={period ? period.title : 'מגמת משקל'} />
 
 
           <div className="mt-5 flex flex-col gap-2">

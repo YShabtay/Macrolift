@@ -25,6 +25,7 @@ import type {
   ExerciseAlternative,
   FoodEntry,
   FoodTemplate,
+  GoalPhase,
   ProgressPhoto,
   SetLog,
   SetProgressEntry,
@@ -40,6 +41,7 @@ import { calculateMacros, calculateNutritionPlan } from './utils/calculations';
 import { suggestSplitType } from './data/workoutTemplates';
 import { buildWorkoutProgram, gymExperienceChanged, trainingSetupChanged } from './utils/programSelection';
 import { applyStepGoal, followProfileSteps } from './utils/stepGoalSync';
+import { trackGoalChange } from './utils/phases';
 import { applyTdeeAdjustment } from './utils/calibration';
 import { applyTargetAdjustment } from './utils/targetCheck';
 import { buildSwappedExercise, revertSwappedExercise } from './utils/exerciseSwap';
@@ -592,8 +594,13 @@ export default function App() {
         };
       };
       const next = compute(current);
-      return followProfileSteps(current, next);
+      return followProfileSteps(current, trackGoalChange(current, next, todayIso()));
     });
+  }
+
+  /** Saves the periods (cut, bulk...) the user edited on the progress screen. */
+  function handleSavePhases(phases: GoalPhase[]) {
+    setAppState((prev) => (prev ? { ...prev, phases } : prev));
   }
 
   /** Replaces the entire app state with an imported backup, running it through the same normalization boot-time data goes through. */
@@ -739,6 +746,7 @@ export default function App() {
         onSaveCustomPlan={handleSaveCustomPlan}
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
+        onSavePhases={handleSavePhases}
         onImportAppState={handleImportAppState}
         onSaveStepMode={handleSaveStepMode}
         onClearStepRebalance={handleClearStepRebalance}

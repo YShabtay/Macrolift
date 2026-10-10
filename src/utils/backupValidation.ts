@@ -6,6 +6,7 @@ import { MAX_TDEE_ADJUSTMENT_KCAL } from './calibration';
 import { MAX_TARGET_ADJUSTMENT_KCAL } from './targetCheck';
 import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
+import { sanitizePhases } from './phases';
 
 /** What a restore actually loaded - only pieces that were present in the file are counted. */
 export interface RestoreSummary {
@@ -315,6 +316,8 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (candidate.stepGoalMode === 'weekly' || candidate.stepGoalMode === 'daily') state.stepGoalMode = candidate.stepGoalMode;
   if (candidate.stepMode === 'balance_steps' || candidate.stepMode === 'add_calories') state.stepMode = candidate.stepMode;
+  const phases = sanitizePhases(candidate.phases);
+  if (phases) state.phases = phases;
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];
 
   const summary: RestoreSummary = {

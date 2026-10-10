@@ -17,6 +17,7 @@ import { getExerciseAlternatives, getExerciseNameEn, getWorkoutTemplate, suggest
 import { NUTRITION_FORMULA_VERSION, calculateNutritionPlan } from './calculations';
 import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
+import { sanitizePhases } from './phases';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
 export const SCHEMA_VERSION = 5;
@@ -224,6 +225,9 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   else delete state.stepGoalMode;
   if (raw.stepMode === 'balance_steps' || raw.stepMode === 'add_calories') state.stepMode = raw.stepMode;
   else delete state.stepMode;
+  const phases = sanitizePhases(raw.phases);
+  if (phases) state.phases = phases;
+  else delete state.phases;
 
   if (Array.isArray(raw.completedWorkoutDates)) state.completedWorkoutDates = raw.completedWorkoutDates.filter(isIsoDate);
   else delete state.completedWorkoutDates;

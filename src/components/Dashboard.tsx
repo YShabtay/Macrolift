@@ -45,6 +45,8 @@ import CalorieAdjustControl from './CalorieAdjustControl';
 import MobileTabBar from './MobileTabBar';
 import ProfileWeightSyncCard from './ProfileWeightSyncCard';
 import AppVersionCard from './AppVersionCard';
+import PhasePicker, { ALL_PHASES, PhasesEditorModal } from './PhasePicker';
+import { PHASE_LABELS, filterLogsToPhase, getEffectivePhases, getPhaseStats, photosForPhase } from '../utils/phases';
 import PrivacyTermsModal from './PrivacyTermsModal';
 import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
@@ -160,6 +162,7 @@ import type {
   UserMetrics,
   WeeklyBalanceAdjustment,
   WorkoutPlan,
+  GoalPhase,
 } from '../types/fitness';
 
 interface DashboardProps {
@@ -197,6 +200,7 @@ interface DashboardProps {
   onSaveCustomPlan: (plan: WorkoutPlan) => void;
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
+  onSavePhases: (phases: GoalPhase[]) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onSaveStepMode: (mode: StepMode) => void;
   onClearStepRebalance: () => void;
@@ -316,6 +320,7 @@ export default function Dashboard({
   onSaveCustomPlan,
   onApplyRebalance,
   onUpdateProfileFull,
+  onSavePhases,
   onImportAppState,
   onSaveStepMode,
   onClearStepRebalance,
@@ -483,6 +488,7 @@ export default function Dashboard({
               onSetTdeeAdjustment={onSetTdeeAdjustment}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onUpdateProfileFull={onUpdateProfileFull}
+              onSavePhases={onSavePhases}
             />
           )}
           {tab === 'academy' && (
@@ -1812,6 +1818,7 @@ function ProgressTab({
   onSetTdeeAdjustment,
   onApplyTargetAdjustment,
   onUpdateProfileFull,
+  onSavePhases,
   appState,
 }: {
   weightLogs: WeightLog[];
@@ -1828,9 +1835,22 @@ function ProgressTab({
   onSetTdeeAdjustment: (adjustmentKcal: number) => void;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
+  onSavePhases: (phases: GoalPhase[]) => void;
   appState: AppState;
 }) {
   const progressMetrics = appState.profile.metrics;
+  const today = useToday();
+  const phases = useMemo(() => getEffectivePhases(appState, today), [appState, today]);
+  // With a past period behind them the person starts on the current one; otherwise there is only "everything" to see.
+  const [pickedPhaseId, setPickedPhaseId] = useState<string | null>(null);
+  const [isPhasesEditorOpen, setIsPhasesEditorOpen] = useState(false);
+  const selectedPhaseId = pickedPhaseId ?? (phases.length > 1 ? phases[phases.length - 1].id : ALL_PHASES);
+  const selectedPhase = phases.find((p) => p.id === selectedPhaseId);
+  const phaseLogs = useMemo(() => (selectedPhase ? filterLogsToPhase(weightLogs, selectedPhase, today) : weightLogs), [selectedPhase, weightLogs, today]);
+  const phasePhotos = useMemo(
+    () => (selectedPhase ? photosForPhase(progressPhotos, selectedPhase, today) : { photos: progressPhotos, baselineId: null }),
+    [selectedPhase, progressPhotos, today],
+  );
   const targetReached =
     getWeightTargetProgress({ metrics: progressMetrics, weightLogs, today: todayIso() })?.status === 'reached' && progressMetrics.goal !== 'maintain';
   return (
@@ -1847,6 +1867,16 @@ function ProgressTab({
         ]}
       />
 
+      <PhasePicker
+        phases={phases}
+        selectedId={selectedPhaseId}
+        onSelect={setPickedPhaseId}
+        stats={selectedPhase ? getPhaseStats(phaseLogs) : null}
+        hasBaselinePhoto={phasePhotos.baselineId !== null}
+        onEdit={() => setIsPhasesEditorOpen(true)}
+      />
+      {isPhasesEditorOpen && <PhasesEditorModal phases={phases} onSave={onSavePhases} onClose={() => setIsPhasesEditorOpen(false)} />}
+
       <div className="flex items-center gap-2">
         <Scale className="h-4 w-4 text-lime-700 dark:text-lime-400" />
         <h2 className="font-bold text-zinc-900 dark:text-zinc-100">משקל</h2>
@@ -1856,6 +1886,7 @@ function ProgressTab({
         onSave={onSaveWeightLog}
         onDelete={onDeleteWeightLog}
         onBulkImport={onBulkImportWeightLogs}
+        period={selectedPhase ? { logs: phaseLogs, title: `מגמת משקל · ${PHASE_LABELS[selectedPhase.goal]}` } : undefined}
       />
 
       <WeightTargetCard
@@ -1906,7 +1937,7 @@ function ProgressTab({
         <h2 className="font-bold text-zinc-900 dark:text-zinc-100">תמונות</h2>
       </div>
       <ProgressPhotos
-        photos={progressPhotos}
+        photos={phasePhotos.photos}
         weightLogs={weightLogs}
         goal={goal}
         goalIntensity={goalIntensity}

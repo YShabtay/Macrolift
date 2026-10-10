@@ -7,6 +7,16 @@ export type Gender = 'male' | 'female';
 /** Visual "current state" card the user picks in onboarding. */
 export type BodyState = 'lean' | 'athletic' | 'higher_fat';
 
+/** One period with a single goal. No `endDate` means it is the current one. */
+export interface GoalPhase {
+  id: string;
+  goal: Goal;
+  /** First day of the period (YYYY-MM-DD). */
+  startDate: string;
+  /** Last day of the period; left out while it is still going. */
+  endDate?: string;
+}
+
 /** The user's primary goal, drives calorie target math. */
 export type Goal = 'lose_weight' | 'maintain' | 'gain_muscle' | 'recomp';
 
@@ -391,6 +401,11 @@ export interface AppState {
    * that same day's calorie budget. One or the other, never both, so the same steps are never counted twice.
    */
   stepMode?: 'balance_steps' | 'add_calories';
+  /**
+   * The periods the user went through (a cut from March to September, then a bulk from October...), so the progress screen can show one period at a time.
+   * Optional: without it a single period is derived from the profile's goal. A change of goal in the profile closes the open period and starts a new one.
+   */
+  phases?: GoalPhase[];
   /**
    * Dates the user marked a workout as done (quick-complete from the home screen). Kept in addition to the per-set `progress`
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).
