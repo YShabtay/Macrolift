@@ -38,6 +38,27 @@ Built with AI-assisted coding (Claude Code). The product decisions, the nutritio
   </tr>
 </table>
 
+### Steps and calories as one system
+
+The step goal and the calorie budget are one system with two modes, never both at once: **balance steps** (extra steps lower the goal for the days that follow) or **add calories** (steps above the goal become calories in a weekly bank, short days take calories off it first). The week's overshoot is explained day by day instead of being a single number.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/10-steps-balance-mode.jpg" width="200" alt="Steps card in balance mode"><br><sub><b>Balance steps</b><br>a long day lowers the goal for the days left</sub></td>
+    <td align="center"><img src="docs/screenshots/12-steps-calorie-mode.jpg" width="200" alt="Steps card in calorie mode with the calorie bank"><br><sub><b>Add calories</b><br>steps above the goal fill a calorie bank</sub></td>
+    <td align="center"><img src="docs/screenshots/13-calorie-bank-chart.jpg" width="200" alt="Seven day chart with plus and minus calories"><br><sub><b>Net walking</b><br>+ for long days, - for short ones, rolled over within the week</sub></td>
+    <td align="center"><img src="docs/screenshots/15-weekly-rebalance-table.jpg" width="200" alt="Weekly rebalance with the day by day table"><br><sub><b>Smart weekly balance</b><br>eaten against target for each day, and the unspent bank</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/14-calories-left-today.jpg" width="200" alt="Calories left today"><br><sub><b>Calories left</b><br>base target plus the step bank</sub></td>
+    <td align="center"><img src="docs/screenshots/17-weekly-budget.jpg" width="200" alt="Weekly calorie budget"><br><sub><b>Weekly budget</b><br>what is left of the week, shared over the days ahead</sub></td>
+    <td align="center"><img src="docs/screenshots/21-ai-progress-photos.jpg" width="200" alt="AI progress photo analysis"><br><sub><b>AI photo review</b><br>before and after, with a follow-up conversation</sub></td>
+    <td align="center"><img src="docs/screenshots/25-target-weight-trend-check.jpg" width="200" alt="Target weight and trend check"><br><sub><b>Trend check</b><br>the weekly average judged against the goal's pace</sub></td>
+  </tr>
+</table>
+
+The demo user in the app shows all of this with sample data. More screens are in [`docs/screenshots`](docs/screenshots).
+
 ---
 
 ## The problem

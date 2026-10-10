@@ -26,3 +26,5 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+# Screen recordings are large; they live on disk in docs/media but not in git
+docs/media/
