@@ -12,7 +12,7 @@
 
 **Try it:** <https://macrolift-one.vercel.app/> (open it on a phone and "Add to Home Screen"; there is also a one-tap demo user).
 
-Built by a 3rd-year Industrial Engineering & Management student (Information Systems & Data Analytics tracks, Ariel University) as an end-to-end product project: from the nutrition model and UX, through offline-capable frontend engineering, to a secured serverless AI backend.
+Built by a 3rd-year Industrial Engineering & Management student (Data Science & Artificial Intelligence Engineering track, Ariel University) as an end-to-end product project: from the nutrition model and UX, through offline-capable frontend engineering, to a secured serverless AI backend.
 
 Built with AI-assisted coding (Claude Code). The product decisions, the nutrition-model requirements and the verification (unit tests, CI and testing on a real phone) are the author's.
 
