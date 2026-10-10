@@ -36,14 +36,17 @@ interface DesktopSidebarProps<T extends string> {
   onLogout: () => void;
 }
 
+/** How long a rail opened with a finger stays open after the last touch on it, and after a choice. */
+const TOUCH_IDLE_MS = 4000;
+const TOUCH_AFTER_CHOICE_MS = 1200;
+
 const ROW =
   'flex w-full items-center gap-3 overflow-hidden whitespace-nowrap rounded-xl px-[1.0625rem] py-3 text-right font-medium transition-colors';
 
 /**
  * Desktop navigation rail: icons only by default, opening (and pushing the page aside) while a mouse pointer or keyboard focus is on it.
- * A finger has no hover: a tap on a screen button just goes there, and a tap on the rail's empty part opens it until the next choice or a tap
- * elsewhere (a touch used to count as the pointer being "on" the rail, which then stayed open on a tablet). The pin button keeps it open; the
- * choice is remembered on this device.
+ * A finger has no hover: touching the rail opens it, and it closes by itself a few seconds after the last touch, or at once on a tap elsewhere (a touch
+ * used to count as the pointer being "on" the rail, which then stayed open on a tablet). The pin button keeps it open; the choice is remembered on this device.
  */
 export default function DesktopSidebar<T extends string>({ items, active, homeId, onSelect, onReset, onLogout }: DesktopSidebarProps<T>) {
   const [pinned, setPinned] = useState(readPinned);
@@ -58,6 +61,14 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
   // A short delay both ways: sweeping the pointer across the edge doesn't pop the rail open, and slipping out of it doesn't snap it shut.
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  const touchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(touchTimer.current), []);
+  /** Opened with a finger: closes by itself after a pause. */
+  function holdOpenByTouch(ms: number) {
+    setTouchOpen(true);
+    clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => setTouchOpen(false), ms);
+  }
   // Opened with a finger: a tap anywhere else closes it again.
   useEffect(() => {
     if (!touchOpen) return;
@@ -67,10 +78,10 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
     document.addEventListener('pointerdown', onOutside);
     return () => document.removeEventListener('pointerdown', onOutside);
   }, [touchOpen]);
-  /** Runs a rail action and puts the rail back to its resting state, so a choice never leaves it open (unless pinned). */
+  /** Runs a rail action; a rail opened with a finger closes shortly after, so a choice never leaves it open (unless pinned). */
   const choose = (action: () => void) => () => {
-    setTouchOpen(false);
     action();
+    if (touchOpen) holdOpenByTouch(TOUCH_AFTER_CHOICE_MS);
   };
   function setHoverSoon(next: boolean) {
     clearTimeout(hoverTimer.current);
@@ -99,7 +110,7 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
         onPointerEnter={(e) => e.pointerType === 'mouse' && setHoverSoon(true)}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setHoverSoon(false)}
         onPointerDown={(e) => {
-          if (e.pointerType === 'touch' && !(e.target as HTMLElement).closest('button')) setTouchOpen((open) => !open);
+          if (e.pointerType === 'touch') holdOpenByTouch(TOUCH_IDLE_MS);
         }}
         onFocusCapture={(e) => {
           // Only keyboard focus keeps the rail open: a mouse click leaves the button focused, which would otherwise hold it open like a pin.
@@ -108,7 +119,7 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
         onBlurCapture={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
         }}
-        className={`fixed inset-y-0 right-0 z-40 hidden flex-col overflow-hidden border-l border-zinc-200 bg-zinc-50/95 p-3 backdrop-blur-xl transition-[width] duration-200 dark:border-zinc-800 dark:bg-zinc-950/95 md:flex ${
+        className={`fixed inset-y-0 right-0 z-40 hidden touch-manipulation flex-col overflow-hidden border-l border-zinc-200 bg-zinc-50/95 p-3 backdrop-blur-xl transition-[width] duration-200 dark:border-zinc-800 dark:bg-zinc-950/95 md:flex ${
           expanded ? 'w-64' : 'w-[4.5rem]'
         }`}
       >
