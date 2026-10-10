@@ -101,7 +101,7 @@ import AutoBackupCard from './AutoBackupCard';
 import type { Snapshot } from '../services/snapshotStore';
 import { BODY_TYPE_OPTIONS } from '../data/bodyTypes';
 import { buildWeeklySummaries, daysSince, formatDateDisplay, getWeekStart, todayIso } from '../utils/weightCalculations';
-import { countCompletedWorkoutsLast7Days, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
+import { getWorkoutWeekProgress, getDefaultRestSeconds, getPreviousPerformances } from '../utils/workoutStats';
 import { useToday } from '../hooks/useToday';
 import { getWeeklyCoachInsight } from '../utils/coachInsights';
 import {
@@ -1123,13 +1123,13 @@ function StreaksCard({
     return buildWeeklySummaries(weightLogs).find((s) => s.weekStart === weekStart)?.daysLogged ?? 0;
   }, [weightLogs, today]);
 
-  const workoutsLast7Days = useMemo(
-    () => countCompletedWorkoutsLast7Days(workoutPlan, progress, today, completedDates),
-    [workoutPlan, progress, today, completedDates],
+  const workoutsThisWeek = useMemo(
+    () => getWorkoutWeekProgress(workoutPlan, progress, trainingDaysPerWeek, today, completedDates).count,
+    [workoutPlan, progress, trainingDaysPerWeek, today, completedDates],
   );
 
   const progressRatio = Math.min(
-    (weighInsThisWeek / 7 + workoutsLast7Days / Math.max(trainingDaysPerWeek, 1)) / 2,
+    (weighInsThisWeek / 7 + workoutsThisWeek / Math.max(trainingDaysPerWeek, 1)) / 2,
     1,
   );
   const message =
@@ -1151,9 +1151,9 @@ function StreaksCard({
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3 text-center">
           <p className="text-xl">💪</p>
           <p className="mt-1 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-            {workoutsLast7Days}/{trainingDaysPerWeek}
+            {workoutsThisWeek}/{trainingDaysPerWeek}
           </p>
-          <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">אימונים ב-7 הימים האחרונים</p>
+          <p className="text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">אימונים בשבוע האימונים</p>
         </div>
       </div>
 

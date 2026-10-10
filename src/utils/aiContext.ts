@@ -4,7 +4,7 @@ import { getBaseStepGoal } from './stepGoalSync';
 import { getCalorieRange } from './calorieRange';
 import type { AppState, UserMetrics } from '../types/fitness';
 import { calculateRemaining, getEntriesForDate, sumTotals } from './nutritionLog';
-import { countCompletedWorkoutsLast7Days } from './workoutStats';
+import { getWorkoutWeekProgress } from './workoutStats';
 import { getLatestWeekSummary } from './weightCalculations';
 import { getWeightTargetProgress } from './weightTarget';
 import { getTodaysPlanDay, isDayCompleted } from './scheduleHelpers';
@@ -56,7 +56,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
           targetProgress.eta ? `, הערכה: ${targetProgress.eta.minWeeks}${targetProgress.eta.maxWeeks === null ? '+' : `-${targetProgress.eta.maxWeeks}`} שבועות` : ''
         })`
     : ''
-  const workoutsLast7Days = countCompletedWorkoutsLast7Days(workoutPlan, progress, undefined, appState.completedWorkoutDates);
+  const workoutWeek = getWorkoutWeekProgress(workoutPlan, progress, appState.profile.metrics.trainingDaysPerWeek, undefined, appState.completedWorkoutDates);
   const todaysDay = getTodaysPlanDay(workoutPlan, schedule);
   const todaysDayCompleted = isDayCompleted(workoutPlan, progress, today, todaysDay.id);
 
@@ -84,7 +84,7 @@ ${remainingToday.calories < 0 ? '(המשתמש כבר חרג מהיעד הקלו
 - שם התוכנית: ${workoutPlan.title} (${workoutPlan.description})
 - ימי האימון בתוכנית: ${workoutPlan.days.map((d) => `${d.dayLabel} (${d.focus})`).join(', ')}
 - אימון היום המתוכנן: ${todaysDay.dayLabel} - ${todaysDay.focus}${todaysDayCompleted ? ' (כבר הושלם היום)' : ' (טרם הושלם היום)'}
-- אימונים שהושלמו ב-7 הימים האחרונים: ${workoutsLast7Days}/${metrics.trainingDaysPerWeek}
+- אימונים בשבוע האימונים הנוכחי: ${workoutWeek.count}/${metrics.trainingDaysPerWeek}
 
 ## משקל
 ${

@@ -4,28 +4,37 @@ import { addDaysIso } from './dateMath';
 import { todayIso } from './weightCalculations';
 
 /**
- * Counts distinct dates, within the 7 days ending on `today`, on which a workout-plan day was completed. Workouts are not tied to the Sunday-Saturday
- * week the rest of the app uses: someone who starts a training week on a Saturday one week and on a Sunday the next sees the same count either way.
- * "Completed" is decided by the same `isDayCompleted` the calendar uses, so the dashboard and calendar can never disagree about what counts. All
- * dates are local YYYY-MM-DD strings (no UTC conversion), compared lexicographically.
+ * The workout counter: how far the person is through the current training week, as `count` of `target` (the plan's sessions a week). A training week
+ * starts with a workout and holds up to `target` of them within 7 days; the workout after that starts a new one, so on a 3-a-week plan the counter
+ * reads 1/3, 2/3, 3/3 and then 1/3 again, whichever day of the week that falls on (a Saturday start one week and a Sunday start the next work alike).
+ * A training week that began more than 7 days ago and was not finished is over, and the counter reads 0 until the next workout. "Completed" is
+ * decided by the same `isWorkoutDateDone` the calendar uses, so the dashboard and calendar can never disagree about what counts. All dates are local
+ * YYYY-MM-DD strings (no UTC conversion), compared lexicographically.
  */
-export function countCompletedWorkoutsLast7Days(
+export function getWorkoutWeekProgress(
   workoutPlan: WorkoutPlan,
   progress: SetProgressEntry[],
+  target: number,
   today: string = todayIso(),
   completedDates: readonly string[] = [],
-): number {
-  const windowStart = addDaysIso(today, -6);
+): { count: number; target: number } {
+  const perWeek = Math.max(Math.round(target), 1);
+  const dates = [...new Set([...progress.map((p) => p.date), ...completedDates])]
+    .filter((d) => d <= today && isWorkoutDateDone(workoutPlan, progress, d, completedDates))
+    .sort();
 
-  const datesInWindow = new Set(
-    [...progress.map((p) => p.date), ...completedDates].filter((d) => d >= windowStart && d <= today),
-  );
-
-  let completedCount = 0;
-  for (const date of datesInWindow) {
-    if (isWorkoutDateDone(workoutPlan, progress, date, completedDates)) completedCount++;
+  let weekStart: string | null = null;
+  let count = 0;
+  for (const date of dates) {
+    if (weekStart === null || count >= perWeek || date > addDaysIso(weekStart, 6)) {
+      weekStart = date;
+      count = 1;
+    } else {
+      count += 1;
+    }
   }
-  return completedCount;
+  const isOver = weekStart === null || today > addDaysIso(weekStart, 6);
+  return { count: isOver ? 0 : count, target: perWeek };
 }
 
 export interface PreviousPerformance {

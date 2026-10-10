@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutPlan } from '../types/fitness';
 import { getWorkoutStreakWeeks, weeklyWorkoutTarget } from './streaks';
-import { countCompletedWorkoutsLast7Days } from './workoutStats';
+import { getWorkoutWeekProgress } from './workoutStats';
 
 // Three sessions a week: the streak needs 2 of them in a 7-day block.
 const PLAN = { id: 'p', title: 't', description: '', daysPerWeek: 3, days: [] } as unknown as WorkoutPlan;
@@ -11,17 +11,36 @@ const state = (completed: string[]) => ({ foodLog: [], progress: [], workoutPlan
 const SUN_WEEK = ['2026-10-04', '2026-10-06', '2026-10-08'];
 const SAT_WEEK = ['2026-10-10', '2026-10-12', '2026-10-14'];
 
-describe('countCompletedWorkoutsLast7Days', () => {
-  it('counts the 7 days ending today, so a Saturday session is not lost to the week before', () => {
-    // Saturday 10th: the 7 days are 4 to 10, so Sunday's three sessions and the Saturday one all count.
-    expect(countCompletedWorkoutsLast7Days(PLAN, [], '2026-10-10', [...SUN_WEEK, '2026-10-10'])).toBe(4);
-    // A day later the 4th has left the window.
-    expect(countCompletedWorkoutsLast7Days(PLAN, [], '2026-10-11', [...SUN_WEEK, '2026-10-10'])).toBe(3);
+describe('getWorkoutWeekProgress: the counter wraps after the plan\'s sessions', () => {
+  const week = (dates: string[], today: string, target = 3) => getWorkoutWeekProgress(PLAN, [], target, today, dates);
+
+  it('counts 1/3, 2/3, 3/3 and then starts again at 1/3 with the next workout', () => {
+    expect(week(['2026-10-04'], '2026-10-04').count).toBe(1);
+    expect(week(['2026-10-04', '2026-10-06'], '2026-10-06').count).toBe(2);
+    expect(week(SUN_WEEK, '2026-10-08').count).toBe(3);
+    expect(week(SUN_WEEK, '2026-10-09').count).toBe(3); // still the finished week the day after
+    // A Saturday session after a finished Sun/Tue/Thu week starts the next training week.
+    expect(week([...SUN_WEEK, '2026-10-10'], '2026-10-10')).toEqual({ count: 1, target: 3 });
+    expect(week([...SUN_WEEK, '2026-10-10'], '2026-10-11').count).toBe(1);
+    expect(week([...SUN_WEEK, ...SAT_WEEK], '2026-10-14').count).toBe(3);
   });
 
-  it('ignores future days and anything older than 7 days', () => {
-    expect(countCompletedWorkoutsLast7Days(PLAN, [], '2026-10-10', ['2026-10-03', '2026-10-11'])).toBe(0);
-    expect(countCompletedWorkoutsLast7Days(PLAN, [], '2026-10-10', ['2026-10-04', '2026-10-10'])).toBe(2);
+  it('uses the plan\'s number of sessions as the limit', () => {
+    const four = ['2026-10-04', '2026-10-05', '2026-10-07', '2026-10-08'];
+    expect(week(four, '2026-10-08', 4)).toEqual({ count: 4, target: 4 });
+    expect(week([...four, '2026-10-09'], '2026-10-09', 4).count).toBe(1);
+  });
+
+  it('a week that began more than 7 days ago and was not finished is over: 0 until the next workout, which starts a new one', () => {
+    expect(week(['2026-10-04', '2026-10-06'], '2026-10-10').count).toBe(2); // still inside its 7 days
+    expect(week(['2026-10-04', '2026-10-06'], '2026-10-11').count).toBe(0);
+    expect(week(['2026-10-04', '2026-10-06', '2026-10-12'], '2026-10-12').count).toBe(1);
+    expect(week(SUN_WEEK, '2026-10-11').count).toBe(0); // a finished week is also over after its 7 days
+  });
+
+  it('ignores future dates, and is 0 with no workouts', () => {
+    expect(week([], '2026-10-10').count).toBe(0);
+    expect(week(['2026-10-12'], '2026-10-10').count).toBe(0);
   });
 });
 
