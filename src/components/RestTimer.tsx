@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import { Pause, Play, RotateCcw, X } from 'lucide-react';
 import { useRestTimer } from '../context/restTimerContext';
 
 function formatTime(totalSeconds: number): string {
@@ -74,10 +74,11 @@ export default function RestTimer() {
           <button
             type="button"
             onClick={cancel}
-            aria-label="דילוג"
+            aria-label={isDone ? 'סגירת הטיימר' : 'עצירה וסגירת הטיימר'}
+            title={isDone ? 'סגירת הטיימר' : 'עצירה וסגירת הטיימר'}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition hover:border-red-400/50 hover:text-red-400 active:scale-90"
           >
-            <SkipForward className="h-4 w-4 fill-current" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>

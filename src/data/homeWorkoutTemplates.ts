@@ -679,6 +679,15 @@ const CATALOG: HomeExerciseDef[] = [
  * are left out on purpose and fall back to a YouTube search on their English name.
  */
 const VIDEO_IDS: Record<string, string> = {
+  'בוקר טוב משקל גוף': 'jVXYOdZywKM',
+  'לחיצת כתפיים בעמידת V (ידיים על ספה)': 'apQiprGB0OQ',
+  'הרמת עקבים על רגל אחת': 'ORT4oJ_R8Qs',
+  'חתירה הפוכה עם רגליים מורמות': '44W1JgF0lyQ',
+  'לחיצת כתפיים בעמידת V עם רגליים מורמות': '_FfCWr4B6z8',
+  'מקבילים על כיסא עם רגליים ישרות': 'xSjzOF4s4Fc',
+  'הרמת עקבים עם משקולות': 'wxwY7GXxL4k',
+  'חתירה בהטיה עם משקולות בעצירה': 'z0rtLeSW5Cc',
+  'לחיצת חזה יחידנית על הרצפה': 'NubSSALIqsU',
   'שכיבות סמיכה בשיפוע (ידיים על ספה)': 'cfns5VDVVvk',
   'שכיבות סמיכה על הברכיים': 'lFR1GWy1Dcs',
   'שכיבות סמיכה': 'IODxDxX7oi4',

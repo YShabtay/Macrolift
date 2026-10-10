@@ -45,12 +45,46 @@ import { findHomeExercise, getHomeExerciseLibrary } from './homeWorkoutTemplates
 // ---------------------------------------------------------------------------
 
 /** Keyed by exact exercise name. Every exercise used below has an entry here (cues always; youtubeId when a verified video exists). */
-const EXERCISE_MEDIA: Record<string, { youtubeId?: string; cues: string[] }> = {
-  // Exercises below without a youtubeId intentionally omit it rather than guess a video: the player falls back to a YouTube search.
+const EXERCISE_MEDIA: Record<string, { youtubeId?: string; cues?: string[] }> = {
+  // Technique videos below were found by searching for the exercise and checked to be public and embeddable; one without a youtubeId falls back to a YouTube search
+  // rather than guessing a video.
+  'גובלט סקוואט': { youtubeId: 'MeIiIdhvXT4' },
+  'גשר ישבן': { youtubeId: 'wPM8icPu6H8' },
+  'האק סקוואט': { youtubeId: '0tn5K9NlCfo' },
+  'הרחקת כתפיים בכבל': { youtubeId: 'qitQHqNZbeM' },
+  'הרחקת כתפיים במכונה': { youtubeId: 'dTwa2piwU-A' },
+  'הרמת אגן במכונה': { youtubeId: 'tztHvSLdXLA' },
+  'הרמת אגן עם משקולת': { youtubeId: '29OfN4ztW_g' },
+  'הרמת שוקיים בלחיצת רגליים': { youtubeId: 'M4FojyRAcuE' },
+  'הרמת שוקיים חד-רגלית': { youtubeId: 'ORT4oJ_R8Qs' },
+  'חתירה במכונה בישיבה': { youtubeId: 'TeFo51Q_Nsc' },
+  'חתירת דאמבל חד-יד': { youtubeId: 'nehAvSrfUOg' },
+  'כפיפות בטן בכבל': { youtubeId: '3qjoXDTuyOE' },
+  'כפיפת ברך בישיבה במכונה': { youtubeId: 'ELOCsoDSmrg' },
+  'כפיפת ברך בעמידה בכבל': { youtubeId: 'QerRbPE55D8' },
+  'לחיצה ארנולד': { youtubeId: '6Z15_WdXmVw' },
+  'לחיצת חזה במכונה': { youtubeId: 'sqNwDkUU_Ps' },
+  'לחיצת חזה בשיפוע במכונה': { youtubeId: 'o0Ud3RU59hw' },
+  'לחיצת חזה בשיפוע עם מוט': { youtubeId: 'SrqOu55lrYU' },
+  'לחיצת חזה עם משקולות': { youtubeId: '1V3vpcaxRYQ' },
+  'לחיצת כתפיים עם משקולות': { youtubeId: 'qEwKCR5JCog' },
+  'מכרעים במקום': { youtubeId: 'SXYrUTUwFoc' },
+  'משיכת מוט לסנטר': { youtubeId: 'jaAV-rD45I0' },
+  'מתח בגומייה או בגרביטון': { youtubeId: 'wFj808u2HWU' },
+  'פולי עליון באחיזה צרה': { youtubeId: 'ecRF8ERf2q4' },
+  'פרפר עם משקולות': { youtubeId: 'QENKPHhQVi4' },
+  'פשיטת גו בכיסא רומי': { youtubeId: 'ph3pddpKzzw' },
+  'פשיטת מרפק בכבל בחבל': { youtubeId: 'qHDrQglWgS4' },
+  'פשיטת מרפק בכבל מעל הראש': { youtubeId: '1657VVZi0Ms' },
+  'שכיבות סמיכה בשיפוע חיובי': { youtubeId: 'Z0bRiVhnO8Q' },
+  'שכיבות סמיכה עם משקל': { youtubeId: 'z4oz6W1X10w' },
+  'שכיבות סמיכה צרות': { youtubeId: 'G2mlaEfpEIM' },
   'פרפר בכבלים': {
+    youtubeId: 'Iwe6AmxVf7o',
     cues: ['מרפקים כפופים מעט וקבועים, התנועה מגיעה מהכתף והחזה', 'עצירה קצרה בכיווץ מלא מול החזה, חזרה איטית עד מתיחה נוחה'],
   },
   'פרפר במכונה (פק דק)': {
+    youtubeId: 'g3T7LsEeDWQ',
     cues: ['שכמות צמודות למשענת, חזה מורם', 'סגירה מבוקרת עד כיווץ החזה וחזרה איטית לטווח מתיחה מלא'],
   },
   'סקוואט מוט': {
@@ -1089,6 +1123,7 @@ export function createPlanExercise(
   base: Pick<Exercise, 'name' | 'muscleGroup' | 'equipment'> & Partial<Pick<Exercise, 'nameEn' | 'sets' | 'repsRange' | 'restSeconds'>>,
 ): Exercise {
   const media = EXERCISE_MEDIA[base.name];
+  const home = findHomeExercise(base.name);
   const isCompound = base.equipment === 'barbell' || ['quads', 'hamstrings', 'glutes', 'back', 'chest'].includes(base.muscleGroup);
   return {
     id: `cx-${crypto.randomUUID()}`,
@@ -1099,8 +1134,8 @@ export function createPlanExercise(
     sets: base.sets ?? 3,
     repsRange: base.repsRange ?? (isCompound ? '8-12' : '10-15'),
     restSeconds: base.restSeconds ?? (isCompound ? 90 : 60),
-    youtubeId: media?.youtubeId,
-    cues: media?.cues,
+    youtubeId: media?.youtubeId ?? home?.youtubeId,
+    cues: media?.cues ?? home?.cues,
     alternatives: getExerciseAlternatives(base.name, base.muscleGroup),
   };
 }
