@@ -42,7 +42,8 @@ function startBackgroundUpdateChecks(registration: ServiceWorkerRegistration) {
  * untouched by an update.
  *
  * Tapping "עדכן עכשיו" sends SKIP_WAITING to the waiting worker; the page reloads once the worker takes control (controllerchange),
- * with a short delay and a single-reload guard (utils/swReload.ts). A gentle toast above the bottom navigation, not a blocking dialog.
+ * with a short delay and a single-reload guard (utils/swReload.ts). A gentle toast at the top of the screen, not a blocking dialog: the bottom is where the
+ * rest timer bar and the tab bar live, and a toast there covered the timer's buttons (on an iPad it sat right next to it and took the taps).
  */
 export default function UpdatePrompt() {
   const {
@@ -64,8 +65,8 @@ export default function UpdatePrompt() {
   if (!needRefresh) return null;
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[60] flex justify-center px-4 md:bottom-6">
-      <div role="status" className="pointer-events-auto flex w-full max-w-sm items-center gap-2 rounded-2xl border border-lime-400/50 bg-zinc-900 p-1.5 pe-2 shadow-glow animate-slide-up">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(0.75rem+env(safe-area-inset-top))] z-[60] flex justify-center px-4">
+      <div role="status" className="pointer-events-auto flex w-full max-w-sm items-center gap-2 rounded-2xl border border-lime-400/50 bg-zinc-900 p-1.5 pe-2 shadow-glow animate-fade-in">
         <button
           type="button"
           // Activates the waiting worker only; the page reloads from the controllerchange handler (utils/swReload.ts), with its guard and delay.
