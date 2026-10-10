@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Award, BarChart3, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
 import type { AppState } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { buildWeeklySummary } from '../utils/weeklySummary';
 import { getDoneWorkoutDates, getLoggingStreakDays, getWorkoutMilestone, getWorkoutStreakWeeks } from '../utils/streaks';
 import { addDaysIso } from '../utils/dateMath';
@@ -27,8 +28,10 @@ function Stat({ icon: Icon, label, value, hint }: { icon: typeof Dumbbell; label
 
 /** "This week" / "last week" at a glance - workouts, sets and personal records, steps, nutrition, weight - plus the streaks that keep it going. */
 export default function WeeklySummaryCard({ appState }: { appState: AppState }) {
-  // Collapsed by default: on a phone the home screen is already long, and this is a look-back more than something to act on.
+  // Collapsed by default on a phone, where the home screen is already long and this is a look-back more than something to act on. A computer shows it open.
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
+  if (!isMobile) return <WeeklySummaryBody appState={appState} />;
   if (!isOpen) {
     return (
       <button
@@ -51,7 +54,7 @@ export default function WeeklySummaryCard({ appState }: { appState: AppState }) 
   return <WeeklySummaryBody appState={appState} onCollapse={() => setIsOpen(false)} />;
 }
 
-function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCollapse: () => void }) {
+function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCollapse?: () => void }) {
   const today = useToday();
   const [offset, setOffset] = useState(0);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -80,9 +83,11 @@ function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCol
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-lime-700 dark:text-lime-400" />
           <h2 className="font-bold text-zinc-900 dark:text-zinc-100">סיכום שבועי</h2>
-          <button type="button" onClick={onCollapse} aria-label="הסתר את הסיכום השבועי" aria-expanded className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
-            <ChevronUp className="h-4 w-4" />
-          </button>
+          {onCollapse && (
+            <button type="button" onClick={onCollapse} aria-label="הסתר את הסיכום השבועי" aria-expanded className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <ChevronUp className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1" role="group" aria-label="ניווט בין שבועות">
           <button

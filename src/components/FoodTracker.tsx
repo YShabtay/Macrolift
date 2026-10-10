@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useToday } from '../hooks/useToday';
+import { useIsMobile } from '../hooks/useIsMobile';
 import CalorieAdjustControl from './CalorieAdjustControl';
 import { createPortal } from 'react-dom';
 import {
@@ -97,6 +98,7 @@ function shiftDate(dateStr: string, days: number): string {
 
 export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
+  const isMobile = useIsMobile();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const today = useToday();
   // Following "today" (null) rather than a fixed date: a screen left open past midnight moves on to the new day by itself instead of
@@ -209,7 +211,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
 
       {targets.allowanceKcal > 0 && (
         <p className="-mb-2 text-center text-[11px] font-semibold text-lime-700 dark:text-lime-400">
-          בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה מהשבוע)
+          {isMobile ? 'בסיס' : 'יעד בסיס'} {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה {isMobile ? 'מהשבוע' : 'שנשארה מימים קודמים השבוע'})
         </p>
       )}
       {getCalorieRange(nutritionPlan) && targets.reductionKcal === 0 && selectedDate === today && (

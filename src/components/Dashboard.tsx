@@ -116,6 +116,7 @@ import {
   type CalendarDay,
 } from '../utils/scheduleHelpers';
 import ProgramSwitcherModal from './ProgramSwitcherModal';
+import { useIsMobile } from '../hooks/useIsMobile';
 import WorkoutDayBanner from './WorkoutDayBanner';
 import RebalanceModal, { type RebalanceChoice } from './RebalanceModal';
 import {
@@ -401,6 +402,7 @@ export default function Dashboard({
               appState={appState}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onUpdateProfileFull={onUpdateProfileFull}
+              onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
               onUndoCompleteDay={onUndoCompleteDay}
@@ -524,6 +526,7 @@ function DashboardTab({
   appState,
   onApplyTargetAdjustment,
   onUpdateProfileFull,
+  onApplyProgram,
   onApplyRebalance,
   onQuickCompleteDay,
   onUndoCompleteDay,
@@ -541,6 +544,7 @@ function DashboardTab({
 }: {
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
+  onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   appState: AppState;
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onQuickCompleteDay: (dayId: string, date?: string) => void;
@@ -569,6 +573,8 @@ function DashboardTab({
   const targetReached = targetProgress?.status === 'reached' && appState.profile.metrics.goal !== 'maintain';
   const [isDailyMealsOpen, setIsDailyMealsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
@@ -701,16 +707,20 @@ function DashboardTab({
         onUndoCompleteDay={onUndoCompleteDay}
       />
 
-      <CollapsibleCard title="תובנת השבוע ורצפים" icon={Sparkles}>
+      {isMobile ? (
+        <CollapsibleCard title="תובנת השבוע ורצפים" icon={Sparkles}>
+          <CoachInsightCard goal={profile.metrics.goal} weightLogs={weightLogs} workoutPlan={workoutPlan} progress={progress} />
+          <StreaksCard
+            weightLogs={weightLogs}
+            workoutPlan={workoutPlan}
+            progress={progress}
+            completedDates={completedDates}
+            trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
+          />
+        </CollapsibleCard>
+      ) : (
         <CoachInsightCard goal={profile.metrics.goal} weightLogs={weightLogs} workoutPlan={workoutPlan} progress={progress} />
-        <StreaksCard
-          weightLogs={weightLogs}
-          workoutPlan={workoutPlan}
-          progress={progress}
-          completedDates={completedDates}
-          trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
-        />
-      </CollapsibleCard>
+      )}
 
       {showPhotoReminder && progressPhotos.length > 0 && (
         <div className="glass-card flex items-center gap-3 border-orange-400/20 bg-orange-400/5 p-4">
@@ -719,6 +729,14 @@ function DashboardTab({
             עברו {latestPhotoDaysAgo} ימים מאז תמונת ההתקדמות האחרונה. זה הזמן לצלם עדכון בטאב "התקדמות".
           </p>
         </div>
+      )}
+
+      {!isMobile && (
+        <ProgramCard
+          splitType={workoutPlan.splitType}
+          daysPerWeek={profile.metrics.trainingDaysPerWeek}
+          onChangeProgram={() => setIsProgramModalOpen(true)}
+        />
       )}
 
       <WeeklyCalendarWidget
@@ -782,6 +800,15 @@ function DashboardTab({
           eaten={eatenToday}
           onOpenDailyMeals={() => setIsDailyMealsOpen(true)}
         />
+        {!isMobile && (
+          <StreaksCard
+            weightLogs={weightLogs}
+            workoutPlan={workoutPlan}
+            progress={progress}
+            completedDates={completedDates}
+            trainingDaysPerWeek={profile.metrics.trainingDaysPerWeek}
+          />
+        )}
       </div>
 
       <StepsTracker
@@ -841,6 +868,16 @@ function DashboardTab({
 
       {syncToast && <Toast message={syncToast} onDismiss={() => setSyncToast(null)} />}
 
+      {isProgramModalOpen && (
+        <ProgramSwitcherModal
+          isCustomPlan={!!workoutPlan.isCustom}
+          currentSplit={workoutPlan.splitType}
+          currentDays={profile.metrics.trainingDaysPerWeek}
+          location={profile.metrics.trainingLocation}
+          onApply={onApplyProgram}
+          onClose={() => setIsProgramModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1154,6 +1191,7 @@ function NutritionCard({
   eaten: DailyTotals;
   onOpenDailyMeals: () => void;
 }) {
+  const isMobile = useIsMobile();
   const targetCalories = targets.calories;
   const macros = targets.macros;
   const remainingCalories = targetCalories - eaten.calories;
@@ -1195,7 +1233,9 @@ function NutritionCard({
           <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
         </div>
         {targets.allowanceKcal > 0 && (
-          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">בסיס {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה מהשבוע)</p>
+          <p className="mt-1 text-[11px] font-semibold text-lime-700 dark:text-lime-400">
+            {isMobile ? 'בסיס' : 'יעד בסיס'} {(targets.calories - targets.allowanceKcal).toLocaleString('he-IL')} + {targets.allowanceKcal.toLocaleString('he-IL')} קק״ל מצעדים (כולל יתרה {isMobile ? 'מהשבוע' : 'שנשארה מימים קודמים השבוע'})
+          </p>
         )}
         {targets.reductionKcal > 0 && (
           <p className="mt-1 text-[11px] text-zinc-500">יעד מותאם השבוע: -{targets.reductionKcal} קק״ל (איזון שבועי)</p>
@@ -1332,6 +1372,7 @@ function WorkoutPlanTab({
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
 }) {
   const [view, setView] = useState<WorkoutView>(initialView);
+  const isMobile = useIsMobile();
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
@@ -1357,9 +1398,9 @@ function WorkoutPlanTab({
         ]}
       />
 
-      <ProgramCard splitType={workoutPlan.splitType} daysPerWeek={daysPerWeek} onChangeProgram={() => setIsProgramModalOpen(true)} />
+      {isMobile && <ProgramCard splitType={workoutPlan.splitType} daysPerWeek={daysPerWeek} onChangeProgram={() => setIsProgramModalOpen(true)} />}
 
-      {isProgramModalOpen && (
+      {isMobile && isProgramModalOpen && (
         <ProgramSwitcherModal
           isCustomPlan={!!workoutPlan.isCustom}
           currentSplit={workoutPlan.splitType}

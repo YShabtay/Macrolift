@@ -3,6 +3,7 @@ import { Check, Flag, Pencil, X } from 'lucide-react';
 import type { UserMetrics, WeightLog } from '../types/fitness';
 import { getCurrentWeight, getWeightTargetProgress, validateWeightTarget, type WeightTargetProgress } from '../utils/weightTarget';
 import { todayIso } from '../utils/weightCalculations';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface WeightTargetCardProps {
   weightLogs: WeightLog[];
@@ -25,6 +26,7 @@ function describeEta(eta: NonNullable<WeightTargetProgress['eta']>): string {
 /** Progress toward a target body weight, always on the weekly average. Reaching it (two weeks in a row at the target) offers a switch to maintenance. */
 export default function WeightTargetCard({ weightLogs, metrics, onSetTarget, onSwitchToMaintain, variant }: WeightTargetCardProps) {
   const today = todayIso();
+  const isMobile = useIsMobile();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const progress = useMemo(() => getWeightTargetProgress({ metrics, weightLogs, today }), [metrics, weightLogs, today]);
@@ -33,8 +35,8 @@ export default function WeightTargetCard({ weightLogs, metrics, onSetTarget, onS
   const draftValue = draft.trim() === '' ? null : Number(draft);
   const check = draftValue === null ? null : validateWeightTarget({ targetKg: draftValue, currentKg, heightCm: metrics.heightCm, goal: metrics.goal });
 
-  // On the home screen it only appears when there is something to decide (target reached, switch to maintenance); the progress tab always shows it.
-  if (variant === 'banner' && (!progress || progress.status !== 'reached' || metrics.goal === 'maintain')) return null;
+  // On a phone's home screen it only appears when there is something to decide (target reached, switch to maintenance); the progress tab always shows it, and a computer shows it on the home screen too.
+  if (variant === 'banner' && (isMobile ? !progress || progress.status !== 'reached' || metrics.goal === 'maintain' : !progress)) return null;
 
   function startEditing() {
     setDraft(progress ? String(progress.targetKg) : '');
