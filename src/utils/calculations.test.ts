@@ -100,16 +100,17 @@ describe('calculatePreciseNutrition', () => {
     expect(result.targetCalories).toBe(2797);
   });
 
-  it('plans a surplus as a range around the estimate plus the surplus, and starts at its LOW end, which is still a real surplus over the estimate', () => {
+  it('sets a surplus goal\'s daily target to the estimate plus the surplus, with half the band either side kept as the range to adjust within', () => {
     // tdee 2,797 with an 8% band: half a band is 112 either side.
     const lean = calculatePreciseNutrition({ ...man, goal: 'lean_bulk' });
-    expect(lean.targetCalories).toBe(2797 + 220 - 112);
+    expect(lean.targetCalories).toBe(2797 + 220); // the planned surplus on the estimate: never "almost maintenance"
     expect(lean.targetMin).toBe(2797 + 220 - 112);
     expect(lean.targetMax).toBe(2797 + 220 + 112);
-    expect(lean.targetMin - lean.tdee).toBeGreaterThan(100); // never "almost maintenance" at the start
+    expect(lean.targetCalories - lean.tdee).toBe(220);
     expect(lean.intendedOffsetKcal).toBe(220);
     const bulk = calculatePreciseNutrition({ ...man, goal: 'bulk' });
-    expect(bulk.targetCalories).toBe(2797 + 400 - 112);
+    expect(bulk.targetCalories).toBe(2797 + 400);
+    expect(bulk.targetMin).toBe(2797 + 400 - 112);
     expect(bulk.targetMax).toBe(2797 + 400 + 112);
   });
 
@@ -166,6 +167,7 @@ describe('calculatePreciseNutrition', () => {
     const calibrated = calculatePreciseNutrition({ ...man, goal: 'lean_bulk', tdeeAdjustmentKcal: -150 });
     expect(calibrated.formulaTdee).toBe(2797);
     expect(calibrated.tdee).toBe(2647);
+    expect(calibrated.targetCalories).toBe(2647 + 220);
     expect(calibrated.targetMax).toBe(2647 + 220 + 53); // a calibrated estimate has a narrower band: 53 either side
   });
 
@@ -192,9 +194,9 @@ describe('calculateNutritionPlan', () => {
     const plan = calculateNutritionPlan({ ...metrics, age: 29, heightCm: 170, weightKg: 69, averageDailySteps: 4500, goal: 'gain_muscle', goalIntensity: 'moderate' });
     expect(plan.bmr).toBe(1613);
     expect(plan.tdee).toBe(2383);
-    expect(plan.targetCalories).toBe(2508); // starts at the low end: the estimate plus 220, less half the band (95)
-    expect(plan.targetMin).toBe(2508);
-    expect(plan.targetMax).toBe(2698); // the estimate plus 220, plus half the band
+    expect(plan.targetCalories).toBe(2603); // the estimate plus the planned 220
+    expect(plan.targetMin).toBe(2508); // less half the band (95)
+    expect(plan.targetMax).toBe(2698); // plus half the band
     expect(plan.intendedOffsetKcal).toBe(220);
   });
 

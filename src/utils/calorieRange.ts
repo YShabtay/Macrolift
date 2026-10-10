@@ -3,7 +3,7 @@ import type { NutritionPlan } from '../types/fitness';
 export interface CalorieRange {
   min: number;
   max: number;
-  /** Which end the target starts at: 'low' for a surplus goal, 'high' for a deficit goal, 'middle' for maintenance and recomposition. */
+  /** Where the target sits in the range: 'high' for a deficit goal (it starts at the safe, high end), 'middle' for a surplus, maintenance and recomposition. */
   start: 'low' | 'high' | 'middle';
 }
 
@@ -11,7 +11,8 @@ export interface CalorieRange {
 export function getCalorieRange(plan: NutritionPlan): CalorieRange | null {
   if (plan.targetMin === undefined || plan.targetMax === undefined || plan.targetMax <= plan.targetMin) return null;
   const offset = plan.intendedOffsetKcal ?? 0;
-  return { min: plan.targetMin, max: plan.targetMax, start: offset > 50 ? 'low' : offset < -50 ? 'high' : 'middle' };
+  const atLowEdge = Math.abs(plan.targetCalories - plan.targetMin) <= 1;
+  return { min: plan.targetMin, max: plan.targetMax, start: offset < -50 ? 'high' : offset > 50 && atLowEdge ? 'low' : 'middle' };
 }
 
 /** One short line for a card: the range and where the user starts in it. */

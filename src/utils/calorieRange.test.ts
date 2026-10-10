@@ -5,8 +5,9 @@ import { describeRangeShort, getCalorieRange } from './calorieRange';
 const plan = (over: Partial<NutritionPlan>): NutritionPlan => ({ bmr: 1613, tdee: 2383, targetCalories: 2412, macros: { proteinG: 138, fatG: 62, carbsG: 300 }, calorieDeficitOrSurplus: 29, ...over });
 
 describe('getCalorieRange', () => {
-  it('starts a surplus plan at the low end, a deficit plan at the high end and maintenance in the middle', () => {
-    expect(getCalorieRange(plan({ targetMin: 2412, targetMax: 2603, intendedOffsetKcal: 220 }))?.start).toBe('low');
+  it('puts a surplus plan in the middle of its range (the target is the planned surplus), a deficit plan at the high end and maintenance in the middle', () => {
+    expect(getCalorieRange(plan({ targetCalories: 2603, targetMin: 2508, targetMax: 2698, intendedOffsetKcal: 220 }))?.start).toBe('middle');
+    expect(getCalorieRange(plan({ targetCalories: 2508, targetMin: 2508, targetMax: 2698, intendedOffsetKcal: 220 }))?.start).toBe('low'); // a target moved to the low end by hand
     expect(getCalorieRange(plan({ targetMin: 1983, targetMax: 2174, intendedOffsetKcal: -400 }))?.start).toBe('high');
     expect(getCalorieRange(plan({ targetMin: 2290, targetMax: 2480, intendedOffsetKcal: 0 }))?.start).toBe('middle');
   });
