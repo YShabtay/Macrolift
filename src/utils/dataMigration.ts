@@ -225,6 +225,9 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   else delete state.stepGoalMode;
   if (raw.stepMode === 'balance_steps' || raw.stepMode === 'add_calories') state.stepMode = raw.stepMode;
   else delete state.stepMode;
+  const closedDays = Array.isArray(raw.closedFoodDays) ? raw.closedFoodDays.filter(isIsoDate).slice(-31) : [];
+  if (closedDays.length > 0) state.closedFoodDays = closedDays;
+  else delete state.closedFoodDays;
   const phases = sanitizePhases(raw.phases);
   if (phases) state.phases = phases;
   else delete state.phases;

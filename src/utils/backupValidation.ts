@@ -316,6 +316,10 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (candidate.stepGoalMode === 'weekly' || candidate.stepGoalMode === 'daily') state.stepGoalMode = candidate.stepGoalMode;
   if (candidate.stepMode === 'balance_steps' || candidate.stepMode === 'add_calories') state.stepMode = candidate.stepMode;
+  if (Array.isArray(candidate.closedFoodDays)) {
+    const closedDays = candidate.closedFoodDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-31);
+    if (closedDays.length > 0) state.closedFoodDays = closedDays;
+  }
   const phases = sanitizePhases(candidate.phases);
   if (phases) state.phases = phases;
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];

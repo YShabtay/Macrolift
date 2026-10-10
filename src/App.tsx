@@ -598,6 +598,16 @@ export default function App() {
     });
   }
 
+  /** Marks a day as done eating (its unspent target then counts as saved) or opens it again. Only the latest month is kept. */
+  function handleSetFoodDayClosed(date: string, closed: boolean) {
+    setAppState((prev) => {
+      if (!prev) return prev;
+      const rest = (prev.closedFoodDays ?? []).filter((d) => d !== date);
+      const next = closed ? [...rest, date].slice(-31) : rest;
+      return { ...prev, closedFoodDays: next.length > 0 ? next : undefined };
+    });
+  }
+
   /** Saves the periods (cut, bulk...) the user edited on the progress screen. */
   function handleSavePhases(phases: GoalPhase[]) {
     setAppState((prev) => (prev ? { ...prev, phases } : prev));
@@ -747,6 +757,7 @@ export default function App() {
         onApplyRebalance={handleApplyRebalance}
         onUpdateProfileFull={handleUpdateProfileFull}
         onSavePhases={handleSavePhases}
+        onSetFoodDayClosed={handleSetFoodDayClosed}
         onImportAppState={handleImportAppState}
         onSaveStepMode={handleSaveStepMode}
         onClearStepRebalance={handleClearStepRebalance}

@@ -407,6 +407,11 @@ export interface AppState {
    */
   phases?: GoalPhase[];
   /**
+   * Days the person marked as "done eating": what was not eaten of that day's target counts as saved against the week's overshoot at once, instead of only after
+   * midnight (an open day's unspent target is not a saving yet, since more may still be eaten).
+   */
+  closedFoodDays?: string[];
+  /**
    * Dates the user marked a workout as done (quick-complete from the home screen). Kept in addition to the per-set `progress`
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).
    */

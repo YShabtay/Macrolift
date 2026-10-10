@@ -74,6 +74,8 @@ interface FoodTrackerProps {
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   /** Opens the screen where an overshoot can be rebalanced. */
   onOpenRebalance: () => void;
+  /** Days the person marked as done eating (their unspent target counts as saved in the week's overshoot). */
+  closedFoodDays?: string[];
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   favoriteFoods: FavoriteFood[];
   savedMeals: SavedMeal[];
@@ -96,7 +98,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const isMobile = useIsMobile();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
@@ -140,8 +142,8 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
   // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
   const coverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate }),
-    [selectedDate, foodLog, nutritionPlan, weeklyBalance],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate, todayClosed: (closedFoodDays ?? []).includes(selectedDate) }),
+    [selectedDate, foodLog, nutritionPlan, weeklyBalance, closedFoodDays],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
 

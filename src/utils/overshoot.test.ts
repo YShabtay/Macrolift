@@ -100,3 +100,41 @@ describe('getWeekBreakdown', () => {
     expect(rows).toEqual([{ date: '2026-10-05', eatenKcal: 2500, targetKcal: 2500, diffKcal: 0, isToday: false }]);
   });
 });
+
+describe('marking the day as done eating', () => {
+  // Sunday to Tuesday: 2,400 / 2,800 / 2,500 eaten against 2,400 a day = +500 before Wednesday; Wednesday (today) has eaten 2,100 so far.
+  const week = [meal('2026-10-04', 2400), meal('2026-10-05', 2800), meal('2026-10-06', 2500), meal('2026-10-07', 2100)];
+  const open = coverage(week, '2026-10-07');
+  const closed = getOvershootCoverage({ foodLog: week, plan: PLAN, adjustment: undefined, today: '2026-10-07', todayClosed: true });
+
+  it('keeps the unspent part of an open day out of the count, and says what closing it would save', () => {
+    expect(open.weekOverSoFarKcal).toBe(500);
+    expect(open.closableKcal).toBe(300);
+    expect(open.isDayClosed).toBe(false);
+  });
+
+  it('counts what was not eaten as saved once the day is closed, the same as it will count after midnight', () => {
+    expect(closed.weekOverSoFarKcal).toBe(200);
+    expect(closed.isDayClosed).toBe(true);
+    const tomorrow = coverage(week, '2026-10-08'); // Wednesday is now a day before today
+    expect(tomorrow.weekOverSoFarKcal).toBe(closed.weekOverSoFarKcal);
+  });
+
+  it('a closed day that went over the target counts its overshoot, just like an open one', () => {
+    const over = [...week.slice(0, 3), meal('2026-10-07', 2700)];
+    const asOpen = coverage(over, '2026-10-07');
+    const asClosed = getOvershootCoverage({ foodLog: over, plan: PLAN, adjustment: undefined, today: '2026-10-07', todayClosed: true });
+    expect(asClosed.weekOverSoFarKcal).toBe(asOpen.weekOverSoFarKcal);
+    expect(asClosed.closableKcal).toBe(0);
+  });
+
+  it('does not credit the step calories the day left unspent: they roll to tomorrow', () => {
+    // Calorie mode: today's target holds 100 step calories (base 2,400, target 2,500). 2,350 eaten is 50 under the BASE target: only that is saved.
+    const adjustment = { weekStart: '2026-10-04', stepAllowance: { '2026-10-07': 100 } };
+    const food = [meal('2026-10-07', 2350)];
+    const c = getOvershootCoverage({ foodLog: food, plan: PLAN, adjustment, today: '2026-10-07', todayClosed: true });
+    expect(c.weekOverSoFarKcal).toBe(-50);
+    expect(c.unspentBankKcal).toBe(100);
+  });
+});
+

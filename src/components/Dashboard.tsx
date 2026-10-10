@@ -201,6 +201,7 @@ interface DashboardProps {
   onApplyRebalance: (choice: RebalanceChoice) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onSavePhases: (phases: GoalPhase[]) => void;
+  onSetFoodDayClosed: (date: string, closed: boolean) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onSaveStepMode: (mode: StepMode) => void;
   onClearStepRebalance: () => void;
@@ -321,6 +322,7 @@ export default function Dashboard({
   onApplyRebalance,
   onUpdateProfileFull,
   onSavePhases,
+  onSetFoodDayClosed,
   onImportAppState,
   onSaveStepMode,
   onClearStepRebalance,
@@ -411,6 +413,7 @@ export default function Dashboard({
               appState={appState}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onUpdateProfileFull={onUpdateProfileFull}
+              onSetFoodDayClosed={onSetFoodDayClosed}
               onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
@@ -451,6 +454,7 @@ export default function Dashboard({
           )}
           {tab === 'nutrition' && (
             <FoodTracker
+              closedFoodDays={appState.closedFoodDays}
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
               weeklyBalance={effectiveWeeklyBalance}
@@ -469,7 +473,7 @@ export default function Dashboard({
             />
           )}
           {tab === 'nutrition' && (
-            <RebalanceHost isOpen={isFoodRebalanceOpen} appState={appState} weeklyBalance={effectiveWeeklyBalance} onApply={onApplyRebalance} onClose={() => setIsFoodRebalanceOpen(false)} />
+            <RebalanceHost isOpen={isFoodRebalanceOpen} appState={appState} weeklyBalance={effectiveWeeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onClose={() => setIsFoodRebalanceOpen(false)} />
           )}
           {tab === 'progress' && (
             <ProgressTab
@@ -540,6 +544,7 @@ function DashboardTab({
   onApplyTargetAdjustment,
   onUpdateProfileFull,
   onApplyProgram,
+  onSetFoodDayClosed,
   onApplyRebalance,
   onQuickCompleteDay,
   onUndoCompleteDay,
@@ -557,6 +562,7 @@ function DashboardTab({
 }: {
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
+  onSetFoodDayClosed: (date: string, closed: boolean) => void;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   appState: AppState;
   onApplyRebalance: (choice: RebalanceChoice) => void;
@@ -610,8 +616,8 @@ function DashboardTab({
   const todayTargets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, today), [nutritionPlan, weeklyBalance, today]);
   // Any surplus at all (even a few kcal over) offers the rebalance options, and it stays available after a choice so it can be revisited.
   const overshootCoverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: today }),
-    [foodLog, nutritionPlan, weeklyBalance, today],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: today, todayClosed: (appState.closedFoodDays ?? []).includes(today) }),
+    [foodLog, nutritionPlan, weeklyBalance, today, appState.closedFoodDays],
   );
   // An overshoot that the week's steps or its calorie balance already cover needs no action, so it is shown as covered and no rebalance is offered.
   // The rebalance is offered for the week's overshoot so far - earlier days included - not only when today is over, and stays available once chosen.
@@ -854,7 +860,7 @@ function DashboardTab({
         />
       )}
 
-      <RebalanceHost isOpen={isRebalanceOpen} appState={appState} weeklyBalance={weeklyBalance} onApply={onApplyRebalance} onClose={() => setIsRebalanceOpen(false)} />
+      <RebalanceHost isOpen={isRebalanceOpen} appState={appState} weeklyBalance={weeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onClose={() => setIsRebalanceOpen(false)} />
 
       {isProgramModalOpen && (
         <ProgramSwitcherModal
@@ -879,10 +885,13 @@ function RebalanceHost({
   appState,
   weeklyBalance,
   onApply,
+  onSetDayClosed,
   onClose,
 }: {
   isOpen: boolean;
   appState: AppState;
+  /** Marks today as done eating (its unspent target then counts as saved), or opens it again. */
+  onSetDayClosed: (date: string, closed: boolean) => void;
   /** The adjustment with the step mode applied (what every calorie screen reads). */
   weeklyBalance: WeeklyBalanceAdjustment | undefined;
   onApply: (choice: RebalanceChoice) => void;
@@ -891,7 +900,8 @@ function RebalanceHost({
   const today = useToday();
   const [toast, setToast] = useState<string | null>(null);
   const { foodLog, nutritionPlan } = appState;
-  const coverage = useMemo(() => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }), [foodLog, nutritionPlan, weeklyBalance, today]);
+  const todayClosed = (appState.closedFoodDays ?? []).includes(today);
+  const coverage = useMemo(() => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today, todayClosed }), [foodLog, nutritionPlan, weeklyBalance, today, todayClosed]);
   const weekDays = useMemo(() => (isOpen ? getWeekBreakdown({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []), [isOpen, foodLog, nutritionPlan, weeklyBalance, today]);
   const options = useMemo(() => (isOpen ? buildRebalanceOptions(getRebalanceDebtKcal(coverage), nutritionPlan, today) : null), [isOpen, coverage, nutritionPlan, today]);
   return (
@@ -903,6 +913,7 @@ function RebalanceHost({
           weekDays={weekDays}
           canWalkMore={getStepMode(appState) === 'balance_steps'}
           baseStepGoal={getBaseStepGoal(appState)}
+          onToggleDayClosed={() => onSetDayClosed(today, !todayClosed)}
           onChoose={(choice) => {
             onApply(choice);
             if (choice.kind !== 'keep') setToast('היעדים עודכנו וסונכרנו בהצלחה!');
