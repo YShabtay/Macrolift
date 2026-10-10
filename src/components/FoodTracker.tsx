@@ -13,6 +13,7 @@ import {
   Cookie,
   Copy,
   Droplet,
+  List,
   Mic,
   Moon,
   Pencil,
@@ -41,6 +42,7 @@ import BalancedRing from './BalancedRing';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import HeroCarousel from './HeroCarousel';
 import MealScanModal from './MealScanModal';
+import DailyMealsModal from './DailyMealsModal';
 import { QUICK_FOODS } from '../data/commonFoods';
 import { FoodSearch, ServingPanel } from './FoodSearch';
 import PhotoSourceSheet from './PhotoSourceSheet';
@@ -107,6 +109,7 @@ export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, we
   // staying on yesterday, which would be judged as a finished day.
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const selectedDate = pickedDate ?? today;
+  const [isMealsOpen, setIsMealsOpen] = useState(false);
   const setSelectedDate = (next: string | ((current: string) => string)) => {
     const date = typeof next === 'function' ? next(selectedDate) : next;
     setPickedDate(date >= today ? null : date);
@@ -224,7 +227,16 @@ export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, we
           <CalorieAdjustControl metrics={metrics} onApply={onApplyTargetAdjustment} />
         </div>
       )}
-      <SummaryCard targetCalories={targets.calories} targetMacros={targets.macros} eaten={eaten} remaining={remaining} covered={isCovered} />
+      <SummaryCard
+        targetCalories={targets.calories}
+        targetMacros={targets.macros}
+        eaten={eaten}
+        remaining={remaining}
+        covered={isCovered}
+        onOpenMeals={() => setIsMealsOpen(true)}
+        mealsLabel={isToday ? 'פירוט ארוחות היום 📝' : 'פירוט הארוחות של היום שנבחר 📝'}
+      />
+      {isMealsOpen && <DailyMealsModal entries={entriesForDate} onUpdate={onUpdateFood} onDelete={onDeleteFood} onClose={() => setIsMealsOpen(false)} />}
 
       {isCovered && coverage && (
         <p className="rounded-xl border border-lime-400/30 bg-lime-400/5 px-4 py-3 text-xs font-semibold leading-relaxed text-lime-700 dark:text-lime-400">
@@ -359,7 +371,11 @@ function SummaryCard({
   eaten,
   remaining,
   covered,
+  onOpenMeals,
+  mealsLabel,
 }: {
+  onOpenMeals: () => void;
+  mealsLabel: string;
   targetCalories: number;
   targetMacros: { proteinG: number; fatG: number; carbsG: number };
   eaten: { calories: number; proteinG: number; fatG: number; carbsG: number };
@@ -395,6 +411,14 @@ function SummaryCard({
           remainingG={remaining.carbsG}
           calm={covered}
         />
+        <button
+          type="button"
+          onClick={onOpenMeals}
+          className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:border-lime-400/50 hover:text-lime-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-lime-400"
+        >
+          <List className="h-3.5 w-3.5" />
+          {mealsLabel}
+        </button>
       </div>
     </div>
   );
