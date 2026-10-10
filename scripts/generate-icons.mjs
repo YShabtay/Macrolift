@@ -17,21 +17,21 @@ const GLYPH_PATHS = [
 
 function dumbbellGlyph(scale) {
   const paths = GLYPH_PATHS.map((d) => `<path d="${d}" />`).join('');
-  return `<g transform="translate(256 256) scale(${scale}) translate(-12 -12)" fill="none" stroke="${LIME}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
+  return `<g transform="translate(256 256) scale(${scale}) translate(-12 -12)" fill="none" stroke="${DARK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
 }
 
-// "any" icon: a gently rounded dark square with the lime glyph. Dark with a lime mark rather than the other way round: iOS darkens a light icon in its dark
-// appearance, which turned a lime tile black and hid a dark mark.
+// "any" icon: a gently rounded lime square with the dark glyph, the same as the logo inside the app. (iOS may darken a light icon when the device is in its dark
+// appearance; that is the system's choice for web apps.)
 const anySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="${DARK}" />
+  <rect width="512" height="512" rx="96" fill="${LIME}" />
   ${dumbbellGlyph(17)}
 </svg>`;
 
 // "maskable" icon (and the iOS home-screen icon): full-bleed background, the glyph kept inside the safe zone (~center 80%).
 const maskableSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="${DARK}" />
+  <rect width="512" height="512" fill="${LIME}" />
   ${dumbbellGlyph(14)}
 </svg>`;
 
