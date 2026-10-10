@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronLeft, ChevronRight, Dumbbell, Edit3, Moon, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Edit3, Moon, RotateCcw, X } from 'lucide-react';
+import Dumbbell from './DumbbellIcon';
 import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry } from '../types/fitness';
 import {
   buildMonthGrid,

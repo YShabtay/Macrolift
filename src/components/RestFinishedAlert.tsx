@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Dumbbell } from 'lucide-react';
+import Dumbbell from './DumbbellIcon';
 import { REST_TIMER_FINISHED_EVENT } from '../utils/restTimerAlert';
 
 const TOAST_MS = 4500;

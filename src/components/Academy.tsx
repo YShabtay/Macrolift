@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   Clock,
-  Dumbbell,
   Layers,
   Lightbulb,
   Moon,
@@ -13,6 +12,7 @@ import {
   UtensilsCrossed,
   ExternalLink,
 } from 'lucide-react';
+import Dumbbell from './DumbbellIcon';
 import { EVIDENCE_LABELS, GUIDE_ARTICLES, type EvidenceLevel, type GuideArticle, type GuideCategory } from '../data/guideArticles';
 
 /** Renders "**bold**" segments as <strong>, everything else as plain text. */

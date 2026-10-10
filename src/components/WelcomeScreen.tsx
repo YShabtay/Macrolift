@@ -50,7 +50,7 @@ export default function WelcomeScreen({
 
       <div className="relative flex flex-1 flex-col md:mx-auto md:w-full md:max-w-lg md:justify-center md:gap-10 md:px-8">
       <header className="relative flex items-center gap-2.5 px-6 pt-[max(env(safe-area-inset-top),1.5rem)] md:px-0 md:pt-0">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-400 text-zinc-950 shadow-lg">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-lime-400 ring-1 ring-lime-400/40 shadow-lg">
           <LogoMark className="h-5 w-5" />
         </span>
         <span className="font-display text-xl tracking-tight">MacroLift</span>

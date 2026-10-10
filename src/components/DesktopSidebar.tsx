@@ -171,7 +171,7 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
             title="למסך הבית"
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-right"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-950 text-lime-400 ring-1 ring-lime-400/40">
               <LogoMark className="h-5 w-5" />
             </span>
             <span className={`flex-1 whitespace-nowrap text-xl font-extrabold tracking-tight transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>

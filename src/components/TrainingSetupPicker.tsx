@@ -1,4 +1,5 @@
-import { Dumbbell, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
+import Dumbbell from './DumbbellIcon';
 import type { ExerciseDifficulty, HomeEquipment, TrainingLocation } from '../types/fitness';
 
 interface TrainingSetupValue {

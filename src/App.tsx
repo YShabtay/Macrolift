@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { Dumbbell } from 'lucide-react';
+import Dumbbell from './components/DumbbellIcon';
 import Auth from './components/Auth';
 import { clearSession, getSessionUserId } from './utils/authStorage';
 const Onboarding = lazy(() => import('./components/Onboarding'));
