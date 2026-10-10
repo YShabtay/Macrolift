@@ -557,6 +557,9 @@ function StepMetrics({
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            האפליקציה מיועדת לבוגרים בריאים. היא לא מתאימה להריון, להנקה או למצבים רפואיים: במקרים כאלה יש להיוועץ ברופא או בדיאטן.
+          </p>
         </div>
 
         <NumberField

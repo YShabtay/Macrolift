@@ -164,7 +164,7 @@ npm test
 
 | Area | What is verified |
 | --- | --- |
-| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, TDEE as everyday life + walking above the baseline + training (every step beyond 4,000 and every session counts), plus a one-time recalculation when the model changes, every goal's calorie offset, the "never below BMR" floor, macro split that adds back to the target |
+| Nutrition model (`calculations`) | Mifflin-St Jeor for both genders, TDEE as everyday life + walking above the baseline + training (every step beyond 4,000 and every session counts), plus a one-time recalculation when the model changes, every goal's calorie offset, the "never below BMR" floor and no cut deeper than 25% of TDEE, the same protein for both sexes, macro split that adds back to the target |
 | Weekly balance (`weeklyBalance`) | Rebalancing a one-time overshoot across the remaining days, the safe-reduction cap, calories-to-steps conversion and step credits, the last day of the week |
 | Training volume (`planVolume`) | Set-range classification, and that **every built-in program** keeps chest, back, quads and hamstrings in the 12-16 weekly-set range |
 | Weight trend (`weightCalculations`, `coachInsights`) | Sunday-start weeks across month/year/DST boundaries, weekly averages, and the coach refusing to judge a week with too few weigh-ins |

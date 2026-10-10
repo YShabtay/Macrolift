@@ -75,8 +75,8 @@ describe('calculateMacros', () => {
     expect(calculateMacros(2800, 80, 'male')).toEqual({ proteinG: 160, fatG: 72, carbsG: 378 });
   });
 
-  it('uses 1.8 g/kg protein and 1.0 g/kg fat for women', () => {
-    expect(calculateMacros(2000, 60, 'female')).toEqual({ proteinG: 108, fatG: 60, carbsG: 257 });
+  it('uses the same 2.0 g/kg protein for women and 1.0 g/kg fat', () => {
+    expect(calculateMacros(2000, 60, 'female')).toEqual({ proteinG: 120, fatG: 60, carbsG: 245 });
   });
 
   it('never returns negative carbs when calories are too low for the protein and fat minimums', () => {
@@ -150,8 +150,9 @@ describe('calculatePreciseNutrition', () => {
     expect(cut.targetCalories).toBe(1778 - 400); // high end 1,778 - 400, still above BMR
     expect(cut.targetMin).toBe(1646 - 400);
     const hard = calculatePreciseNutrition({ ...smallWoman, goal: 'aggressive_cut' });
-    expect(hard.targetCalories).toBe(1778 - 550);
-    expect(hard.targetMin).toBe(bmr); // 1,646 - 550 would be below it
+    expect(hard.targetCalories).toBe(Math.round(1646 * 0.75)); // 1,778 - 550 would be a deeper cut than 25% of her TDEE
+    expect(hard.targetMin).toBe(Math.round(1646 * 0.75)); // and 1,646 - 550 is both below that and close to her BMR (1,139)
+    expect(hard.targetMin).toBeGreaterThan(bmr);
   });
 
   it('narrows the range once the TDEE has been corrected against the user\'s own weight trend', () => {

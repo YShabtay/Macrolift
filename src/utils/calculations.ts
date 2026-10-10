@@ -90,11 +90,11 @@ const KCAL_PER_G_FAT = 9;
 const KCAL_PER_G_CARBS = 4;
 
 /**
- * Gender-aware split: protein 2.0 g/kg for men, 1.8 g/kg for women; fat 0.9 g/kg for men and 1.0 g/kg for women (hormonal
- * balance matters most for women); carbohydrates take all the remaining calories (never negative).
+ * Protein is 2.0 g/kg for everyone: the recommendations for people who train (1.6-2.2 g/kg) do not differ by sex. Fat is 0.9 g/kg for men and
+ * 1.0 g/kg for women (hormonal balance matters most for women); carbohydrates take all the remaining calories (never negative).
  */
 export function calculateMacros(targetCalories: number, weightKg: number, gender: Gender): MacroGrams {
-  const proteinG = Math.round(weightKg * (gender === 'male' ? 2.0 : 1.8));
+  const proteinG = Math.round(weightKg * 2.0);
   const fatG = Math.round(weightKg * (gender === 'female' ? 1.0 : 0.9));
   const remainingKcal = targetCalories - proteinG * KCAL_PER_G_PROTEIN - fatG * KCAL_PER_G_FAT;
   const carbsG = Math.max(0, Math.round(remainingKcal / KCAL_PER_G_CARBS));
@@ -110,12 +110,15 @@ export type CalorieGoal = 'lean_bulk' | 'bulk' | 'maintenance' | 'cut' | 'aggres
 /** Slight deficit for body recomposition, as a fraction of TDEE (never below BMR). */
 const RECOMP_DEFICIT_FRACTION = 0.05;
 
+/** A cut never goes deeper than this share of TDEE: -550 kcal is mild for a large man and a third of a small woman's intake. */
+const MAX_DEFICIT_FRACTION = 0.25;
+
 /**
  * BMR (Mifflin-St Jeor, by gender) -> TDEE (daily life + walking + training, plus the user's personal calibration) -> goal calories -> gender-aware macros.
  *  lean_bulk: TDEE + 220 (a stable 200-250 kcal; 120 is lost in NEAT swings and food-label error)
  *  bulk: TDEE + 400
  *  maintenance: TDEE
- *  cut: TDEE - 400, aggressive_cut: TDEE - 550 - both never below BMR
+ *  cut: TDEE - 400, aggressive_cut: TDEE - 550 - both never below BMR and never deeper than 25% of TDEE
  *  recomp: TDEE - 5%, never below BMR
  */
 export function calculatePreciseNutrition(params: {
@@ -157,8 +160,9 @@ export function calculatePreciseNutrition(params: {
     targetMax = tdee + intendedOffsetKcal;
   } else if (goal === 'cut' || goal === 'aggressive_cut') {
     intendedOffsetKcal = goal === 'cut' ? -400 : -550;
-    targetCalories = Math.max(tdeeHigh + intendedOffsetKcal, floor);
-    targetMin = Math.max(tdee + intendedOffsetKcal, floor);
+    const cutFloor = Math.max(floor, Math.round(tdee * (1 - MAX_DEFICIT_FRACTION)));
+    targetCalories = Math.max(tdeeHigh + intendedOffsetKcal, cutFloor);
+    targetMin = Math.max(tdee + intendedOffsetKcal, cutFloor);
     targetMax = targetCalories;
   } else if (goal === 'recomp') {
     const center = Math.max(Math.round(tdee * (1 - RECOMP_DEFICIT_FRACTION)), floor);
