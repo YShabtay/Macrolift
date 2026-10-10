@@ -2,6 +2,7 @@ import type {
   AppState,
   DayWorkout,
   FoodEntry,
+  GoalPhase,
   NutritionPlan,
   ProgressPhoto,
   SetProgressEntry,
@@ -101,21 +102,54 @@ export function buildDemoMetrics(): UserMetrics {
   };
 }
 
-/** 8 weeks of weigh-ins showing a gentle, realistic lean-bulk upward trend ending at today's weight. */
-function buildDemoWeightLogs(endWeight: number): WeightLog[] {
-  const totalDays = 56;
-  const startWeight = round1(endWeight - 1.6);
-  const logs: WeightLog[] = [];
+/** The demo person's story: a cut until mid-March (the first progress photo), then a lean bulk that is still going. */
+const DEMO_CUT_START = '2025-12-01';
+const DEMO_BULK_START = '2026-03-15';
+const DEMO_CUT_START_WEIGHT_KG = 72;
 
-  for (let d = totalDays; d >= 3; d -= 3) {
-    const progress = 1 - d / totalDays;
+/** Weigh-ins every 3 days from `from` to `to`, moving evenly from `fromKg` to `toKg` with a little day-to-day noise. */
+function weighInsBetween(from: string, to: string, fromKg: number, toKg: number, idPrefix: string): WeightLog[] {
+  const logs: WeightLog[] = [];
+  const total = Math.max(daysBetweenDates(from, to), 1);
+  for (let offset = 0, i = 0; offset <= total; offset += 3, i += 1) {
+    const date = addDaysIso(from, offset);
+    const trend = fromKg + (toKg - fromKg) * (offset / total);
+    logs.push({ id: `${idPrefix}-${date}`, date, weightKg: round1(trend + Math.sin(i * 1.7) * 0.25) });
+  }
+  return logs;
+}
+
+function daysBetweenDates(from: string, to: string): number {
+  return Math.round((parseIsoDate(to).getTime() - parseIsoDate(from).getTime()) / 86_400_000);
+}
+
+/**
+ * Weigh-ins for the whole story: the cut (72 -> 66.5 kg), a slow start of the bulk, and the last 8 weeks of a steady lean-bulk climb ending at today's weight.
+ * The periods are exported by `buildDemoPhases`.
+ */
+export function buildDemoWeightLogs(endWeight: number, today: string = todayIso()): WeightLog[] {
+  const recentStart = addDaysIso(today, -56);
+  const startWeight = round1(endWeight - 1.6);
+  const logs: WeightLog[] = [
+    ...weighInsBetween(DEMO_CUT_START, addDaysIso(DEMO_BULK_START, -1), DEMO_CUT_START_WEIGHT_KG, 66.5, 'demo-cut'),
+    ...weighInsBetween(addDaysIso(DEMO_BULK_START, 2), addDaysIso(recentStart, -3), 66.5, startWeight, 'demo-bulk'),
+  ];
+  for (let d = 56; d >= 3; d -= 3) {
+    const progress = 1 - d / 56;
     const trend = startWeight + (endWeight - startWeight) * progress;
     const noise = Math.sin(d * 1.7) * 0.25;
-    logs.push({ id: `demo-weight-${d}`, date: daysAgoIso(d), weightKg: round1(trend + noise) });
+    logs.push({ id: `demo-weight-${d}`, date: addDaysIso(today, -d), weightKg: round1(trend + noise) });
   }
-
-  logs.push({ id: 'demo-weight-today', date: todayIso(), weightKg: endWeight });
+  logs.push({ id: 'demo-weight-today', date: today, weightKg: endWeight });
   return logs;
+}
+
+/** The two periods of the demo story: the cut that ended the day before the first photo, and the bulk that is still going. */
+export function buildDemoPhases(): GoalPhase[] {
+  return [
+    { id: 'demo-phase-cut', goal: 'lose_weight', startDate: DEMO_CUT_START, endDate: addDaysIso(DEMO_BULK_START, -1) },
+    { id: 'demo-phase-bulk', goal: 'gain_muscle', startDate: DEMO_BULK_START },
+  ];
 }
 
 /** Steps above (+) and below (-) the daily goal for each weekday, Sunday first: a week with long days and short ones, so the step chart shows both. */
@@ -258,7 +292,7 @@ export async function buildDemoAppState(): Promise<AppState> {
   const profile: UserProfile = {
     id: DEMO_USER_ID,
     name: 'משתמש דמו',
-    createdAt: `${daysAgoIso(56)}T08:00:00.000Z`,
+    createdAt: `${DEMO_CUT_START}T08:00:00.000Z`,
     metrics,
   };
 
@@ -300,6 +334,7 @@ export async function buildDemoAppState(): Promise<AppState> {
     stepLogs: buildDemoStepLogs(metrics.averageDailySteps),
     // The calorie bank is the interesting mode to look at: steps above the goal become calories, short days take them off.
     stepMode: 'add_calories',
+    phases: buildDemoPhases(),
     circumferenceLogs: [],
     circumferenceGoals: {},
   };

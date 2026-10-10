@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calculateNutritionPlan } from './calculations';
-import { buildDemoMetrics, buildDemoStepLogs, buildDemoWeekFoodLog } from './demoData';
+import { buildDemoMetrics, buildDemoPhases, buildDemoStepLogs, buildDemoWeekFoodLog, buildDemoWeightLogs } from './demoData';
+import { filterLogsToPhase, getPhaseStats, validatePhases } from './phases';
 import { getOvershootCoverage, shouldOfferRebalance } from './overshoot';
 import { stepNetKcal, withStepMode } from './weeklySteps';
 
@@ -37,3 +38,30 @@ describe('demo data for the steps and calories screens', () => {
     expect(coverage.unspentBankKcal).toBeGreaterThan(0); // today's good step day leaves a bank
   });
 });
+
+describe('demo data for the progress periods', () => {
+  const TODAY = '2026-10-10';
+  const phases = buildDemoPhases();
+  const logs = buildDemoWeightLogs(68.8, TODAY);
+
+  it('has a cut that ends the day before the bulk starts, and the bulk is still going', () => {
+    expect(validatePhases(phases)).toBeNull();
+    expect(phases.map((p) => p.goal)).toEqual(['lose_weight', 'gain_muscle']);
+    expect(phases[0].endDate).toBe('2026-03-14');
+    expect(phases[1].endDate).toBeUndefined();
+  });
+
+  it('has one weigh-in per date, every weigh-in inside one of the periods, ending at today\'s weight', () => {
+    expect(new Set(logs.map((l) => l.date)).size).toBe(logs.length);
+    expect(logs.every((l) => phases.some((p) => filterLogsToPhase([l], p, TODAY).length === 1))).toBe(true);
+    expect(logs[logs.length - 1]).toMatchObject({ date: TODAY, weightKg: 68.8 });
+  });
+
+  it('tells a cut that lost weight and a bulk that gained it', () => {
+    const cut = getPhaseStats(filterLogsToPhase(logs, phases[0], TODAY));
+    const bulk = getPhaseStats(filterLogsToPhase(logs, phases[1], TODAY));
+    expect(cut.changeKg).toBeLessThan(-4);
+    expect(bulk.changeKg).toBeGreaterThan(1);
+  });
+});
+
