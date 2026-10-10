@@ -2,6 +2,7 @@ import type {
   AppState,
   DayWorkout,
   FoodEntry,
+  NutritionPlan,
   ProgressPhoto,
   SetProgressEntry,
   StepLog,
@@ -81,7 +82,7 @@ async function fetchImageAsDataUrl(url: string): Promise<string> {
   return canvas.toDataURL('image/jpeg', JPEG_QUALITY);
 }
 
-function buildDemoMetrics(): UserMetrics {
+export function buildDemoMetrics(): UserMetrics {
   return {
     gender: 'male',
     age: 29,
@@ -118,17 +119,53 @@ function buildDemoWeightLogs(endWeight: number): WeightLog[] {
   return logs;
 }
 
-function buildDemoStepLogs(averageSteps: number): StepLog[] {
+/** Steps above (+) and below (-) the daily goal for each weekday, Sunday first: a week with long days and short ones, so the step chart shows both. */
+const DEMO_STEP_OFFSETS = [3100, -1600, 2200, -2400, 1400, 4200, 900];
+
+/** Two weeks of steps around the goal, ending with a good day so far today (the calorie bank has something in it). Exported for tests. */
+export function buildDemoStepLogs(goalSteps: number, today: string = todayIso()): StepLog[] {
   const logs: StepLog[] = [];
-  for (let d = 6; d >= 1; d--) {
-    const wave = Math.sin(d * 2) * 1500;
-    logs.push({ date: daysAgoIso(d), steps: Math.max(2000, Math.round(averageSteps + wave)) });
+  for (let d = 13; d >= 1; d--) {
+    const date = addDaysIso(today, -d);
+    logs.push({ date, steps: Math.max(1500, goalSteps + DEMO_STEP_OFFSETS[parseIsoDate(date).getDay()]) });
   }
-  logs.push({ date: todayIso(), steps: 3200 });
+  logs.push({ date: today, steps: goalSteps + 2400 });
   return logs;
 }
 
-function buildDemoFoodLog(): FoodEntry[] {
+/** Calories eaten above (+) or below (-) the day's target for each weekday, Sunday first, so the week so far is over and the rebalance screen has a table to show. */
+const DEMO_CALORIE_DELTAS = [170, 40, 210, -60, 90, 130, 0];
+const DEMO_MEALS: { meal: FoodEntry['meal']; share: number; name: string; time: string }[] = [
+  { meal: 'breakfast', share: 0.3, name: 'ארוחת בוקר: ביצים, לחם מלא ואבוקדו', time: '07:45' },
+  { meal: 'lunch', share: 0.4, name: 'ארוחת צהריים: חזה עוף, אורז וירקות', time: '13:15' },
+  { meal: 'dinner', share: 0.3, name: 'ארוחת ערב: דג, תפוחי אדמה וסלט', time: '20:00' },
+];
+
+/** The days of the current week before today, each eaten a little over or under the plan's target, plus today's meals. Exported for tests. */
+export function buildDemoWeekFoodLog(plan: NutritionPlan, today: string = todayIso()): FoodEntry[] {
+  const log: FoodEntry[] = [];
+  const weekStart = getWeekStart(today);
+  for (let date = weekStart; date < today; date = addDaysIso(date, 1)) {
+    const total = plan.targetCalories + DEMO_CALORIE_DELTAS[parseIsoDate(date).getDay()];
+    for (const m of DEMO_MEALS) {
+      log.push({
+        id: `demo-food-${date}-${m.meal}`,
+        date,
+        meal: m.meal,
+        name: m.name,
+        quantity: '1 מנה',
+        time: m.time,
+        calories: Math.round(total * m.share),
+        proteinG: Math.round(plan.macros.proteinG * m.share),
+        fatG: Math.round(plan.macros.fatG * m.share),
+        carbsG: Math.round(plan.macros.carbsG * m.share * (total / plan.targetCalories)),
+      });
+    }
+  }
+  return log;
+}
+
+function buildDemoTodayFood(): FoodEntry[] {
   const today = todayIso();
   return [
     {
@@ -260,8 +297,10 @@ export async function buildDemoAppState(): Promise<AppState> {
     weightLogs,
     progressPhotos,
     schedule,
-    foodLog: buildDemoFoodLog(),
+    foodLog: [...buildDemoWeekFoodLog(nutritionPlan), ...buildDemoTodayFood()],
     stepLogs: buildDemoStepLogs(metrics.averageDailySteps),
+    // The calorie bank is the interesting mode to look at: steps above the goal become calories, short days take them off.
+    stepMode: 'add_calories',
     circumferenceLogs: [],
     circumferenceGoals: {},
   };

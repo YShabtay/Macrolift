@@ -139,7 +139,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-387 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+390 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
