@@ -19,10 +19,9 @@ import { storageService } from '../services/storageService';
 /** Fixed id so re-entering demo mode always re-seeds the same "account" instead of piling up new ones. */
 export const DEMO_USER_ID = 'demo-guest';
 
-// Both a single shirtless male subject, gym setting, matching dramatic lighting and medium-distance
-// framing - verified to crop consistently (full torso visible) inside the app's aspect-[3/4] photo cards.
-const BEFORE_PHOTO_SOURCE_URL = 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&auto=format&fit=crop&q=80';
-const AFTER_PHOTO_SOURCE_URL = 'https://images.unsplash.com/photo-1554344728-77cf90d9ed26?w=800&auto=format&fit=crop&q=80';
+// The same (AI-generated) person, same gym and pose, before and after six months of lean bulking; stored in the project so the demo needs no network.
+const BEFORE_PHOTO_SOURCE_URL = '/images/demo/progress-before.jpg';
+const AFTER_PHOTO_SOURCE_URL = '/images/demo/progress-after.jpg';
 
 const BEFORE_PHOTO_DATE = '2026-03-15';
 const BEFORE_PHOTO_WEIGHT_KG = 66.5;
