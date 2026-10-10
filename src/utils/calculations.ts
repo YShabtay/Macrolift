@@ -16,7 +16,7 @@ const BASE_ACTIVITY_FACTOR = 1.4;
 export const BASELINE_DAILY_STEPS = 4000;
 
 /** Bump when the TDEE model changes: stored plans calculated with an older model are recalculated once when the app loads. */
-export const NUTRITION_FORMULA_VERSION = 3;
+export const NUTRITION_FORMULA_VERSION = 4;
 
 /**
  * How far a person's real TDEE typically sits from the formula (about 8%, from validation studies), and how far once the formula has been
@@ -148,11 +148,11 @@ export function calculatePreciseNutrition(params: {
   const formulaTdee = energy.tdee;
   const tdee = formulaTdee + Math.round(tdeeAdjustmentKcal);
 
-  // The surplus or deficit the goal asks for, and the plausible range of maintenance around the estimate. A surplus is planned from the LOW end of
-  // that range (if maintenance is really lower, the surplus is still not exceeded by much), a deficit from the HIGH end (if maintenance is really
-  // higher, the deficit is not deeper than intended). The user starts at that safe end and moves towards the other as the weekly weight shows.
+  // The surplus or deficit the goal asks for, and the plausible range of maintenance around the estimate. A surplus is a range around the estimate plus the
+  // surplus (the estimate is off by up to the band either way): the user starts at its LOW end, which is still a real surplus over the estimate, and moves up
+  // as the weekly weight shows. A deficit is planned from the HIGH end of the range (if maintenance is really higher, the deficit is not deeper than
+  // intended) and moves down.
   const band = Math.round(tdeeAdjustmentKcal) !== 0 ? TDEE_BAND_CALIBRATED : TDEE_BAND;
-  const tdeeLow = Math.round(tdee * (1 - band));
   const tdeeHigh = Math.round(tdee * (1 + band));
   const floor = Math.round(bmr);
 
@@ -162,9 +162,12 @@ export function calculatePreciseNutrition(params: {
   let intendedOffsetKcal = 0;
   if (goal === 'lean_bulk' || goal === 'bulk') {
     intendedOffsetKcal = goal === 'lean_bulk' ? 220 : 400;
-    targetCalories = tdeeLow + intendedOffsetKcal;
+    // Half the band either side of the planned surplus: the low end is still a real surplus over the estimate (it used to start from the low end of
+    // maintenance, which for a +220 plan left only about +30 over the estimate: almost no surplus at all).
+    const half = Math.round((tdee * band) / 2);
+    targetCalories = tdee + intendedOffsetKcal - half;
     targetMin = targetCalories;
-    targetMax = tdee + intendedOffsetKcal;
+    targetMax = tdee + intendedOffsetKcal + half;
   } else if (goal === 'cut' || goal === 'aggressive_cut') {
     intendedOffsetKcal = goal === 'cut' ? -400 : -550;
     const cutFloor = Math.max(floor, Math.round(tdee * (1 - MAX_DEFICIT_FRACTION)));
