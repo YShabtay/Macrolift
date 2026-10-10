@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#a3e635" />
+  <rect width="512" height="512" rx="112" fill="#09090b" />
   
-    <rect x="161" y="238" width="190" height="36" rx="18" fill="#09090b" />
-    <rect x="116" y="156" width="52" height="200" rx="20" fill="#09090b" />
-    <rect x="344" y="156" width="52" height="200" rx="20" fill="#09090b" />
-    <rect x="70" y="186" width="38" height="140" rx="16" fill="#09090b" />
-    <rect x="404" y="186" width="38" height="140" rx="16" fill="#09090b" />
+    <path d="M166 316 H206 L326 196 H346" fill="none" stroke="#a3e635" stroke-width="36" stroke-linejoin="round" />
+    <rect x="130" y="241" width="36" height="150" rx="18" fill="#a3e635" />
+    <rect x="94" y="261" width="28" height="110" rx="14" fill="#a3e635" />
+    <rect x="70" y="296" width="16" height="40" rx="8" fill="#a3e635" />
+    <rect x="346" y="121" width="36" height="150" rx="18" fill="#a3e635" />
+    <rect x="390" y="141" width="28" height="110" rx="14" fill="#a3e635" />
+    <rect x="426" y="176" width="16" height="40" rx="8" fill="#a3e635" />
   
 </svg>
