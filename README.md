@@ -160,7 +160,7 @@ src/data/         Workout templates, muscle labels and the local food database
 npm test
 ```
 
-397 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
+403 unit tests (Vitest) cover the logic where a silent mistake would give users wrong numbers, rather than the UI:
 
 | Area | What is verified |
 | --- | --- |
@@ -179,6 +179,7 @@ npm test
 | Gym programs by experience (`workoutAdaptation`, `programSelection`) | Beginner, intermediate and advanced selections differ where intended, a missing experience is left untouched, every beginner swap is a listed beginner-level option, weekly sets per muscle (and the 12-16 range for the big four) stay identical in every template, no exercise repeats in a session, swaps are revertible, injury swaps win, and the current split never changes the program |
 | Home programs (`homeWorkoutTemplates`, `programSelection`) | Every equipment/level/frequency combination: only owned equipment, big muscles in an effective weekly range, no session overloading one muscle, swap options that suit the equipment |
 | Workout weeks (`workoutStats`, `streaks`) | The counter wrapping after the plan's sessions (1/3, 2/3, 3/3, then 1/3), a limit that follows the plan, an unfinished or finished week reading 0 after its 7 days, future dates ignored, a Sun/Tue/Thu week followed by a Sat/Mon/Wed week keeps the streak, a short latest block does not break it but a missed block does, one missed session forgiven |
+| Weekly summary (`weeklySummary`) | Step average over the finished days with a missing day as 0 (today's partial count left out), calories and protein averaged over finished days, the calorie target being the days' real targets (step calories of the chosen mode included), weight as the weekly average and its change from the last week's average |
 | Program builder copy (`planCopy`) | Copied exercises get their own ids so progress is never shared between sessions, sets/reps/rest come along, a duplicated session keeps its focus under a new name, copying into an empty or a filled session, the exercise limit |
 | Utilities (`plates`, `chatFormat`) | Plate loading and warm-up ramps, Markdown clean-up for coach replies |
 

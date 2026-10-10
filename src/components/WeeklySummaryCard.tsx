@@ -75,7 +75,7 @@ function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCol
   );
 
   const { workouts, nutrition, steps, weight } = summary;
-  const hasAnything = workouts.done > 0 || summary.sets > 0 || nutrition.daysLogged > 0 || steps.daysLogged > 0 || weight.latest !== null;
+  const hasAnything = workouts.done > 0 || summary.sets > 0 || nutrition.daysLogged > 0 || steps.daysLogged > 0 || weight.average !== null;
 
   return (
     <div className="glass-card p-5 sm:p-6">
@@ -156,12 +156,12 @@ function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCol
               hint={`יעד ${nutrition.targetCalories.toLocaleString()}`}
             />
             <Stat icon={UtensilsCrossed} label="חלבון (ממוצע)" value={nutrition.daysLogged > 0 ? `${nutrition.avgProteinG} ג׳` : '-'} hint={`יעד ${nutrition.targetProteinG} ג׳`} />
-            {weight.latest !== null && (
+            {weight.average !== null && (
               <Stat
                 icon={Scale}
-                label="משקל"
-                value={`${weight.latest} ק״ג`}
-                hint={weight.changeKg === null ? undefined : `${weight.changeKg > 0 ? '+' : ''}${weight.changeKg} ק״ג מאז השקילה הקודמת`}
+                label="משקל (ממוצע שבועי)"
+                value={`${weight.average} ק״ג`}
+                hint={weight.changeKg === null ? undefined : `${weight.changeKg > 0 ? '+' : ''}${weight.changeKg} ק״ג מהשבוע הקודם`}
               />
             )}
           </div>
@@ -200,7 +200,7 @@ function WeeklySummaryBody({ appState, onCollapse }: { appState: AppState; onCol
                     <td>{week.workouts.done}/{week.workouts.planned}</td>
                     <td>{week.nutrition.daysLogged > 0 ? week.nutrition.avgCalories.toLocaleString() : '-'}</td>
                     <td>{week.steps.average > 0 ? week.steps.average.toLocaleString() : '-'}</td>
-                    <td>{week.weight.latest !== null ? `${week.weight.latest}${week.weight.changeKg !== null ? ` (${week.weight.changeKg > 0 ? '+' : ''}${week.weight.changeKg})` : ''}` : '-'}</td>
+                    <td>{week.weight.average !== null ? `${week.weight.average}${week.weight.changeKg !== null ? ` (${week.weight.changeKg > 0 ? '+' : ''}${week.weight.changeKg})` : ''}` : '-'}</td>
                   </tr>
                 ))}
               </tbody>
