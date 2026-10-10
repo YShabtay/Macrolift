@@ -8,7 +8,7 @@ const DARK = '#09090b';
 mkdirSync('public/icons', { recursive: true });
 
 /**
- * The logo: a bold, centered lime dumbbell on a dark tile, the same everywhere (home screen, browser tab, inside the app). Drawn on a 512 grid inside the central
+ * The logo: a bold, centered dumbbell on a lime tile, the same everywhere (home screen, browser tab, inside the app). Drawn on a 512 grid inside the central
  * 73%, so it also fits the safe zone of a maskable icon. The same geometry is in src/components/LogoMark.tsx.
  */
 function dumbbell(color) {
@@ -21,25 +21,24 @@ function dumbbell(color) {
   `;
 }
 
-// Dark with a lime mark rather than the other way round: iOS darkens a light icon in its dark appearance, which turned a lime tile black and hid the mark.
-// "any" icon: a gently rounded dark square (the OS may mask it further).
+// "any" icon: a gently rounded lime square (the OS may mask it further).
 const anySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="${DARK}" />
-  ${dumbbell(LIME)}
+  <rect width="512" height="512" rx="112" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>`;
 
 // Full-bleed square for the maskable icon and the iOS home-screen icon (the OS rounds the corners itself).
 const fullBleedSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="${DARK}" />
-  ${dumbbell(LIME)}
+  <rect width="512" height="512" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>`;
 
-// The browser-tab icon: the same mark on a rounded dark square.
+// The browser-tab icon: the same mark on a rounded lime square.
 const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="${DARK}" />
-  ${dumbbell(LIME)}
+  <rect width="512" height="512" rx="112" fill="${LIME}" />
+  ${dumbbell(DARK)}
 </svg>
 `;
 writeFileSync('public/favicon.svg', faviconSvg);

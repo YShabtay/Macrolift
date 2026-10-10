@@ -327,7 +327,7 @@ export default function Auth({ onAuthenticated }: AuthProps) {
           aria-label="MacroLift - חזרה למסך הפתיחה"
           className="mb-8 flex w-full flex-col items-center gap-3 text-center"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-950 text-lime-400 ring-1 ring-lime-400/40 shadow-glow">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 shadow-glow">
             <LogoMark className="h-7 w-7" />
           </span>
           <span>

@@ -1,5 +1,4 @@
-import { X } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
+import { Dumbbell, X } from 'lucide-react';
 
 interface WorkoutDayBannerProps {
   /** The workout's letter, e.g. "A". */

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, Check, Copy, Minus, Plus, Search, Trash2, X } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
+import { ArrowDown, ArrowUp, Check, Copy, Dumbbell, Minus, Plus, Search, Trash2, X } from 'lucide-react';
 import type { DayWorkout, Equipment, Exercise, MuscleGroup, WorkoutPlan } from '../types/fitness';
 import { createPlanExercise, getExerciseLibrary, type LibraryExercise } from '../data/workoutTemplates';
 import { MUSCLE_LABELS } from '../utils/planVolume';

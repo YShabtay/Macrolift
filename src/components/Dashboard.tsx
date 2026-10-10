@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Database,
   Download,
+  Dumbbell,
   Maximize2,
   FileSpreadsheet,
   Flame,
@@ -36,7 +37,6 @@ import {
   UtensilsCrossed,
   Weight,
 } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
 import BalancedRing from './BalancedRing';
 import CalibrationCard from './CalibrationCard';
 import TargetCheckCard from './TargetCheckCard';

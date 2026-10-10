@@ -1,5 +1,5 @@
 /**
- * The app's logo mark: a bold dumbbell, shown lime on a dark tile everywhere. Drawn in the current text colour so it works on any tile; the same geometry is in scripts/generate-icons.mjs, which
+ * The app's logo mark: a bold dumbbell. Drawn in the current text colour so it works on any tile; the same geometry is in scripts/generate-icons.mjs, which
  * renders the home-screen and favicon images.
  */
 export default function LogoMark({ className }: { className?: string }) {

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CalendarPlus, Check, Moon, RotateCcw, X } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
+import { ArrowLeft, CalendarPlus, Check, Dumbbell, Moon, RotateCcw, X } from 'lucide-react';
 import type { SetProgressEntry, WorkoutPlan, WorkoutScheduleEntry } from '../types/fitness';
 import { CUSTOM_DAY_ID, getScheduleForDate, isDayCompleted, REST_DAY_ID, workoutLetter } from '../utils/scheduleHelpers';
 import { shareWorkoutReminder } from '../utils/calendarExport';

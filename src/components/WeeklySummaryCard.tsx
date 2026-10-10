@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Award, BarChart3, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
+import { Award, BarChart3, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Dumbbell, Flame, Footprints, Scale, Trophy, UtensilsCrossed } from 'lucide-react';
 import type { AppState } from '../types/fitness';
 import { useToday } from '../hooks/useToday';
 import { useIsMobile } from '../hooks/useIsMobile';

@@ -1,6 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Timer, X } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
+import { Dumbbell, Timer, X } from 'lucide-react';
 import { useRestTimer } from '../context/restTimerContext';
 
 interface RestTimerMiniBarProps {

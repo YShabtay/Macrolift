@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Dumbbell,
   Flame,
   Footprints,
   Layers,
@@ -19,7 +20,6 @@ import {
   User,
   Weight,
 } from 'lucide-react';
-import Dumbbell from './DumbbellIcon';
 import type {
   BodyMeasurements,
   CurrentSplit,
