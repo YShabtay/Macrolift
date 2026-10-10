@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { LogOut, Moon, Pin, PinOff, RotateCcw, Sun } from 'lucide-react';
-import LogoMark from './LogoMark';
+import { Dumbbell, LogOut, Moon, Pin, PinOff, RotateCcw, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 const PINNED_KEY = 'macrolift-sidebar-pinned';
@@ -172,7 +171,7 @@ export default function DesktopSidebar<T extends string>({ items, active, homeId
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-right"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lime-400 text-zinc-950">
-              <LogoMark className="h-5 w-5" />
+              <Dumbbell className="h-5 w-5" strokeWidth={2.5} />
             </span>
             <span className={`flex-1 whitespace-nowrap text-xl font-extrabold tracking-tight transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0'}`}>
               MacroLift

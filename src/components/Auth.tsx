@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, FileUp, Loader2, Lock, LogIn, Mail, Smartphone, Sparkles, User, UserPlus, X, Zap } from 'lucide-react';
-import LogoMark from './LogoMark';
+import { ArrowRight, Check, ChevronLeft, Dumbbell, Eye, EyeOff, FileUp, Loader2, Lock, LogIn, Mail, Smartphone, Sparkles, User, UserPlus, X, Zap } from 'lucide-react';
 import { hashPassword, loadUsers, saveUsers, setSessionUserId } from '../utils/authStorage';
 import type { AuthUser } from '../utils/authStorage';
 import { ThemeToggleButton } from './ThemeToggle';
@@ -328,7 +327,7 @@ export default function Auth({ onAuthenticated }: AuthProps) {
           className="mb-8 flex w-full flex-col items-center gap-3 text-center"
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 shadow-glow">
-            <LogoMark className="h-7 w-7" />
+            <Dumbbell className="h-7 w-7" strokeWidth={2.5} />
           </span>
           <span>
             <span className="block text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">MacroLift</span>
