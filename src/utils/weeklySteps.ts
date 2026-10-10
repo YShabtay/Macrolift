@@ -99,25 +99,32 @@ export function stepNetKcal(steps: number, hasEntry: boolean, targetDailySteps: 
 }
 
 export interface StepCalorieBank {
-  /** What to add to each day's target (date -> kcal): the part of the bank that day actually ate, and for today everything available. */
+  /** What to add to each day's target (date -> kcal): the part of the bank that day actually ate, and for today what is left of it after the overshoot is paid. */
   allowance: Record<string, number>;
   /** What came into today from earlier days of the week, unspent, after the days that fell short are taken off (can be negative). */
   carriedIntoToday: number;
   /** Calories earned from today's steps so far. */
   bonusToday: number;
-  /** Today's whole allowance: what is carried in plus what today's steps earned (never below 0). */
+  /** Everything the steps hold for today: what is carried in plus what today's steps earned (never below 0). */
   availableToday: number;
+  /** Of that, what went to cancel the week's calorie overshoot so far (it is not added to today's target). */
+  appliedToday: number;
+  /** The same over the whole week so far, today included. */
+  appliedWeek: number;
 }
 
 /**
- * The week's calorie bank in the 'add_calories' mode. Each day's steps above the goal earn calories; calories not eaten that day are not lost at midnight,
- * they carry to the next days of the same week until they are used up by eating above the base target (or the week ends on Sunday). A day that fell short of
- * the goal takes calories off the bank first (down to a debt that later days must cover), so only the net walking becomes food. Today's own steps only
- * add: the day is not over, so a low count so far is not a shortfall yet.
+ * The week's calorie bank in the 'add_calories' mode. Each day's steps above the goal earn calories; calories not used are not lost at midnight,
+ * they carry to the next days of the same week (or the week ends on Sunday). A day that fell short of the goal takes calories off the bank first (down to a
+ * debt that later days must cover), so only the net walking counts. Today's own steps only add: the day is not over, so a low count so far is not a shortfall yet.
  *
- * For a day before today: it spent min(what was available, what it ate above its base target), and that spent part is what is added to its target (so
- * eaten minus target stays honest and the same calories are never in two days' targets). For today: its target includes everything available (carried in
- * plus today's steps so far). The base target of a day is its target without any step calories, so a lowered target from a rebalance still applies.
+ * What the spare calories do, in this order, on each day:
+ * 1. They cancel what the week is over by so far (the days before, eaten against their base target; days under it offset days over it). Only a week that is
+ *    over has something to cancel.
+ * 2. What is left covers what that day ate above its own base target.
+ * 3. What is still left carries to the next day (for today: it is added to today's target, as room to eat).
+ * The base target of a day is its target without any step calories, so a lowered target from a rebalance still applies. A past day's allowance is what it
+ * spent in step 2, so eaten minus target stays honest and the same calories are never in two days' targets.
  */
 export function getStepCalorieBank(params: {
   baseAdjustment: WeeklyBalanceAdjustment | undefined;
@@ -132,28 +139,33 @@ export function getStepCalorieBank(params: {
   const weekStart = getWeekStart(today);
   const allowance: Record<string, number> = {};
   let bank = 0;
-  let bonusToday = 0;
-  let carriedIntoToday = 0;
+  let appliedWeek = 0;
+  // What the week is over by after the days so far: each logged day's eaten minus its base target and the step calories it used, less what was cancelled.
+  let weekOver = 0;
 
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const day = addDaysIso(weekStart, i);
     const daySteps = getStepsForDate(stepLogs, day);
-    if (day === today) {
-      const bonus = stepBonusKcal(daySteps, targetDailySteps, weightKg);
-      const available = Math.max(0, bank + bonus);
-      carriedIntoToday = bank;
-      bonusToday = bonus;
-      if (available > 0) allowance[day] = available;
-      return { allowance, carriedIntoToday, bonusToday, availableToday: available };
+    const isToday = day === today;
+    const bonus = isToday ? stepBonusKcal(daySteps, targetDailySteps, weightKg) : stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
+    const available = Math.max(bank + bonus, 0);
+    const applied = Math.min(available, Math.max(0, Math.round(weekOver)));
+    const pool = available - applied;
+    appliedWeek += applied;
+    if (isToday) {
+      if (pool > 0) allowance[day] = pool;
+      return { allowance, carriedIntoToday: bank, bonusToday: bonus, availableToday: available, appliedToday: applied, appliedWeek };
     }
-    const available = bank + stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
     const base = getDailyTargets(plan, baseAdjustment, day).calories;
-    const eaten = sumTotals(foodLog.filter((f) => f.date === day)).calories;
-    const used = Math.min(Math.max(available, 0), Math.max(0, Math.round(eaten - base)));
+    const entries = foodLog.filter((f) => f.date === day);
+    const eaten = sumTotals(entries).calories;
+    const used = Math.min(pool, Math.max(0, Math.round(eaten - base)));
     if (used > 0) allowance[day] = used;
-    bank = available - used;
+    // A debt left by the bank (it was negative) stays a debt for later days.
+    bank = bank + bonus - applied - used;
+    weekOver = weekOver - applied + (entries.length > 0 ? eaten - base - used : 0);
   }
-  return { allowance, carriedIntoToday, bonusToday, availableToday: 0 };
+  return { allowance, carriedIntoToday: bank, bonusToday: 0, availableToday: 0, appliedToday: 0, appliedWeek };
 }
 
 /**
@@ -171,11 +183,13 @@ export function withStepMode(
   const weekStart = getWeekStart(today);
   const current = getActiveAdjustment(adjustment, today);
   // Whatever step allowance was saved by an older version is never trusted: the only allowance is the one derived below.
-  const { stepAllowance: _saved, ...kept } = current ?? { weekStart };
+  const { stepAllowance: _saved, stepAppliedToOvershoot: _savedApplied, ...kept } = current ?? { weekStart };
   if (mode === 'balance_steps') return current ? kept : undefined;
 
   const { steps: _walkMore, ...withoutWalkMore } = kept;
-  const { allowance } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today });
+  const { allowance, appliedWeek } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today });
   const hasBonus = Object.keys(allowance).length > 0;
-  return hasBonus || current ? { ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}) } : undefined;
+  return hasBonus || appliedWeek > 0 || current
+    ? { ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}), ...(appliedWeek > 0 ? { stepAppliedToOvershoot: appliedWeek } : {}) }
+    : undefined;
 }

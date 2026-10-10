@@ -168,7 +168,7 @@ export function buildDemoStepLogs(goalSteps: number, today: string = todayIso())
 }
 
 /** Calories eaten above (+) or below (-) the day's target for each weekday, Sunday first, so the week so far is over and the rebalance screen has a table to show. */
-const DEMO_CALORIE_DELTAS = [170, 40, 210, -60, 90, 130, 0];
+const DEMO_CALORIE_DELTAS = [150, 30, 190, 60, 110, 150, 0];
 const DEMO_MEALS: { meal: FoodEntry['meal']; share: number; name: string; time: string }[] = [
   { meal: 'breakfast', share: 0.3, name: 'ארוחת בוקר: ביצים, לחם מלא ואבוקדו', time: '07:45' },
   { meal: 'lunch', share: 0.4, name: 'ארוחת צהריים: חזה עוף, אורז וירקות', time: '13:15' },

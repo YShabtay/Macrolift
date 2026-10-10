@@ -127,6 +127,7 @@ import {
   buildRebalanceOptions,
   getDailyTargets,
   getStepAllowanceKcal,
+  getStepAppliedKcal,
   getTomorrowAdjustments,
 } from '../utils/weeklyBalance';
 import QuickDayEditSheet from './QuickDayEditSheet';
@@ -831,6 +832,7 @@ function DashboardTab({
         stepMode={stepMode}
         onSaveStepMode={onSaveStepMode}
         bankKcal={stepMode === 'add_calories' ? getStepAllowanceKcal(weeklyBalance, today) : 0}
+        appliedKcal={stepMode === 'add_calories' ? getStepAppliedKcal(weeklyBalance, today) : 0}
         onClearRebalanceSteps={onClearStepRebalance}
       />
 

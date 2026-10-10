@@ -432,6 +432,11 @@ export interface WeeklyBalanceAdjustment {
    * past is never rewritten.
    */
   stepAllowance?: Record<string, number>;
+  /**
+   * Derived, never saved: the step calories (calorie mode) that went to cancel the week's calorie overshoot instead of being added to a day's target, summed over
+   * the week so far. Spare step calories pay the overshoot first; only what is left over becomes room to eat.
+   */
+  stepAppliedToOvershoot?: number;
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */

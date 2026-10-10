@@ -40,6 +40,12 @@ export function getStepAllowanceKcal(adjustment: WeeklyBalanceAdjustment | undef
   return kcal && kcal > 0 ? Math.round(kcal) : 0;
 }
 
+/** The step calories (calorie mode) that went to cancel the week's overshoot rather than becoming room to eat, over the week of `date` (0 when none). */
+export function getStepAppliedKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+  const kcal = getActiveAdjustment(adjustment, date)?.stepAppliedToOvershoot;
+  return kcal && kcal > 0 ? Math.round(kcal) : 0;
+}
+
 /**
  * The calorie/macro target for one date. The base plan unless a rebalance reduction covers that date (same week, on or after its
  * start date); the cut comes out of fat and carbs in proportion to their calories, protein stays put. A step allowance the user put on
@@ -180,6 +186,8 @@ export function getWeeklyEnergyBalance(
     targetKcal += getDailyTargets(plan, adjustment, date).calories;
   }
 
+  // Spare step calories that cancelled the overshoot count as part of the week's budget.
+  targetKcal += getStepAppliedKcal(adjustment, today);
   return { daysCounted, eatenKcal: Math.round(eatenKcal), targetKcal: Math.round(targetKcal), balanceKcal: Math.round(eatenKcal - targetKcal) };
 }
 

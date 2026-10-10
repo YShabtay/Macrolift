@@ -129,8 +129,41 @@ describe('getStepCalorieBank: calories not eaten roll over within the week', () 
     const totalAllowance = Object.values(result.allowance).reduce((a, b) => a + b, 0);
     const totalEarned = 80 + 0 + 160 + 40;
     expect(totalAllowance).toBeLessThanOrEqual(totalEarned);
-    expect(result.allowance['2026-10-05']).toBe(80); // Monday spent Sunday's bonus (it ate 100 above base)
-    expect(result.carriedIntoToday).toBe(160);
+    expect(result.allowance['2026-10-05']).toBe(80); // Monday spent Sunday's bonus (it ate 100 above base), and was still 20 over
+    expect(result.appliedWeek).toBe(20 + 0); // Tuesday's 160 first cancelled those 20
+    expect(result.carriedIntoToday).toBe(140); // the rest of Tuesday's bonus waits
+  });
+});
+
+describe('getStepCalorieBank: spare calories pay the week\'s overshoot before they are room to eat', () => {
+  const bank = (stepLogs: StepLog[], foodLog: FoodEntry[], today: string) =>
+    getStepCalorieBank({ baseAdjustment: undefined, plan: PLAN, stepLogs, foodLog, targetDailySteps: GOAL, weightKg: 70, today });
+
+  it('uses a day\'s spare calories on the overshoot of the days before, then on the day itself, and carries what is left', () => {
+    // Monday ate 300 above the base with nothing spare: the week is 300 over. Tuesday walks 4,000 above the goal (+160): all 160 cancels it, nothing is room.
+    const logs = [steps('2026-10-05', 4500), steps('2026-10-06', 8500)];
+    const result = bank(logs, [meal('2026-10-05', 2700)], '2026-10-07');
+    expect(result.allowance['2026-10-06']).toBeUndefined();
+    expect(result.appliedWeek).toBe(160);
+    expect(result.availableToday).toBe(0);
+  });
+
+  it('what is more than the overshoot becomes room for that day', () => {
+    // Overshoot 100; Tuesday's 160 cancels it and leaves 60 to carry into today.
+    const logs = [steps('2026-10-05', 4500), steps('2026-10-06', 8500)];
+    const result = bank(logs, [meal('2026-10-05', 2500)], '2026-10-07');
+    expect(result.appliedWeek).toBe(100);
+    expect(result.carriedIntoToday).toBe(60);
+    expect(result.allowance['2026-10-07']).toBe(60);
+  });
+
+  it('days under their target count as saved against the overshoot, so there may be nothing to cancel', () => {
+    // Monday 300 over, Tuesday 400 under: the week is 100 under, so Wednesday's spare calories are room.
+    const logs = [steps('2026-10-07', 8500)];
+    const food = [meal('2026-10-05', 2700), meal('2026-10-06', 2000)];
+    const result = bank(logs, food, '2026-10-07');
+    expect(result.appliedWeek).toBe(0);
+    expect(result.allowance['2026-10-07']).toBe(160);
   });
 });
 

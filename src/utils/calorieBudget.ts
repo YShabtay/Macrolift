@@ -1,7 +1,7 @@
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
 import { addDaysIso } from './dateMath';
 import { sumTotals } from './nutritionLog';
-import { getDailyTargets, getStepAllowanceKcal } from './weeklyBalance';
+import { getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal } from './weeklyBalance';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
@@ -83,6 +83,9 @@ export function getWeeklyCalorieBudget(
       }
     }
   }
+
+  // Spare step calories that cancelled the overshoot are part of the week's budget (they were earned, and they are not in any day's target).
+  weeklyTarget += getStepAppliedKcal(adjustment, lastDay);
 
   let pace: WeeklyCalorieBudget['pace'] = null;
   if (isCurrentWeek) {

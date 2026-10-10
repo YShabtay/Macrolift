@@ -35,7 +35,7 @@ describe('demo data for the steps and calories screens', () => {
     const coverage = getOvershootCoverage({ foodLog, plan, adjustment, today: SATURDAY });
     expect(coverage.weekOverSoFarKcal).toBeGreaterThan(50);
     expect(shouldOfferRebalance(coverage)).toBe(true);
-    expect(coverage.unspentBankKcal).toBeGreaterThan(0); // today's good step day leaves a bank
+    expect(coverage.stepsAppliedKcal).toBeGreaterThan(0); // the spare step calories went to the overshoot first
   });
 });
 

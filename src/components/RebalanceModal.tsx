@@ -98,6 +98,11 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
               </tbody>
             </table>
           )}
+          {coverage.stepsAppliedKcal > 0 && (
+            <p className="mt-1 font-semibold text-lime-700 dark:text-lime-400">
+              קלוריות מצעדים שכבר קיזזו את העודף: −{coverage.stepsAppliedKcal.toLocaleString()} קק״ל (הן לא נוספו ליעד של אף יום)
+            </p>
+          )}
           {coverage.unspentBankKcal > 0 && (
             <p className="mt-1 font-semibold text-lime-700 dark:text-lime-400">
               בנק קלוריות מצעדים שלא נוצל היום: −{coverage.unspentBankKcal.toLocaleString()} קק״ל (אם תאכל אותו, הוא יחזור לעודף)

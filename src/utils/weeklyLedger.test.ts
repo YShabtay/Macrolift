@@ -56,9 +56,10 @@ describe('mode "add calories": walking changes only the calories of the day it w
     // 1,000 steps above the goal at 70 kg = 40 kcal a day. Sunday to Tuesday ate the base only, so 120 waited; Wednesday ate 400 above and spent 160.
     expect(getDailyTargets(PLAN, adjustment, DAYS[0]).calories).toBe(2400);
     expect(getDailyTargets(PLAN, adjustment, DAYS[3]).calories).toBe(2400 + 160);
-    expect(getDailyTargets(PLAN, adjustment, DAYS[4]).calories).toBe(2400); // Thursday ate the base: its 40 kcal waited
-    expect(getDailyTargets(PLAN, adjustment, FRIDAY).calories).toBe(2400 + 40); // and Friday's target is the base plus that bank
-    expect(getDailyTargets(PLAN, adjustment, FRIDAY).allowanceKcal).toBe(40);
+    expect(getDailyTargets(PLAN, adjustment, DAYS[4]).calories).toBe(2400); // Thursday ate the base: its 40 kcal went to the 240 the week was over by
+    // The week is over, so spare step calories pay that first. Nothing is left for Friday's target.
+    expect(getDailyTargets(PLAN, adjustment, FRIDAY).calories).toBe(2400);
+    expect(getDailyTargets(PLAN, adjustment, FRIDAY).allowanceKcal).toBe(0);
   });
 
   it('keeps the step goal for the days left exactly as set', () => {
@@ -68,37 +69,59 @@ describe('mode "add calories": walking changes only the calories of the day it w
 
   it('the overshoot shrinks by the calories the steps added, once, and the budget card agrees', () => {
     const c = coverageFor(adjustment);
-    // Wednesday 2,800 against a target of 2,560 (the bank it spent) is +240 and the other days ate the base; the 40 kcal bank that reached today is not eaten, so it pays 40 of that down.
-    expect(c.unspentBankKcal).toBe(40);
+    // Wednesday 2,800 against a target of 2,560 (the bank it spent) is +240 and the other days ate the base; Thursday's 40 spare kcal went to that overshoot.
+    expect(c.stepsAppliedKcal).toBe(40);
+    expect(c.unspentBankKcal).toBe(0);
     expect(c.weekOverSoFarKcal).toBe(240 - 40);
     expect(getRebalanceDebtKcal(c)).toBe(200);
     const pace = getWeeklyCalorieBudget(FOOD, PLAN, adjustment, FRIDAY, FRIDAY).pace!;
-    expect(pace.stepBonusKcal).toBe(40); // the bank that reached today
-    expect(pace.target).toBe(2440);
+    expect(pace.stepBonusKcal).toBe(0); // nothing was added to today's target: the spare calories paid the overshoot
+    expect(pace.target).toBe(2400);
   });
 
-  it('walking today adds to today (on top of the bank) and to nothing else', () => {
-    const withToday = withStepMode(undefined, { mode: 'add_calories', stepLogs: [...STEPS, { date: FRIDAY, steps: 9500 }], foodLog: FOOD, plan: PLAN, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
-    expect(getDailyTargets(PLAN, withToday, FRIDAY).calories).toBe(2400 + 40 + 200); // the bank plus 5,000 steps above the goal
-    expect(getDailyTargets(PLAN, withToday, '2026-10-10').calories).toBe(2400); // Saturday is untouched until it is its turn
+  const withToday = (todaySteps: number, foodLog = FOOD, extraEaten = 0) => {
+    const food = extraEaten > 0 ? [...foodLog, meal(FRIDAY, extraEaten)] : foodLog;
+    const adj = withStepMode(undefined, { mode: 'add_calories', stepLogs: [...STEPS, { date: FRIDAY, steps: todaySteps }], foodLog: food, plan: PLAN, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
+    return { adj, coverage: getOvershootCoverage({ foodLog: food, plan: PLAN, adjustment: adj, today: FRIDAY }) };
+  };
+
+  it('spare step calories pay the week\'s overshoot first; only what is left over becomes room to eat today', () => {
+    // The week is over by 200 after Thursday. Friday's 5,000 steps above the goal are 200 kcal: all of it cancels the overshoot, none is added to today.
+    const exact = withToday(9500);
+    expect(getDailyTargets(PLAN, exact.adj, FRIDAY).calories).toBe(2400);
+    expect(exact.coverage.weekOverSoFarKcal).toBe(0);
+    // 8,000 steps above the goal are 320: 200 cancel the overshoot, the other 120 are today's room, on top of the base target.
+    const more = withToday(12500);
+    expect(getDailyTargets(PLAN, more.adj, FRIDAY).calories).toBe(2400 + 120);
+    expect(more.coverage.stepsAppliedKcal).toBe(40 + 200);
   });
 
-  it('walking more today lowers the week\'s overshoot, and eating that room gives the credit back', () => {
-    const coverageWith = (todaySteps: number, todayEaten: number) => {
-      const adj = withStepMode(undefined, { mode: 'add_calories', stepLogs: [...STEPS, { date: FRIDAY, steps: todaySteps }], foodLog: [...FOOD, ...(todayEaten > 0 ? [meal(FRIDAY, todayEaten)] : [])], plan: PLAN, targetDailySteps: GOAL, weightKg: WEIGHT, today: FRIDAY });
-      return getOvershootCoverage({ foodLog: [...FOOD, ...(todayEaten > 0 ? [meal(FRIDAY, todayEaten)] : [])], plan: PLAN, adjustment: adj, today: FRIDAY });
-    };
-    const noSteps = coverageWith(0, 0); // bank 40, nothing eaten yet
-    expect(noSteps.weekOverSoFarKcal).toBe(200);
-    const walked = coverageWith(9500, 0); // 5,000 steps above the goal = +200: bank 240
-    expect(walked.unspentBankKcal).toBe(240);
-    expect(walked.weekOverSoFarKcal).toBe(0); // the 240 of earlier overshoot is paid down by the 240 unspent
-    const ate = coverageWith(9500, 2500); // 100 above the base target: 100 of the bank is used
-    expect(ate.unspentBankKcal).toBe(140);
-    expect(ate.weekOverSoFarKcal).toBe(240 - 140);
-    const ateAll = coverageWith(9500, 2640); // all of the room eaten: the credit is gone
-    expect(ateAll.unspentBankKcal).toBe(0);
-    expect(ateAll.weekOverSoFarKcal).toBe(240);
+  it('with no overshoot to cancel, the whole bank is room to eat today, on top of what today\'s steps earn', () => {
+    const calm = [meal(DAYS[0], 2400), meal(DAYS[1], 2400), meal(DAYS[2], 2400), meal(DAYS[3], 2400), meal(DAYS[4], 2400)];
+    const { adj, coverage } = withToday(9500, calm); // Sunday to Thursday's 200 kcal wait, and Friday adds 200
+    expect(getDailyTargets(PLAN, adj, FRIDAY).calories).toBe(2400 + 400);
+    expect(coverage.stepsAppliedKcal).toBe(0);
+    expect(getDailyTargets(PLAN, adj, '2026-10-10').calories).toBe(2400); // Saturday is untouched until it is its turn
+  });
+
+  it('a spare calorie is used once: it cancels the overshoot, or it is room, not both', () => {
+    const { adj } = withToday(12500);
+    const allowance = getDailyTargets(PLAN, adj, FRIDAY).allowanceKcal;
+    const week = getWeeklyCalorieBudget(FOOD, PLAN, adj, FRIDAY, FRIDAY);
+    // Everything the steps earned this week: 5 days x 40 + Friday's 320 = 520. Cancelled 240, room 120, and Wednesday used 160 before the overshoot existed.
+    expect(allowance + (adj?.stepAppliedToOvershoot ?? 0) + 160).toBe(520);
+    expect(week.weeklyTarget).toBe(7 * 2400 + 160 + allowance + (adj?.stepAppliedToOvershoot ?? 0));
+  });
+
+  it('walking more today lowers the week\'s overshoot, and eating the room it leaves gives the credit back', () => {
+    expect(withToday(0).coverage.weekOverSoFarKcal).toBe(200);
+    expect(withToday(9500).coverage.weekOverSoFarKcal).toBe(0); // 200 of walking cancel the 200
+    const room = withToday(12500); // 120 of room, not eaten yet: it counts as saved for now
+    expect(room.coverage.unspentBankKcal).toBe(120);
+    expect(room.coverage.weekOverSoFarKcal).toBe(-120);
+    expect(withToday(12500, FOOD, 2500).coverage.weekOverSoFarKcal).toBe(-20); // 100 of the room eaten
+    expect(withToday(12500, FOOD, 2520).coverage.weekOverSoFarKcal).toBe(0); // all of it eaten: the week is level
+    expect(withToday(12500, FOOD, 2640).coverage.weekOverSoFarKcal).toBe(120); // beyond the room: over again
   });
 
   it('a "walk more" rebalance is not available here: it is dropped, the goal does not change', () => {
