@@ -236,7 +236,7 @@ export default function FoodTracker({ foodLog, nutritionPlan, weeklyBalance, met
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
         >
           {getOpenRebalanceDebtKcal(coverage) > COVERAGE_TOLERANCE_KCAL
-            ? `⚖️ עודף של ${getOpenRebalanceDebtKcal(coverage).toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון בדשבורד`
+            ? `⚖️ עודף של ${getOpenRebalanceDebtKcal(coverage).toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון`
             : '⚖️ איזון שבועי פעיל • לשינוי בדשבורד'}
         </button>
       )}

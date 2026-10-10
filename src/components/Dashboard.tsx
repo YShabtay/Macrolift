@@ -156,6 +156,7 @@ import type {
   GoalIntensity,
   NutritionPlan,
   UserMetrics,
+  WeeklyBalanceAdjustment,
   WorkoutPlan,
 } from '../types/fitness';
 
@@ -342,6 +343,7 @@ export default function Dashboard({
   };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
+  const [isFoodRebalanceOpen, setIsFoodRebalanceOpen] = useState(false);
   const restTimerStatus = useRestTimer().status;
   const [isTourOpen, setIsTourOpen] = useState(false);
   const profileId = appState.profile.id;
@@ -447,7 +449,7 @@ export default function Dashboard({
               weeklyBalance={effectiveWeeklyBalance}
               metrics={appState.profile.metrics}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
-              onOpenRebalance={() => selectTab('dashboard')}
+              onOpenRebalance={() => setIsFoodRebalanceOpen(true)}
               onAddFood={onAddFood}
               favoriteFoods={appState.favoriteFoods ?? NO_FAVORITES}
               savedMeals={appState.savedMeals ?? NO_SAVED_MEALS}
@@ -458,6 +460,9 @@ export default function Dashboard({
               onUpdateFood={onUpdateFood}
               onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
             />
+          )}
+          {tab === 'nutrition' && (
+            <RebalanceHost isOpen={isFoodRebalanceOpen} appState={appState} weeklyBalance={effectiveWeeklyBalance} onApply={onApplyRebalance} onClose={() => setIsFoodRebalanceOpen(false)} />
           )}
           {tab === 'progress' && (
             <ProgressTab
@@ -578,7 +583,6 @@ function DashboardTab({
   const { profile, nutritionPlan, workoutPlan, weightLogs, progressPhotos, schedule, progress, stepLogs, foodLog } = appState;
   const completedDates = appState.completedWorkoutDates ?? NO_DATES;
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
-  const [syncToast, setSyncToast] = useState<string | null>(null);
   const [bannerDismissedDate, setBannerDismissedDate] = useState(readDismissedBannerDate);
   const installBanner = useInstallBanner();
   const [isBackupReminderVisible, setIsBackupReminderVisible] = useState(() => shouldShowBackupReminder(appState));
@@ -607,15 +611,6 @@ function DashboardTab({
   const openRebalanceKcal = getOpenRebalanceDebtKcal(overshootCoverage);
   // The week's walking against the step average the target assumes: more steps than planned means more to eat to keep the planned pace.
   // The rebalance options work from what is really left to make up (the week after the net step credit), so they agree with the coverage verdict.
-  const rebalanceDebtKcal = getRebalanceDebtKcal(overshootCoverage);
-  const rebalanceWeekDays = useMemo(
-    () => (isRebalanceOpen ? getWeekBreakdown({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []),
-    [isRebalanceOpen, foodLog, nutritionPlan, weeklyBalance, today],
-  );
-  const rebalanceOptions = useMemo(
-    () => (isRebalanceOpen ? buildRebalanceOptions(rebalanceDebtKcal, nutritionPlan, today) : null),
-    [isRebalanceOpen, rebalanceDebtKcal, nutritionPlan, today],
-  );
   const todaysDay = useMemo(() => getTodaysPlanDay(workoutPlan, schedule, today), [workoutPlan, schedule, today]);
   const todaysDayCompleted = useMemo(
     () => completedDates.includes(today) || isDayCompleted(workoutPlan, progress, today, todaysDay.id),
@@ -851,22 +846,7 @@ function DashboardTab({
         />
       )}
 
-      {isRebalanceOpen && rebalanceOptions && (
-        <RebalanceModal
-          options={rebalanceOptions}
-          coverage={overshootCoverage}
-          weekDays={rebalanceWeekDays}
-          canWalkMore={stepMode === 'balance_steps'}
-          baseStepGoal={baseStepGoal}
-          onChoose={(choice) => {
-            onApplyRebalance(choice);
-            if (choice.kind !== 'keep') setSyncToast('היעדים עודכנו וסונכרנו בהצלחה!');
-          }}
-          onClose={() => setIsRebalanceOpen(false)}
-        />
-      )}
-
-      {syncToast && <Toast message={syncToast} onDismiss={() => setSyncToast(null)} />}
+      <RebalanceHost isOpen={isRebalanceOpen} appState={appState} weeklyBalance={weeklyBalance} onApply={onApplyRebalance} onClose={() => setIsRebalanceOpen(false)} />
 
       {isProgramModalOpen && (
         <ProgramSwitcherModal
@@ -879,6 +859,51 @@ function DashboardTab({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The weekly balance screen ("the week is over by X, here is how to make it up") and the confirmation after a choice. One place for it, opened from the
+ * home screen and from the food tab, so the overshoot can be dealt with where it is seen.
+ */
+function RebalanceHost({
+  isOpen,
+  appState,
+  weeklyBalance,
+  onApply,
+  onClose,
+}: {
+  isOpen: boolean;
+  appState: AppState;
+  /** The adjustment with the step mode applied (what every calorie screen reads). */
+  weeklyBalance: WeeklyBalanceAdjustment | undefined;
+  onApply: (choice: RebalanceChoice) => void;
+  onClose: () => void;
+}) {
+  const today = useToday();
+  const [toast, setToast] = useState<string | null>(null);
+  const { foodLog, nutritionPlan } = appState;
+  const coverage = useMemo(() => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }), [foodLog, nutritionPlan, weeklyBalance, today]);
+  const weekDays = useMemo(() => (isOpen ? getWeekBreakdown({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today }) : []), [isOpen, foodLog, nutritionPlan, weeklyBalance, today]);
+  const options = useMemo(() => (isOpen ? buildRebalanceOptions(getRebalanceDebtKcal(coverage), nutritionPlan, today) : null), [isOpen, coverage, nutritionPlan, today]);
+  return (
+    <>
+      {isOpen && options && (
+        <RebalanceModal
+          options={options}
+          coverage={coverage}
+          weekDays={weekDays}
+          canWalkMore={getStepMode(appState) === 'balance_steps'}
+          baseStepGoal={getBaseStepGoal(appState)}
+          onChoose={(choice) => {
+            onApply(choice);
+            if (choice.kind !== 'keep') setToast('היעדים עודכנו וסונכרנו בהצלחה!');
+          }}
+          onClose={onClose}
+        />
+      )}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+    </>
   );
 }
 
