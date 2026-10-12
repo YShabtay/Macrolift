@@ -733,9 +733,16 @@ function AddFoodModal({
   const [isBarcodeIntroOpen, setIsBarcodeIntroOpen] = useState(false);
   // A scanned product opens with a ready amount; a searched one still starts empty.
   const [pickedFromScan, setPickedFromScan] = useState(false);
+  // The window stays open after each add, so several foods go in one visit; this is what was added so far (shown above the "done" button).
+  const [addedNames, setAddedNames] = useState<string[]>([]);
+
+  function addAndStay(entry: Omit<FoodEntry, 'id'>) {
+    onAdd(entry);
+    setAddedNames((names) => [...names, entry.name]);
+  }
 
   function handleQuickAdd(item: (typeof QUICK_FOODS)[number]) {
-    onAdd({
+    addAndStay({
       date,
       meal,
       name: item.name,
@@ -745,14 +752,13 @@ function AddFoodModal({
       fatG: item.fatG,
       carbsG: item.carbsG,
     });
-    onClose();
   }
 
   function handleManualAdd() {
     // An empty field counts as 0; a lone "." is not a number.
     const cal = calories.trim() === '' ? 0 : parseDecimal(calories);
     if (!name.trim() || cal === null) return;
-    onAdd({
+    addAndStay({
       date,
       meal,
       name: name.trim(),
@@ -762,7 +768,12 @@ function AddFoodModal({
       fatG: parseDecimal(fatG) ?? 0,
       carbsG: parseDecimal(carbsG) ?? 0,
     });
-    onClose();
+    setName('');
+    setQuantity('');
+    setCalories('');
+    setProteinG('');
+    setFatG('');
+    setCarbsG('');
   }
 
   return (
@@ -810,8 +821,8 @@ function AddFoodModal({
               meal={meal}
               date={date}
               onBack={() => setPickedFood(null)}
-              onAdd={onAdd}
-              onDone={onClose}
+              onAdd={addAndStay}
+              onDone={() => setPickedFood(null)}
               prefillAmount={pickedFromScan}
             />
           </div>
@@ -823,14 +834,8 @@ function AddFoodModal({
             favorites={favorites}
             recents={recents}
             savedMeals={savedMeals}
-            onAddFood={(food) => {
-              onAdd(templateToEntry(food, date, meal));
-              onClose();
-            }}
-            onAddMeal={(saved) => {
-              saved.items.forEach((item) => onAdd(templateToEntry(item, date, meal)));
-              onClose();
-            }}
+            onAddFood={(food) => addAndStay(templateToEntry(food, date, meal))}
+            onAddMeal={(saved) => saved.items.forEach((item) => addAndStay(templateToEntry(item, date, meal)))}
             onRemoveFavorite={onRemoveFavorite}
             onDeleteSavedMeal={onDeleteSavedMeal}
           />
@@ -925,6 +930,18 @@ function AddFoodModal({
             </div>
           </div>
         </div>
+
+        {addedNames.length > 0 && (
+          <div className="sticky bottom-0 mt-auto flex items-center gap-3 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+            <p className="min-w-0 flex-1 truncate text-xs text-zinc-700 dark:text-zinc-300" aria-live="polite">
+              <span className="font-bold text-lime-700 dark:text-lime-400">נוספו ({addedNames.length}): </span>
+              {addedNames.join(', ')}
+            </p>
+            <button type="button" onClick={onClose} className="btn-primary shrink-0 px-5 py-2 text-sm">
+              סיום
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
