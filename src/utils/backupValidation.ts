@@ -118,6 +118,7 @@ function mergeMetrics(current: UserMetrics, raw: unknown): UserMetrics {
   if (typeof raw.goalIntensity === 'string' && GOAL_INTENSITIES.includes(raw.goalIntensity)) {
     merged.goalIntensity = raw.goalIntensity as UserMetrics['goalIntensity'];
   }
+  if (raw.autoWeightUpdate === false) merged.autoWeightUpdate = false;
   const adjustment = Number(raw.tdeeAdjustmentKcal);
   if (raw.tdeeAdjustmentKcal !== null && raw.tdeeAdjustmentKcal !== '' && Number.isFinite(adjustment) && adjustment !== 0) {
     merged.tdeeAdjustmentKcal = Math.max(-MAX_TDEE_ADJUSTMENT_KCAL, Math.min(MAX_TDEE_ADJUSTMENT_KCAL, Math.round(adjustment)));

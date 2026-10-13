@@ -758,12 +758,15 @@ function DashboardTab({
         onNavigate={onOpenWorkoutCalendar}
       />
 
-      <ProfileWeightSyncCard
-        metrics={profile.metrics}
-        weightLogs={weightLogs}
-        nutritionPlan={nutritionPlan}
-        onApply={(weightKg) => onUpdateProfileFull({ weightKg })}
-      />
+      {/* With the automatic update on (the default) the profile weight follows the weekly average by itself; this card is for those who turned it off. */}
+      {profile.metrics.autoWeightUpdate === false && (
+        <ProfileWeightSyncCard
+          metrics={profile.metrics}
+          weightLogs={weightLogs}
+          nutritionPlan={nutritionPlan}
+          onApply={(weightKg) => onUpdateProfileFull({ weightKg })}
+        />
+      )}
 
       <WeightTargetCard
         variant="banner"

@@ -124,6 +124,8 @@ export interface UserMetrics {
   age: number; // years
   heightCm: number;
   weightKg: number;
+  /** false = the profile weight is not moved to follow the weekly average of the weigh-ins (the app only offers it); omitted = it follows by itself. */
+  autoWeightUpdate?: boolean;
   averageDailySteps: number;
   trainingDaysPerWeek: TrainingDaysPerWeek;
   bodyState: BodyState;

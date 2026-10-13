@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UserMetrics, WeightLog } from '../types/fitness';
-import { getWeightSyncSuggestion } from './profileWeightSync';
+import { getLatestSyncWeekStart, getWeightSyncSuggestion } from './profileWeightSync';
 
 const metrics = { weightKg: 69 } as UserMetrics;
 const log = (date: string, weightKg: number): WeightLog => ({ id: date, date, weightKg });
@@ -8,24 +8,36 @@ const log = (date: string, weightKg: number): WeightLog => ({ id: date, date, we
 const week = (sunday: string, kg: number) => [log(sunday, kg), log(sunday.replace(/\d\d$/, (d) => String(Number(d) + 2).padStart(2, '0')), kg)];
 
 describe('getWeightSyncSuggestion', () => {
-  it('suggests the latest weekly average once two weeks in a row sit 2 kg or more from the profile weight', () => {
-    const logs = [...week('2026-09-20', 71.2), ...week('2026-09-27', 71.6)];
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: logs, today: '2026-10-08' })).toEqual({ suggestedKg: 71.6, profileKg: 69, diffKg: 2.6 });
+  it('follows the last completed week\'s average once it is a kilo or more from the profile weight', () => {
+    const logs = [...week('2026-09-20', 69.3), ...week('2026-09-27', 70.4)];
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: logs, today: '2026-10-08' })).toEqual({ suggestedKg: 70.4, profileKg: 69, diffKg: 1.4 });
   });
   it('also works for losing weight', () => {
-    const logs = [...week('2026-09-20', 66.5), ...week('2026-09-27', 66.1)];
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: logs, today: '2026-10-08' })?.diffKg).toBe(-2.9);
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: week('2026-09-27', 67.8), today: '2026-10-08' })?.diffKg).toBe(-1.2);
   });
-  it('stays quiet for one odd week, a small drift, or too little data', () => {
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: [...week('2026-09-20', 69.3), ...week('2026-09-27', 71.8)], today: '2026-10-08' })).toBeNull();
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: [...week('2026-09-20', 70.2), ...week('2026-09-27', 70.4)], today: '2026-10-08' })).toBeNull();
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: week('2026-09-27', 72), today: '2026-10-08' })).toBeNull();
+  it('uses the average of the week, not a single weigh-in', () => {
+    const logs = [log('2026-09-27', 71), log('2026-09-29', 69.1), log('2026-10-01', 69.4)];
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: logs, today: '2026-10-08' })).toBeNull(); // a 2 kg day in the week, but the average is 69.8
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: [...logs, log('2026-10-02', 72)], today: '2026-10-08' })?.suggestedKg).toBe(70.4);
   });
-  it('ignores the week still in progress and weeks with a single weigh-in', () => {
-    const logs = [...week('2026-09-20', 71.2), log('2026-09-28', 72), ...week('2026-10-04', 72)];
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: logs, today: '2026-10-08' })).toBeNull();
+  it('stays quiet for a small drift, or for a week with a single weigh-in', () => {
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: week('2026-09-27', 69.9), today: '2026-10-08' })).toBeNull();
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: [log('2026-09-28', 72)], today: '2026-10-08' })).toBeNull();
   });
-  it('does not mix an increase with a decrease', () => {
-    expect(getWeightSyncSuggestion({ metrics, weightLogs: [...week('2026-09-20', 66.5), ...week('2026-09-27', 71.5)], today: '2026-10-08' })).toBeNull();
+  it('ignores the week still in progress', () => {
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: week('2026-10-04', 72), today: '2026-10-08' })).toBeNull();
+    expect(getWeightSyncSuggestion({ metrics, weightLogs: [...week('2026-09-27', 69.2), ...week('2026-10-04', 72)], today: '2026-10-08' })).toBeNull();
+  });
+  it('settles once the profile sits on the average', () => {
+    const logs = week('2026-09-27', 70.4);
+    expect(getWeightSyncSuggestion({ metrics: { weightKg: 70.4 } as UserMetrics, weightLogs: logs, today: '2026-10-08' })).toBeNull();
+  });
+});
+
+describe('getLatestSyncWeekStart', () => {
+  it('is the Sunday of the latest completed week that has an average', () => {
+    expect(getLatestSyncWeekStart([...week('2026-09-20', 69), ...week('2026-10-04', 70)], '2026-10-08')).toBe('2026-09-20');
+    expect(getLatestSyncWeekStart([...week('2026-09-20', 69), ...week('2026-10-04', 70)], '2026-10-12')).toBe('2026-10-04');
+    expect(getLatestSyncWeekStart([], '2026-10-08')).toBeNull();
   });
 });

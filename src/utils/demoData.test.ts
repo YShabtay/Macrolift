@@ -3,6 +3,7 @@ import { calculateNutritionPlan } from './calculations';
 import { buildDemoMetrics, buildDemoPhases, buildDemoStepLogs, buildDemoWeekFoodLog, buildDemoWeightLogs } from './demoData';
 import { filterLogsToPhase, getPhaseStats, validatePhases } from './phases';
 import { getOvershootCoverage, shouldOfferRebalance } from './overshoot';
+import { getWeightSyncSuggestion } from './profileWeightSync';
 import { stepNetKcal, withStepMode } from './weeklySteps';
 
 // The demo account is what screenshots and visitors see: it has to show the step chart with long and short days, a bank, and a week that is over.
@@ -55,6 +56,10 @@ describe('demo data for the progress periods', () => {
     expect(new Set(logs.map((l) => l.date)).size).toBe(logs.length);
     expect(logs.every((l) => phases.some((p) => filterLogsToPhase([l], p, TODAY).length === 1))).toBe(true);
     expect(logs[logs.length - 1]).toMatchObject({ date: TODAY, weightKg: 68.8 });
+  });
+
+  it('does not make the app move the profile weight on its own (the average is within a kilo of it)', () => {
+    expect(getWeightSyncSuggestion({ metrics: { ...buildDemoMetrics(), weightKg: 68.8 }, weightLogs: logs, today: TODAY })).toBeNull();
   });
 
   it('tells a cut that lost weight and a bulk that gained it', () => {

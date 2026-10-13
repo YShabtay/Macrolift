@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Dumbbell } from 'lucide-react';
 import Auth from './components/Auth';
 import { clearSession, getSessionUserId } from './utils/authStorage';
@@ -10,6 +10,8 @@ import { ensureGuestSession, restoreProfileFromSnapshot } from './utils/localPro
 import { hasMeaningfulData, snapshotStore, type Snapshot } from './services/snapshotStore';
 import { markSnapshotsDismissed, pickRestorableSnapshot, stateFromSnapshot } from './utils/snapshotRestore';
 import SnapshotRestorePrompt, { UndoResetBar } from './components/SnapshotRestorePrompt';
+import Toast from './components/Toast';
+import { getLatestSyncWeekStart, getWeightSyncSuggestion } from './utils/profileWeightSync';
 import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
@@ -124,7 +126,7 @@ function applyCustomPlanToState(prev: AppState, plan: WorkoutPlan): AppState {
 
 export default function App() {
   // Re-renders the whole tree when the day changes, so no screen keeps showing yesterday's date-based numbers until something else triggers it.
-  useToday();
+  const today = useToday();
   const [isBooting, setIsBooting] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -196,6 +198,46 @@ export default function App() {
     const timer = setTimeout(() => void snapshotStore.saveDaily(userId, appState).catch(() => undefined), 15_000);
     return () => clearTimeout(timer);
   }, [userId, appState]);
+
+  // The profile weight follows the average of the last completed week once it is a kilo or more away (see profileWeightSync). Each finished week is looked
+  // at once, the first time the app is open after it ends: a weight typed into the profile by hand is not overwritten later in the week, and a single
+  // weigh-in never counts. The new targets are announced, and it can be turned off in the profile.
+  const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
+  const weightSyncSeenWeek = useRef<string | null>(null);
+  const weightSyncMetrics = appState?.profile.metrics;
+  const weightSyncLogs = appState?.weightLogs;
+  const weightSyncPlanKcal = appState?.nutritionPlan.targetCalories;
+  useEffect(() => {
+    if (!userId || !weightSyncMetrics || !weightSyncLogs || weightSyncMetrics.autoWeightUpdate === false) return;
+    const week = getLatestSyncWeekStart(weightSyncLogs, today);
+    if (!week) return;
+    const storageKey = `macrolift-weight-sync-week-${userId}`;
+    let seen = weightSyncSeenWeek.current;
+    if (seen === null) {
+      try {
+        seen = localStorage.getItem(storageKey);
+      } catch {
+        // Storage blocked: the week is only remembered until the app is closed.
+      }
+    }
+    if (seen === week) return;
+    weightSyncSeenWeek.current = week;
+    try {
+      localStorage.setItem(storageKey, week);
+    } catch {
+      // See above.
+    }
+    const suggestion = getWeightSyncSuggestion({ metrics: weightSyncMetrics, weightLogs: weightSyncLogs, today });
+    if (!suggestion) return;
+    const kcalAfter = calculateNutritionPlan({ ...weightSyncMetrics, weightKg: suggestion.suggestedKg }).targetCalories;
+    const delta = weightSyncPlanKcal === undefined ? 0 : kcalAfter - weightSyncPlanKcal;
+    const kg = suggestion.suggestedKg.toLocaleString('he-IL', { maximumFractionDigits: 1 });
+    handleUpdateProfileFull({ weightKg: suggestion.suggestedKg });
+    setWeightSyncNote(
+      `המשקל בפרופיל עודכן ל-${kg} ק״ג לפי הממוצע השבועי${Math.abs(delta) >= 5 ? `, והיעד ${delta > 0 ? 'עלה' : 'ירד'} בכ-${Math.abs(delta)} קק״ל` : ''}`,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleUpdateProfileFull is recreated every render and only reads state through setAppState.
+  }, [userId, weightSyncMetrics, weightSyncLogs, weightSyncPlanKcal, today]);
 
   async function handleAuthenticated(newUserId: string) {
     setUserId(newUserId);
@@ -727,6 +769,7 @@ export default function App() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <UpdatePrompt />
+      {weightSyncNote && <Toast message={weightSyncNote} onDismiss={() => setWeightSyncNote(null)} />}
       <Dashboard
         appState={appState}
         onToggleSet={toggleSet}

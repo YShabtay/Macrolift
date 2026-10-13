@@ -44,6 +44,7 @@ export default function EditProfileModal({ metrics, currentWeightKg, onSave, onC
   const [age, setAge] = useState(String(metrics.age));
   const [heightCm, setHeightCm] = useState(String(metrics.heightCm));
   const [weightKg, setWeightKg] = useState(String(metrics.weightKg));
+  const [autoWeight, setAutoWeight] = useState(metrics.autoWeightUpdate !== false);
   const [averageDailySteps, setAverageDailySteps] = useState(String(metrics.averageDailySteps));
   const [trainingDaysPerWeek, setTrainingDaysPerWeek] = useState<TrainingDaysPerWeek>(metrics.trainingDaysPerWeek);
   const [targetFocus, setTargetFocus] = useState<TargetFocus>(metrics.targetFocus ?? 'balanced');
@@ -92,6 +93,7 @@ export default function EditProfileModal({ metrics, currentWeightKg, onSave, onC
       age: ageValue,
       heightCm: heightValue,
       weightKg: weightValue,
+      autoWeightUpdate: autoWeight ? undefined : false,
       averageDailySteps: stepsValue,
       trainingDaysPerWeek,
       targetFocus,
@@ -181,6 +183,15 @@ export default function EditProfileModal({ metrics, currentWeightKg, onSave, onC
               isValid={isStepsValid}
             />
           </div>
+
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+            <input type="checkbox" checked={autoWeight} onChange={(e) => setAutoWeight(e.target.checked)} className="mt-0.5 h-4 w-4 accent-lime-500" />
+            <span className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <span className="font-bold text-zinc-900 dark:text-zinc-100">עדכון אוטומטי של המשקל</span>
+              <br />
+              בתחילת כל שבוע, אם הממוצע השבועי של השקילות זז בקילו או יותר מהמשקל כאן, המשקל והיעדים מתעדכנים לפיו. שקילה בודדת לא משנה כלום.
+            </span>
+          </label>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-500">ימי אימון בשבוע</label>

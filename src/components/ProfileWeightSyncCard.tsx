@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Scale } from 'lucide-react';
 import type { NutritionPlan, UserMetrics, WeightLog } from '../types/fitness';
 import { calculateNutritionPlan } from '../utils/calculations';
-import { WEIGHT_SYNC_SNOOZE_DAYS, getWeightSyncSuggestion } from '../utils/profileWeightSync';
+import { getWeightSyncSuggestion } from '../utils/profileWeightSync';
 import { daysBetween } from '../utils/weightCalculations';
 import { useToday } from '../hooks/useToday';
 
 const SNOOZE_KEY = 'macrolift-weight-sync-snoozed';
+const SNOOZE_DAYS = 7;
 
 function readSnoozed(): string | null {
   try {
@@ -24,7 +25,7 @@ interface ProfileWeightSyncCardProps {
   onApply: (weightKg: number) => void;
 }
 
-/** Offers to bring the profile weight in line with the weekly averages when they have moved a few kilos away from it. */
+/** For someone who turned the automatic update off: offers to bring the profile weight in line with last week's average when it has moved a kilo or more. */
 export default function ProfileWeightSyncCard({ metrics, weightLogs, nutritionPlan, onApply }: ProfileWeightSyncCardProps) {
   const today = useToday();
   const [snoozedOn, setSnoozedOn] = useState(readSnoozed);
@@ -35,7 +36,7 @@ export default function ProfileWeightSyncCard({ metrics, weightLogs, nutritionPl
   );
 
   if (!suggestion || !preview) return null;
-  if (snoozedOn !== null && daysBetween(snoozedOn, today) < WEIGHT_SYNC_SNOOZE_DAYS) return null;
+  if (snoozedOn !== null && daysBetween(snoozedOn, today) < SNOOZE_DAYS) return null;
 
   const deltaKcal = preview.targetCalories - nutritionPlan.targetCalories;
   const kg = (n: number) => n.toLocaleString('he-IL', { maximumFractionDigits: 1 });
@@ -56,7 +57,7 @@ export default function ProfileWeightSyncCard({ metrics, weightLogs, nutritionPl
         <h3 className="font-bold text-zinc-900 dark:text-zinc-100">לעדכן את משקל הפרופיל?</h3>
       </div>
       <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-        הממוצע השבועי שלך בשבועיים האחרונים הוא כ-{kg(suggestion.suggestedKg)} ק״ג, והפרופיל עדיין על {kg(suggestion.profileKg)} ק״ג. היעד הקלורי, החלבון והקלוריות מהצעדים
+        הממוצע השבועי שלך בשבוע שעבר היה כ-{kg(suggestion.suggestedKg)} ק״ג, והפרופיל עדיין על {kg(suggestion.profileKg)} ק״ג. היעד הקלורי, החלבון והקלוריות מהצעדים
         מחושבים לפי משקל הפרופיל, אז עדכון יתאים אותם אליך
         {Math.abs(deltaKcal) >= 5 ? `: היעד ${deltaKcal > 0 ? 'יעלה' : 'ירד'} בכ-${Math.abs(deltaKcal)} קק״ל, ל-${preview.targetCalories.toLocaleString('he-IL')}` : ''}.
       </p>
