@@ -148,16 +148,6 @@ describe('getStepCalorieBank: spare calories pay the week\'s overshoot before th
     expect(result.availableToday).toBe(0);
   });
 
-  it('a day that is over and has walked is covered first by its own steps; only what is left goes to the days before', () => {
-    // Monday 300 over. Today (Tuesday) walks 2,500 above the goal (+100) and ate 40 above the base: the 40 is covered, so the day is not shown as over,
-    // and the other 60 cancels part of Monday's overshoot.
-    const logs = [steps('2026-10-05', 4500), steps('2026-10-06', 7000)];
-    const result = bank(logs, [meal('2026-10-05', 2700), meal('2026-10-06', 2440)], '2026-10-06');
-    expect(result.allowance['2026-10-06']).toBe(40);
-    expect(result.appliedToday).toBe(60);
-    expect(result.availableToday).toBe(100);
-  });
-
   it('what is more than the overshoot becomes room for that day', () => {
     // Overshoot 100; Tuesday's 160 cancels it and leaves 60 to carry into today.
     const logs = [steps('2026-10-05', 4500), steps('2026-10-06', 8500)];

@@ -119,9 +119,9 @@ export interface StepCalorieBank {
  * debt that later days must cover), so only the net walking counts. Today's own steps only add: the day is not over, so a low count so far is not a shortfall yet.
  *
  * What the spare calories do, in this order, on each day:
- * 1. They cover what that day ate above its own base target (so a day that is over and has walked is not shown as over).
- * 2. What is left cancels what the week is over by so far (the days before, eaten against their base target; days under it offset days over it). Only a
- *    week that is over has something to cancel.
+ * 1. They cancel what the week is over by so far (the days before, eaten against their base target; days under it offset days over it). Only a week that is
+ *    over has something to cancel.
+ * 2. What is left covers what that day ate above its own base target.
  * 3. What is still left carries to the next day (for today: it is added to today's target, as room to eat).
  * The base target of a day is its target without any step calories, so a lowered target from a rebalance still applies. A past day's allowance is what it
  * spent in step 2, so eaten minus target stays honest and the same calories are never in two days' targets.
@@ -149,17 +149,17 @@ export function getStepCalorieBank(params: {
     const isToday = day === today;
     const bonus = isToday ? stepBonusKcal(daySteps, targetDailySteps, weightKg) : stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
     const available = Math.max(bank + bonus, 0);
+    const applied = Math.min(available, Math.max(0, Math.round(weekOver)));
+    const pool = available - applied;
+    appliedWeek += applied;
+    if (isToday) {
+      if (pool > 0) allowance[day] = pool;
+      return { allowance, carriedIntoToday: bank, bonusToday: bonus, availableToday: available, appliedToday: applied, appliedWeek };
+    }
     const base = getDailyTargets(plan, baseAdjustment, day).calories;
     const entries = foodLog.filter((f) => f.date === day);
     const eaten = sumTotals(entries).calories;
-    const used = Math.min(available, Math.max(0, Math.round(eaten - base)));
-    const applied = Math.min(available - used, Math.max(0, Math.round(weekOver)));
-    const pool = available - used - applied;
-    appliedWeek += applied;
-    if (isToday) {
-      if (used + pool > 0) allowance[day] = used + pool;
-      return { allowance, carriedIntoToday: bank, bonusToday: bonus, availableToday: available, appliedToday: applied, appliedWeek };
-    }
+    const used = Math.min(pool, Math.max(0, Math.round(eaten - base)));
     if (used > 0) allowance[day] = used;
     // A debt left by the bank (it was negative) stays a debt for later days.
     bank = bank + bonus - applied - used;
