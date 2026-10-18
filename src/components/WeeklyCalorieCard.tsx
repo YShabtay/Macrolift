@@ -1,9 +1,10 @@
 import { CalendarRange } from 'lucide-react';
 import { shouldShowPace, type WeeklyCalorieBudget } from '../utils/calorieBudget';
 import { formatDateDisplay } from '../utils/weightCalculations';
+import { MAX_CARRY_KCAL } from '../utils/weekCarry';
 
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
-export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: WeeklyCalorieBudget; /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */ isToday?: boolean }) {
+export default function WeeklyCalorieCard({ budget, isToday = true, carriedOutKcal = null }: { budget: WeeklyCalorieBudget; /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */ isToday?: boolean; /** For a week that is over: what it left on the balance of the week after it (positive = not eaten, negative = owed). */ carriedOutKcal?: number | null }) {
   const percent = budget.weeklyTarget > 0 ? Math.min(Math.round((budget.eaten / budget.weeklyTarget) * 100), 100) : 0;
   const isOver = budget.remaining < 0;
 
@@ -37,6 +38,17 @@ export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: 
           {budget.carryInKcal > 0
             ? `כולל ${budget.carryInKcal.toLocaleString()} קק״ל שלא אכלת בשבועות הקודמים (נוספו לתקציב השבוע).`
             : `כולל ${Math.abs(budget.carryInKcal).toLocaleString()} קק״ל שאכלת מעל היעד בשבועות הקודמים (הורדו מתקציב השבוע).`}
+        </p>
+      )}
+      {!budget.isCurrentWeek && carriedOutKcal !== null && (
+        <p className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+          {carriedOutKcal > 0
+            ? `לשבוע שאחריו עברו ${carriedOutKcal.toLocaleString()} קק״ל שלא אכלת.`
+            : carriedOutKcal < 0
+              ? `לשבוע שאחריו עבר חוב של ${Math.abs(carriedOutKcal).toLocaleString()} קק״ל.`
+              : 'לשבוע שאחריו לא עבר כלום.'}
+          {budget.remaining - carriedOutKcal > 5 &&
+            ` ${(budget.remaining - carriedOutKcal).toLocaleString()} קק״ל נוספים לא עברו הלאה: קלוריות מצעדים שלא נוצלו פגות בסוף השבוע, ומה שמעל ${MAX_CARRY_KCAL} קק״ל נחתך.`}
         </p>
       )}
       {budget.pace && shouldShowPace(budget.pace) && (

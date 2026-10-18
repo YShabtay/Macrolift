@@ -287,7 +287,7 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
         </div>
       )}
 
-      <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} />
+      <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} carriedOutKcal={calorieBudget.isCurrentWeek ? null : (adjustmentFor(shiftDate(calorieBudget.weekEnd, 1), 'day')?.carryInKcal ?? 0)} />
 
 
       <button
