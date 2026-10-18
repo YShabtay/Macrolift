@@ -268,9 +268,9 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
           )}
         </button>
       )}
-      {isToday && !coverage.isDayClosed && coverage.weekOverSoFarKcal > 0 && coverage.closableKcal > 0 && (
+      {isToday && !coverage.isDayClosed && coverage.closableKcal > 0 && (
         <div className="-mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/60 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-700 dark:text-zinc-300">סיימת לאכול להיום? כך {coverage.closableKcal.toLocaleString('he-IL')} הקק״ל שנשארו ייספרו כחיסכון בשבוע.</p>
+          <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-700 dark:text-zinc-300">סיימת לאכול להיום? כך {coverage.closableKcal.toLocaleString('he-IL')} הקק״ל שנשארו מהיעד ייספרו כחיסכון בשבוע (גם בלי לסמן, זה קורה בחצות).</p>
           <button type="button" onClick={() => onSetDayClosed(selectedDate, true)} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
             סיימתי לאכול היום
           </button>
