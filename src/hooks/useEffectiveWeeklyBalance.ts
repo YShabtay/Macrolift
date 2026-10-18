@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { AppState, WeeklyBalanceAdjustment } from '../types/fitness';
 import { getBaseStepGoal } from '../utils/stepGoalSync';
-import { getStepMode, withStepMode } from '../utils/weeklySteps';
+import { getStepMode } from '../utils/weeklySteps';
+import { deriveWeeklyAdjustment } from '../utils/weekCarry';
 import { getWeekEnd, getWeekStart } from '../utils/weightCalculations';
 import { useToday } from './useToday';
 
@@ -15,7 +16,7 @@ export function useEffectiveWeeklyBalance(appState: AppState): WeeklyBalanceAdju
   const mode = getStepMode(appState);
   const goal = getBaseStepGoal(appState);
   const weightKg = profile.metrics.weightKg;
-  return useMemo(() => withStepMode(weeklyBalance, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today }), [weeklyBalance, stepLogs, foodLog, nutritionPlan, mode, goal, weightKg, today]);
+  return useMemo(() => deriveWeeklyAdjustment(weeklyBalance, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today }), [weeklyBalance, stepLogs, foodLog, nutritionPlan, mode, goal, weightKg, today]);
 }
 
 /**
@@ -31,11 +32,16 @@ export function useAdjustmentForDate(appState: AppState): (date: string, scope: 
   const mode = getStepMode(appState);
   const goal = getBaseStepGoal(appState);
   const weightKg = profile.metrics.weightKg;
-  return useMemo(
-    () => (date, scope) => {
+  return useMemo(() => {
+    // The week strip asks for every day of the week on each render: an earlier week is derived once per date and scope.
+    const cache = new Map<string, WeeklyBalanceAdjustment | undefined>();
+    return (date: string, scope: 'day' | 'week') => {
       if (getWeekStart(date) >= getWeekStart(today)) return current;
-      return withStepMode(undefined, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today: scope === 'week' ? getWeekEnd(date) : date });
-    },
-    [current, today, mode, stepLogs, foodLog, nutritionPlan, goal, weightKg],
-  );
+      const key = `${scope === 'week' ? getWeekEnd(date) : date}`;
+      if (!cache.has(key)) {
+        cache.set(key, deriveWeeklyAdjustment(undefined, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today: key }));
+      }
+      return cache.get(key);
+    };
+  }, [current, today, mode, stepLogs, foodLog, nutritionPlan, goal, weightKg]);
 }

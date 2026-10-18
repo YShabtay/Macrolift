@@ -134,14 +134,16 @@ export function getStepCalorieBank(params: {
   targetDailySteps: number;
   weightKg: number;
   today: string;
+  /** What the earlier weeks left on the balance (positive = not eaten): it is part of what the week is over or under by, so steps only cancel what is left over it. */
+  carryInKcal?: number;
 }): StepCalorieBank {
-  const { baseAdjustment, plan, stepLogs, foodLog, targetDailySteps, weightKg, today } = params;
+  const { baseAdjustment, plan, stepLogs, foodLog, targetDailySteps, weightKg, today, carryInKcal = 0 } = params;
   const weekStart = getWeekStart(today);
   const allowance: Record<string, number> = {};
   let bank = 0;
   let appliedWeek = 0;
   // What the week is over by after the days so far: each logged day's eaten minus its base target and the step calories it used, less what was cancelled.
-  let weekOver = 0;
+  let weekOver = -carryInKcal;
 
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const day = addDaysIso(weekStart, i);
@@ -177,19 +179,21 @@ export function getStepCalorieBank(params: {
  */
 export function withStepMode(
   adjustment: WeeklyBalanceAdjustment | undefined,
-  params: { mode: StepMode; stepLogs: StepLog[]; foodLog: FoodEntry[]; plan: NutritionPlan; targetDailySteps: number; weightKg: number; today: string },
+  params: { mode: StepMode; stepLogs: StepLog[]; foodLog: FoodEntry[]; plan: NutritionPlan; targetDailySteps: number; weightKg: number; today: string; carryInKcal?: number },
 ): WeeklyBalanceAdjustment | undefined {
   const { mode, today } = params;
+  const carryInKcal = Math.round(params.carryInKcal ?? 0);
   const weekStart = getWeekStart(today);
   const current = getActiveAdjustment(adjustment, today);
-  // Whatever step allowance was saved by an older version is never trusted: the only allowance is the one derived below.
-  const { stepAllowance: _saved, stepAppliedToOvershoot: _savedApplied, ...kept } = current ?? { weekStart };
-  if (mode === 'balance_steps') return current ? kept : undefined;
+  // Whatever step allowance (or carry-over) was saved by an older version is never trusted: the only ones are those derived below.
+  const { stepAllowance: _saved, stepAppliedToOvershoot: _savedApplied, carryInKcal: _savedCarry, ...kept } = current ?? { weekStart };
+  const withCarry = <T extends object>(a: T): T & { carryInKcal?: number } => (carryInKcal !== 0 ? { ...a, carryInKcal } : a);
+  if (mode === 'balance_steps') return current || carryInKcal !== 0 ? withCarry(kept) : undefined;
 
   const { steps: _walkMore, ...withoutWalkMore } = kept;
-  const { allowance, appliedWeek } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today });
+  const { allowance, appliedWeek } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today, carryInKcal });
   const hasBonus = Object.keys(allowance).length > 0;
-  return hasBonus || appliedWeek > 0 || current
-    ? { ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}), ...(appliedWeek > 0 ? { stepAppliedToOvershoot: appliedWeek } : {}) }
+  return hasBonus || appliedWeek > 0 || current || carryInKcal !== 0
+    ? withCarry({ ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}), ...(appliedWeek > 0 ? { stepAppliedToOvershoot: appliedWeek } : {}) })
     : undefined;
 }

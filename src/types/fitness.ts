@@ -439,6 +439,11 @@ export interface WeeklyBalanceAdjustment {
    * the week so far. Spare step calories pay the overshoot first; only what is left over becomes room to eat.
    */
   stepAppliedToOvershoot?: number;
+  /**
+   * Derived, never saved: what the earlier weeks left on the balance, in kcal. Positive = calories not eaten that cancel this week's overshoot, negative =
+   * calories eaten over that count against this week. Limited in size and only from the last few weeks (see weekCarry).
+   */
+  carryInKcal?: number;
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */

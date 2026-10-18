@@ -1,5 +1,6 @@
 import { getDailyTargets } from './weeklyBalance';
-import { getStepMode, withStepMode } from './weeklySteps';
+import { getStepMode } from './weeklySteps';
+import { deriveWeeklyAdjustment } from './weekCarry';
 import { getBaseStepGoal } from './stepGoalSync';
 import { getCalorieRange } from './calorieRange';
 import type { AppState, UserMetrics } from '../types/fitness';
@@ -42,7 +43,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
 
   const todaysEntries = getEntriesForDate(foodLog, today);
   const eatenToday = sumTotals(todaysEntries);
-  const stepAdjustment = withStepMode(appState.weeklyBalance, { mode: getStepMode(appState), stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: getBaseStepGoal(appState), weightKg: metrics.weightKg, today });
+  const stepAdjustment = deriveWeeklyAdjustment(appState.weeklyBalance, { mode: getStepMode(appState), stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: getBaseStepGoal(appState), weightKg: metrics.weightKg, today });
   const todayTargets = getDailyTargets(nutritionPlan, stepAdjustment, today);
   const remainingToday = calculateRemaining(todayTargets.calories, todayTargets.macros, eatenToday);
   const stepsToday = getStepsForDate(stepLogs, today);

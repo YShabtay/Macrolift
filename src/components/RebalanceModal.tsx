@@ -98,6 +98,13 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
               </tbody>
             </table>
           )}
+          {coverage.carryInKcal !== 0 && (
+            <p className={`mt-1 font-semibold ${coverage.carryInKcal > 0 ? 'text-lime-700 dark:text-lime-400' : 'text-orange-700 dark:text-orange-400'}`}>
+              {coverage.carryInKcal > 0
+                ? `יתרה משבועות קודמים: −${coverage.carryInKcal.toLocaleString()} קק״ל (קלוריות שלא אכלת, והן מקזזות את העודף)`
+                : `חוב משבועות קודמים: +${Math.abs(coverage.carryInKcal).toLocaleString()} קק״ל (קלוריות שאכלת מעל היעד, והן נספרות על השבוע הזה)`}
+            </p>
+          )}
           {coverage.stepsAppliedKcal > 0 && (
             <p className="mt-1 font-semibold text-lime-700 dark:text-lime-400">
               קלוריות מצעדים שכבר קיזזו את העודף: −{coverage.stepsAppliedKcal.toLocaleString()} קק״ל (הן לא נוספו ליעד של אף יום)

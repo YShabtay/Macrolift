@@ -32,6 +32,13 @@ export default function WeeklyCalorieCard({ budget, isToday = true }: { budget: 
         <div className={`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-orange-400' : 'bg-lime-400'}`} style={{ width: `${percent}%` }} />
       </div>
 
+      {budget.carryInKcal !== 0 && (
+        <p className={`mt-2 text-[11px] leading-relaxed ${budget.carryInKcal > 0 ? 'text-lime-700 dark:text-lime-400' : 'text-orange-700 dark:text-orange-400'}`}>
+          {budget.carryInKcal > 0
+            ? `כולל ${budget.carryInKcal.toLocaleString()} קק״ל שלא אכלת בשבועות הקודמים (נוספו לתקציב השבוע).`
+            : `כולל ${Math.abs(budget.carryInKcal).toLocaleString()} קק״ל שאכלת מעל היעד בשבועות הקודמים (הורדו מתקציב השבוע).`}
+        </p>
+      )}
       {budget.pace && shouldShowPace(budget.pace) && (
         <p className="mt-3 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
           <span className="font-bold">{isToday ? 'מומלץ להיום' : 'מומלץ ליום הזה'}: {budget.pace.kcal.toLocaleString()} קק״ל</span>

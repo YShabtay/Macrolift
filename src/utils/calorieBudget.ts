@@ -1,7 +1,7 @@
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
 import { addDaysIso } from './dateMath';
 import { sumTotals } from './nutritionLog';
-import { getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal } from './weeklyBalance';
+import { getCarryInKcal, getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal } from './weeklyBalance';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
@@ -21,6 +21,8 @@ export interface WeeklyCalorieBudget {
   weekEnd: string;
   /** The week's total target: the sum of each day's target (a rebalance reduction and any step allowance put on a day included). */
   weeklyTarget: number;
+  /** What the earlier weeks left on the balance and is part of `weeklyTarget` (positive = calories not eaten, negative = eaten over); 0 when none. */
+  carryInKcal: number;
   /** Calories logged on the days of the week up to and including `today` (the whole week for a past week). */
   eaten: number;
   /** Weekly target minus eaten; negative once the week's budget is exceeded. */
@@ -86,6 +88,9 @@ export function getWeeklyCalorieBudget(
 
   // Spare step calories that cancelled the overshoot are part of the week's budget (they were earned, and they are not in any day's target).
   weeklyTarget += getStepAppliedKcal(adjustment, lastDay);
+  // What the earlier weeks left over (or owe) moves the week's budget too: calories not eaten last week are room, calories eaten over are owed.
+  const carryInKcal = getCarryInKcal(adjustment, lastDay);
+  weeklyTarget += carryInKcal;
 
   let pace: WeeklyCalorieBudget['pace'] = null;
   if (isCurrentWeek) {
@@ -102,5 +107,5 @@ export function getWeeklyCalorieBudget(
     pace = { kcal, target, stepBonusKcal: todayAllowance, daysLeft, clamped: shared < low ? 'down' : shared > high ? 'up' : null };
   }
 
-  return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };
+  return { weekStart, weekEnd, weeklyTarget: Math.round(weeklyTarget), carryInKcal, eaten: Math.round(eaten), remaining: Math.round(weeklyTarget - eaten), unloggedDays, pace, isCurrentWeek };
 }

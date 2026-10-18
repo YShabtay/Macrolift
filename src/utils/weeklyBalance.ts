@@ -40,6 +40,12 @@ export function getStepAllowanceKcal(adjustment: WeeklyBalanceAdjustment | undef
   return kcal && kcal > 0 ? Math.round(kcal) : 0;
 }
 
+/** What the earlier weeks left on the balance for the week of `date` (positive = calories not eaten, negative = eaten over); 0 when none. */
+export function getCarryInKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+  const kcal = getActiveAdjustment(adjustment, date)?.carryInKcal;
+  return kcal ? Math.round(kcal) : 0;
+}
+
 /** The step calories (calorie mode) that went to cancel the week's overshoot rather than becoming room to eat, over the week of `date` (0 when none). */
 export function getStepAppliedKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
   const kcal = getActiveAdjustment(adjustment, date)?.stepAppliedToOvershoot;
@@ -186,8 +192,8 @@ export function getWeeklyEnergyBalance(
     targetKcal += getDailyTargets(plan, adjustment, date).calories;
   }
 
-  // Spare step calories that cancelled the overshoot count as part of the week's budget.
-  targetKcal += getStepAppliedKcal(adjustment, today);
+  // Spare step calories that cancelled the overshoot count as part of the week's budget, and so does what the earlier weeks left over (or owe).
+  targetKcal += getStepAppliedKcal(adjustment, today) + getCarryInKcal(adjustment, today);
   return { daysCounted, eatenKcal: Math.round(eatenKcal), targetKcal: Math.round(targetKcal), balanceKcal: Math.round(eatenKcal - targetKcal) };
 }
 
