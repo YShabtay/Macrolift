@@ -456,6 +456,7 @@ export default function Dashboard({
           {tab === 'nutrition' && (
             <FoodTracker
               closedFoodDays={appState.closedFoodDays}
+              onSetDayClosed={onSetFoodDayClosed}
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
               weeklyBalance={effectiveWeeklyBalance}

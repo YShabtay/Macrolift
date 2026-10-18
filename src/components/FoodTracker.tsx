@@ -78,6 +78,8 @@ interface FoodTrackerProps {
   onOpenRebalance: () => void;
   /** Days the person marked as done eating (their unspent target counts as saved in the week's overshoot). */
   closedFoodDays?: string[];
+  /** Marks a day as done eating (its unspent target then counts as saved in the week) or opens it again. */
+  onSetDayClosed: (date: string, closed: boolean) => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   favoriteFoods: FavoriteFood[];
   savedMeals: SavedMeal[];
@@ -100,7 +102,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const isMobile = useIsMobile();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
@@ -144,9 +146,11 @@ export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, we
   const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
   // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
+  // A day that is over is closed by definition: what it did not eat of its target is saved (the same way the later days count it), with no need to mark it.
+  const isDayClosed = selectedDate < today || (closedFoodDays ?? []).includes(selectedDate);
   const coverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate, todayClosed: (closedFoodDays ?? []).includes(selectedDate) }),
-    [selectedDate, foodLog, nutritionPlan, weeklyBalance, closedFoodDays],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate, todayClosed: isDayClosed }),
+    [selectedDate, foodLog, nutritionPlan, weeklyBalance, isDayClosed],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
 
@@ -247,12 +251,38 @@ export default function FoodTracker({ closedFoodDays, foodLog, nutritionPlan, we
         <button
           type="button"
           onClick={onOpenRebalance}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
+          className="flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-3 py-2.5 text-center text-xs font-bold leading-snug text-amber-800 shadow-sm transition hover:bg-amber-500/25 active:scale-[0.98] dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
         >
-          {getOpenRebalanceDebtKcal(coverage) > COVERAGE_TOLERANCE_KCAL
-            ? `⚖️ עודף של ${getOpenRebalanceDebtKcal(coverage).toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון`
-            : '⚖️ איזון שבועי פעיל • לשינוי בדשבורד'}
+          <span>
+            {getOpenRebalanceDebtKcal(coverage) > COVERAGE_TOLERANCE_KCAL
+              ? `⚖️ עודף של ${getOpenRebalanceDebtKcal(coverage).toLocaleString('he-IL')} קק״ל השבוע • לאפשרויות האיזון`
+              : '⚖️ איזון שבועי פעיל • לשינוי בדשבורד'}
+          </span>
+          {!coverage.isDayClosed && coverage.closableKcal > 0 && (
+            <span className="text-[11px] font-semibold opacity-90">
+              עוד לא אכלת {coverage.closableKcal.toLocaleString('he-IL')} קק״ל מהיעד של היום, והם עדיין לא נספרים כחיסכון.{' '}
+              {coverage.weekOverSoFarKcal - coverage.closableKcal > 0
+                ? `אם לא תאכל אותם, העודף יירד ל-${(coverage.weekOverSoFarKcal - coverage.closableKcal).toLocaleString('he-IL')} קק״ל.`
+                : `אם לא תאכל אותם, השבוע ייסגר ${Math.abs(coverage.weekOverSoFarKcal - coverage.closableKcal).toLocaleString('he-IL')} קק״ל מתחת ליעד.`}
+            </span>
+          )}
         </button>
+      )}
+      {isToday && !coverage.isDayClosed && coverage.weekOverSoFarKcal > 0 && coverage.closableKcal > 0 && (
+        <div className="-mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/60 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-700 dark:text-zinc-300">סיימת לאכול להיום? כך {coverage.closableKcal.toLocaleString('he-IL')} הקק״ל שנשארו ייספרו כחיסכון בשבוע.</p>
+          <button type="button" onClick={() => onSetDayClosed(selectedDate, true)} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
+            סיימתי לאכול היום
+          </button>
+        </div>
+      )}
+      {isToday && coverage.isDayClosed && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-lime-400/10 px-3 py-2.5">
+          <p className="text-[11px] font-semibold text-lime-800 dark:text-lime-300">היום סגור: מה שלא אכלת מהיעד נספר כחיסכון בשבוע.</p>
+          <button type="button" onClick={() => onSetDayClosed(selectedDate, false)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
+            פתח מחדש
+          </button>
+        </div>
       )}
 
       <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} />
