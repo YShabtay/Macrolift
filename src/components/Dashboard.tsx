@@ -51,7 +51,7 @@ import PrivacyTermsModal from './PrivacyTermsModal';
 import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
-import { useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
+import { useAdjustmentForDate, useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
 import { getStepMode, type StepMode } from '../utils/weeklySteps';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
@@ -335,6 +335,7 @@ export default function Dashboard({
   const [tab, setTab] = useState<Tab>('dashboard');
   // Which workout sub-view the workout screen opens on. Plain navigation always lands on "today's workout"; only the
   const effectiveWeeklyBalance = useEffectiveWeeklyBalance(appState);
+  const adjustmentForDate = useAdjustmentForDate(appState);
   // dashboard's "full calendar" link asks for the calendar.
   const [workoutEntryView, setWorkoutEntryView] = useState<WorkoutView>('today');
   // Opening a screen starts it from the top (the page scroll would otherwise carry over from the previous screen); tapping the
@@ -459,7 +460,7 @@ export default function Dashboard({
               onSetDayClosed={onSetFoodDayClosed}
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
-              weeklyBalance={effectiveWeeklyBalance}
+              adjustmentFor={adjustmentForDate}
               metrics={appState.profile.metrics}
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onOpenRebalance={() => setIsFoodRebalanceOpen(true)}

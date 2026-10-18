@@ -70,7 +70,8 @@ interface FoodTrackerProps {
   foodLog: FoodEntry[];
   nutritionPlan: NutritionPlan;
   /** Temporary weekly rebalance, which can lower the target on the days it covers. */
-  weeklyBalance?: WeeklyBalanceAdjustment;
+  /** The week's adjustment for a date: for the current week the saved rebalance with the step calories; for an earlier week only the step calories, derived again ('day' = as that day stood, 'week' = as the week ended). */
+  adjustmentFor: (date: string, scope: 'day' | 'week') => WeeklyBalanceAdjustment | undefined;
   /** The profile, for the manual calorie adjustment, and what applies it (adds kcal to the daily target; negative removes). */
   metrics: UserMetrics;
   onApplyTargetAdjustment: (deltaKcal: number) => void;
@@ -102,7 +103,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, nutritionPlan, weeklyBalance, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, nutritionPlan, adjustmentFor, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const isMobile = useIsMobile();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
@@ -131,26 +132,27 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
   const isLiveDay = isToday || (selectedDate === shiftDate(today, -1) && getWeekStart(selectedDate) === getWeekStart(today));
   const liveDate = isLiveDay ? selectedDate : today;
   const calorieBudget = useMemo(
-    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate),
-    [foodLog, nutritionPlan, weeklyBalance, selectedDate, liveDate],
+    () => getWeeklyCalorieBudget(foodLog, nutritionPlan, adjustmentFor(selectedDate, 'week'), selectedDate, liveDate),
+    [foodLog, nutritionPlan, adjustmentFor, selectedDate, liveDate],
   );
   const stripDay = (date: string): WeekStripDay => {
     const entries = getEntriesForDate(foodLog, date);
     if (entries.length === 0) return { kcal: null, status: 'none' };
     const kcal = Math.round(sumTotals(entries).calories);
-    const target = getDailyTargets(nutritionPlan, weeklyBalance, date).calories;
+    const target = getDailyTargets(nutritionPlan, adjustmentFor(date, 'week'), date).calories;
     return { kcal, status: kcal > target * 1.1 ? 'over' : kcal < target * 0.9 ? 'under' : 'on-target' };
   };
   const eaten = useMemo(() => sumTotals(entriesForDate), [entriesForDate]);
-  const targets = useMemo(() => getDailyTargets(nutritionPlan, weeklyBalance, selectedDate), [nutritionPlan, weeklyBalance, selectedDate]);
+  const dayAdjustment = useMemo(() => adjustmentFor(selectedDate, 'day'), [adjustmentFor, selectedDate]);
+  const targets = useMemo(() => getDailyTargets(nutritionPlan, dayAdjustment, selectedDate), [nutritionPlan, dayAdjustment, selectedDate]);
   const remaining = useMemo(() => calculateRemaining(targets.calories, targets.macros, eaten), [targets, eaten]);
   // A day is judged against its week as it stood at the end of that day, so yesterday still reads "balanced" after midnight if it was
   // covered. Only today can be rebalanced and gets the "room left" line, because both look forward.
   // A day that is over is closed by definition: what it did not eat of its target is saved (the same way the later days count it), with no need to mark it.
   const isDayClosed = selectedDate < today || (closedFoodDays ?? []).includes(selectedDate);
   const coverage = useMemo(
-    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: weeklyBalance, today: selectedDate, todayClosed: isDayClosed }),
-    [selectedDate, foodLog, nutritionPlan, weeklyBalance, isDayClosed],
+    () => getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: dayAdjustment, today: selectedDate, todayClosed: isDayClosed }),
+    [selectedDate, foodLog, nutritionPlan, dayAdjustment, isDayClosed],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
 
