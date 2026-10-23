@@ -2,6 +2,7 @@ import type { FoodEntry, MacroGrams, NutritionPlan, StepLog, WeeklyBalanceAdjust
 import { getStepsForDate } from './stepsCalculations';
 import { daysBetween, formatIsoDate, getWeekEnd, getWeekStart, parseIsoDate } from './weightCalculations';
 import { sumTotals } from './nutritionLog';
+import { getTargetOnDate } from './targetHistory';
 
 /** Rough walking energy cost used to convert calories to steps (~40 kcal per 1,000 steps). */
 export const KCAL_PER_1000_STEPS = 40;
@@ -62,18 +63,21 @@ export function getDailyTargets(plan: NutritionPlan, adjustment: WeeklyBalanceAd
   const reduction = active?.calorie && date >= active.calorie.fromDate ? active.calorie.reductionKcal : 0;
   const allowance = getStepAllowanceKcal(adjustment, date);
 
-  let calories = plan.targetCalories;
-  let macros = plan.macros;
+  // The target the day had: an earlier day keeps the target from before the plan changed (the difference is in carbs, like an allowance).
+  const baseCalories = getTargetOnDate(plan, date);
+  const baseMacros = baseCalories === plan.targetCalories ? plan.macros : { ...plan.macros, carbsG: Math.max(Math.round(plan.macros.carbsG + (baseCalories - plan.targetCalories) / 4), 0) };
+  let calories = baseCalories;
+  let macros = baseMacros;
   if (reduction > 0) {
-    const fatKcal = plan.macros.fatG * 9;
-    const carbKcal = plan.macros.carbsG * 4;
+    const fatKcal = baseMacros.fatG * 9;
+    const carbKcal = baseMacros.carbsG * 4;
     const flexKcal = fatKcal + carbKcal;
     const fatShare = flexKcal > 0 ? fatKcal / flexKcal : 0.5;
-    calories = plan.targetCalories - reduction;
+    calories = baseCalories - reduction;
     macros = {
-      proteinG: plan.macros.proteinG,
-      fatG: Math.max(Math.round(plan.macros.fatG - (reduction * fatShare) / 9), 0),
-      carbsG: Math.max(Math.round(plan.macros.carbsG - (reduction * (1 - fatShare)) / 4), 0),
+      proteinG: baseMacros.proteinG,
+      fatG: Math.max(Math.round(baseMacros.fatG - (reduction * fatShare) / 9), 0),
+      carbsG: Math.max(Math.round(baseMacros.carbsG - (reduction * (1 - fatShare)) / 4), 0),
     };
   }
   if (allowance > 0) {

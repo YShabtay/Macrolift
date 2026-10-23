@@ -7,6 +7,7 @@ import { MAX_TARGET_ADJUSTMENT_KCAL } from './targetCheck';
 import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
 import { sanitizePhases } from './phases';
+import { sanitizeTargetHistory } from './targetHistory';
 import { withSessionMinutes } from './sessionDuration';
 
 /** What a restore actually loaded - only pieces that were present in the file are counted. */
@@ -324,6 +325,8 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
     const closedDays = candidate.closedFoodDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-31);
     if (closedDays.length > 0) state.closedFoodDays = closedDays;
   }
+  const targetHistory = sanitizeTargetHistory(candidate.targetHistory);
+  if (targetHistory) state.targetHistory = targetHistory;
   const phases = sanitizePhases(candidate.phases);
   if (phases) state.phases = phases;
   if (isObject(candidate.circumferenceGoals)) state.circumferenceGoals = candidate.circumferenceGoals as AppState['circumferenceGoals'];

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Dumbbell } from 'lucide-react';
 import Auth from './components/Auth';
 import { clearSession, getSessionUserId } from './utils/authStorage';
@@ -11,6 +11,7 @@ import { hasMeaningfulData, snapshotStore, type Snapshot } from './services/snap
 import { markSnapshotsDismissed, pickRestorableSnapshot, stateFromSnapshot } from './utils/snapshotRestore';
 import SnapshotRestorePrompt, { UndoResetBar } from './components/SnapshotRestorePrompt';
 import Toast from './components/Toast';
+import { attachTargetHistory, trackTargetHistory } from './utils/targetHistory';
 import { getLatestSyncWeekStart, getWeightSyncSuggestion } from './utils/profileWeightSync';
 import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
@@ -198,6 +199,16 @@ export default function App() {
     const timer = setTimeout(() => void snapshotStore.saveDaily(userId, appState).catch(() => undefined), 15_000);
     return () => clearTimeout(timer);
   }, [userId, appState]);
+
+  // The dates the calorie target changed on are kept, so a change made today (an accepted correction, a new weight) does not rewrite how the days before it are
+  // judged. The screens read the state with that history on its plan.
+  const trackedTarget = appState?.nutritionPlan.targetCalories;
+  const hasTargetHistory = !!appState?.targetHistory;
+  useEffect(() => {
+    if (!userId || trackedTarget === undefined) return;
+    setAppState((prev) => (prev ? trackTargetHistory(prev, today) : prev));
+  }, [userId, trackedTarget, hasTargetHistory, today]);
+  const displayState = useMemo(() => (appState ? attachTargetHistory(appState) : appState), [appState]);
 
   // The profile weight follows the average of the last completed week once it is a kilo or more away (see profileWeightSync). Each finished week is looked
   // at once, the first time the app is open after it ends: a weight typed into the profile by hand is not overwritten later in the week, and a single
@@ -771,7 +782,7 @@ export default function App() {
       <UpdatePrompt />
       {weightSyncNote && <Toast message={weightSyncNote} onDismiss={() => setWeightSyncNote(null)} />}
       <Dashboard
-        appState={appState}
+        appState={displayState ?? appState}
         onToggleSet={toggleSet}
         onUpdateSetLog={updateSetLog}
         onSwapExercise={handleSwapExercise}
@@ -815,7 +826,7 @@ export default function App() {
         onLogout={handleLogout}
       />
       <Suspense fallback={null}>
-        <AICoachDrawer appState={appState} userId={userId} onAddFood={handleAddFood} />
+        <AICoachDrawer appState={displayState ?? appState} userId={userId} onAddFood={handleAddFood} />
       </Suspense>
       {restorePrompt}
     </PullToRefresh>

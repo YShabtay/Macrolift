@@ -197,6 +197,14 @@ export interface NutritionPlan {
   targetMax?: number;
   /** What the goal asks for relative to maintenance (+220 lean bulk, -400 cut, ...), before the range shifts the starting point. */
   intendedOffsetKcal?: number;
+  /** Not stored with the plan: the dates its target changed on (from the state's `targetHistory`), attached for the screens so a day is judged by the target it had. */
+  targetHistory?: TargetHistoryEntry[];
+}
+
+/** From this date (YYYY-MM-DD) the plan's daily calorie target was `calories`. */
+export interface TargetHistoryEntry {
+  from: string;
+  calories: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +423,8 @@ export interface AppState {
    * midnight (an open day's unspent target is not a saving yet, since more may still be eaten).
    */
   closedFoodDays?: string[];
+  /** The dates the plan's calorie target changed on, oldest first, so past days keep the target they had. Derived and kept by the app. */
+  targetHistory?: TargetHistoryEntry[];
   /**
    * Dates the user marked a workout as done (quick-complete from the home screen). Kept in addition to the per-set `progress`
    * so a completed day still counts after the program is switched (the old plan's exercises no longer exist).

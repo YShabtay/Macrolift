@@ -18,6 +18,7 @@ import { NUTRITION_FORMULA_VERSION, calculateNutritionPlan } from './calculation
 import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 import { sanitizePhases } from './phases';
+import { sanitizeTargetHistory } from './targetHistory';
 import { withSessionMinutes } from './sessionDuration';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
@@ -232,6 +233,9 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   const closedDays = Array.isArray(raw.closedFoodDays) ? raw.closedFoodDays.filter(isIsoDate).slice(-31) : [];
   if (closedDays.length > 0) state.closedFoodDays = closedDays;
   else delete state.closedFoodDays;
+  const targetHistory = sanitizeTargetHistory(raw.targetHistory);
+  if (targetHistory) state.targetHistory = targetHistory;
+  else delete state.targetHistory;
   const phases = sanitizePhases(raw.phases);
   if (phases) state.phases = phases;
   else delete state.phases;
