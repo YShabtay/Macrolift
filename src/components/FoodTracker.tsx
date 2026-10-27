@@ -239,6 +239,7 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
         eaten={eaten}
         remaining={remaining}
         covered={isCovered}
+        dayClosed={isToday && coverage.isDayClosed && remaining.calories > 0}
         onOpenMeals={() => setIsMealsOpen(true)}
         mealsLabel={isToday ? 'פירוט ארוחות היום 📝' : 'פירוט הארוחות של היום שנבחר 📝'}
       />
@@ -280,7 +281,18 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
       )}
       {isToday && coverage.isDayClosed && (
         <div className="flex items-center justify-between gap-3 rounded-xl bg-lime-400/10 px-3 py-2.5">
-          <p className="text-[11px] font-semibold text-lime-800 dark:text-lime-300">היום סגור: מה שלא אכלת מהיעד נספר כחיסכון בשבוע.</p>
+          <p className="text-[11px] font-semibold leading-snug text-lime-800 dark:text-lime-300">
+            {(() => {
+              // The week's overshoot after the day was closed, and what it was before (the day's saved calories are part of the closed number).
+              const after = coverage.weekOverSoFarKcal;
+              const before = after + coverage.closableKcal;
+              const n = (v: number) => Math.abs(v).toLocaleString('he-IL');
+              if (coverage.closableKcal <= 0) return 'היום סגור.';
+              if (before > 0 && after <= 0) return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף (שהיה ${n(before)}), והשבוע ${after === 0 ? 'מאוזן' : `${n(after)} קק״ל מתחת ליעד`}.`;
+              if (before > 0) return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף. העודף השבועי ירד מ-${n(before)} ל-${n(after)} קק״ל.`;
+              return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת נספרו כחיסכון בשבוע.`;
+            })()}
+          </p>
           <button type="button" onClick={() => onSetDayClosed(selectedDate, false)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
             פתח מחדש
           </button>
@@ -403,6 +415,7 @@ function SummaryCard({
   eaten,
   remaining,
   covered,
+  dayClosed,
   onOpenMeals,
   mealsLabel,
 }: {
@@ -414,10 +427,12 @@ function SummaryCard({
   remaining: { calories: number; proteinG: number; fatG: number; carbsG: number };
   /** Today's overshoot is already covered: shown calmly, not as a problem. */
   covered: boolean;
+  /** The day was marked as done eating: what is left of its target is not "left to eat" any more, it was counted as saved in the week. */
+  dayClosed: boolean;
 }) {
   return (
     <div className="glass-card flex flex-col items-center gap-5 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
-      <CalorieRing target={targetCalories} eaten={eaten.calories} remaining={remaining.calories} covered={covered} />
+      <CalorieRing target={targetCalories} eaten={eaten.calories} remaining={remaining.calories} covered={covered} dayClosed={dayClosed} />
       <div className="flex w-full flex-1 flex-col gap-3">
         <MacroRemainingBar
           icon={Beef}
@@ -456,7 +471,7 @@ function SummaryCard({
   );
 }
 
-function CalorieRing({ target, eaten, remaining, covered }: { target: number; eaten: number; remaining: number; covered: boolean }) {
+function CalorieRing({ target, eaten, remaining, covered, dayClosed }: { target: number; eaten: number; remaining: number; covered: boolean; dayClosed: boolean }) {
   if (covered) return <BalancedRing eaten={eaten} target={target} />;
   const progress = target > 0 ? Math.min(eaten / target, 1) : 0;
   const isOver = remaining < 0;
@@ -485,7 +500,7 @@ function CalorieRing({ target, eaten, remaining, covered }: { target: number; ea
         <span className={`text-2xl font-extrabold ${isOver ? 'text-orange-700 dark:text-orange-400' : 'text-lime-700 dark:text-lime-400'}`}>
           {formatMacro(Math.abs(remaining))}
         </span>
-        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{isOver ? 'חריגה קק״ל' : 'נשארו קק״ל'}</span>
+        <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{isOver ? 'חריגה קק״ל' : dayClosed ? 'נחסכו קק״ל' : 'נשארו קק״ל'}</span>
         <span className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-600">
           {formatMacro(eaten)}/{formatMacro(target)}
         </span>
