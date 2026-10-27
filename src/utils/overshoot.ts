@@ -1,6 +1,6 @@
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
 import { getEntriesForDate, sumTotals } from './nutritionLog';
-import { KCAL_PER_1000_STEPS, getCarryInKcal, getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal, getWeeklyEnergyBalance } from './weeklyBalance';
+import { KCAL_PER_1000_STEPS, getCarryInKcal, getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal, getTodayOffsetKcal, getWeeklyEnergyBalance } from './weeklyBalance';
 import { getStepBoostExtraSteps } from './weeklySteps';
 import { addDaysIso } from './dateMath';
 import { daysBetween, getWeekStart } from './weightCalculations';
@@ -35,6 +35,8 @@ export interface OvershootCoverage {
   isDayClosed: boolean;
   /** What the earlier weeks left on the balance (positive = calories not eaten, which are already taken off `weekOverSoFarKcal`; negative = eaten over, already added to it). */
   carryInKcal: number;
+  /** What the person already used of this day's target against the overshoot (the day's target is lowered by it, and it is already taken off `weekOverSoFarKcal`). */
+  todayOffsetKcal: number;
   /** What the user already planned to make up with a rebalance: the lowered targets of the days after this one, and the extra walking, in kcal. */
   plannedCompensationKcal: number;
 }
@@ -72,7 +74,8 @@ export function getOvershootCoverage(params: {
   const closableKcal = Math.max(0, target - unspentBankKcal - eaten);
   const stepsAppliedKcal = getStepAppliedKcal(adjustment, today);
   const carryInKcal = getCarryInKcal(adjustment, today);
-  let weekOverSoFarKcal = (todayClosed ? eaten - target + unspentBankKcal : overshootKcal - unspentBankKcal) - stepsAppliedKcal - carryInKcal;
+  const todayOffsetKcal = getTodayOffsetKcal(adjustment, today);
+  let weekOverSoFarKcal = (todayClosed ? eaten - target + unspentBankKcal : overshootKcal - unspentBankKcal) - stepsAppliedKcal - carryInKcal - todayOffsetKcal;
   for (let i = 0; i < dayIndex; i++) {
     const day = addDaysIso(weekStart, i);
     const entries = getEntriesForDate(foodLog, day);
@@ -81,7 +84,7 @@ export function getOvershootCoverage(params: {
   let plannedCompensationKcal = (getStepBoostExtraSteps(adjustment, today) * KCAL_PER_1000_STEPS) / 1000;
   for (let i = dayIndex + 1; i < 7; i++) plannedCompensationKcal += getDailyTargets(plan, adjustment, addDaysIso(weekStart, i)).reductionKcal;
 
-  return { overshootKcal, isCovered, weekBalanceKcal, roomKcal, unspentBankKcal: Math.round(unspentBankKcal), weekOverSoFarKcal: Math.round(weekOverSoFarKcal), closableKcal: Math.round(closableKcal), stepsAppliedKcal, carryInKcal, isDayClosed: todayClosed, plannedCompensationKcal: Math.round(plannedCompensationKcal) };
+  return { overshootKcal, isCovered, weekBalanceKcal, roomKcal, unspentBankKcal: Math.round(unspentBankKcal), weekOverSoFarKcal: Math.round(weekOverSoFarKcal), closableKcal: Math.round(closableKcal), stepsAppliedKcal, carryInKcal, todayOffsetKcal, isDayClosed: todayClosed, plannedCompensationKcal: Math.round(plannedCompensationKcal) };
 }
 
 /** What the rebalance works from: the week's overshoot so far, earlier days included. 0 when the week is at or under its target. */

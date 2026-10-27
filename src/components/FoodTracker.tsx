@@ -81,6 +81,8 @@ interface FoodTrackerProps {
   closedFoodDays?: string[];
   /** Marks a day as done eating (its unspent target then counts as saved in the week) or opens it again. */
   onSetDayClosed: (date: string, closed: boolean) => void;
+  /** Uses part of the day's remaining target against the week's overshoot (the day's target is lowered by it), or takes it back with 0. */
+  onSetTodayOffset: (date: string, kcal: number) => void;
   onAddFood: (entry: Omit<FoodEntry, 'id'>) => void;
   favoriteFoods: FavoriteFood[];
   savedMeals: SavedMeal[];
@@ -103,7 +105,7 @@ function shiftDate(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, nutritionPlan, adjustmentFor, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
+export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetTodayOffset, foodLog, nutritionPlan, adjustmentFor, metrics, onApplyTargetAdjustment, onOpenRebalance, onAddFood, favoriteFoods, savedMeals, onToggleFavorite, onSaveMeal, onDeleteSavedMeal, onDeleteFood, onUpdateFood, onOpenInstallGuide }: FoodTrackerProps) {
   const installBanner = useInstallBanner();
   const isMobile = useIsMobile();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
@@ -270,6 +272,26 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, foodLog, n
             </span>
           )}
         </button>
+      )}
+      {isToday && !coverage.isDayClosed && coverage.todayOffsetKcal > 0 && (
+        <div className="-mt-2 flex items-center justify-between gap-3 rounded-xl bg-lime-400/10 px-3 py-2.5">
+          <p className="min-w-0 flex-1 text-[11px] font-semibold leading-snug text-lime-800 dark:text-lime-300">
+            קוזזו {coverage.todayOffsetKcal.toLocaleString('he-IL')} קק״ל מהיעד של היום מול העודף השבועי, והיעד של היום ירד בהתאם. אפשר לאכול עוד, אבל מה שמעל היעד החדש יחזור לעודף.
+          </p>
+          <button type="button" onClick={() => onSetTodayOffset(selectedDate, 0)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
+            בטל קיזוז
+          </button>
+        </div>
+      )}
+      {isToday && !coverage.isDayClosed && coverage.todayOffsetKcal === 0 && coverage.weekOverSoFarKcal > 0 && coverage.closableKcal > 0 && (
+        <div className="-mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/60 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-700 dark:text-zinc-300">
+            אפשר לקזז את העודף השבועי ({coverage.weekOverSoFarKcal.toLocaleString('he-IL')} קק״ל) ממה שנשאר לך לאכול היום ({coverage.closableKcal.toLocaleString('he-IL')} קק״ל). היעד של היום יירד, ועדיין אפשר לאכול עוד או לסמן שסיימת.
+          </p>
+          <button type="button" onClick={() => onSetTodayOffset(selectedDate, Math.min(coverage.weekOverSoFarKcal, coverage.closableKcal))} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
+            קזז {Math.min(coverage.weekOverSoFarKcal, coverage.closableKcal).toLocaleString('he-IL')} קק״ל
+          </button>
+        </div>
       )}
       {isToday && !coverage.isDayClosed && coverage.closableKcal > 0 && (
         <div className="-mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/60 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">

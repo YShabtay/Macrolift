@@ -656,6 +656,23 @@ export default function App() {
     });
   }
 
+  /** Uses `kcal` of the day's remaining target against the week's overshoot (the day's target is lowered by it), or takes it back with 0. */
+  function handleSetTodayOffset(date: string, kcal: number) {
+    setAppState((prev) => {
+      if (!prev) return prev;
+      const current = getActiveAdjustment(prev.weeklyBalance, date) ?? { weekStart: getWeekStart(date) };
+      const { todayOffset: _previous, ...rest } = current;
+      return { ...prev, weeklyBalance: kcal > 0 ? { ...rest, todayOffset: { date, kcal: Math.round(kcal) } } : rest };
+    });
+  }
+
+  // An offset belongs to the day it was made on: once that day is over, its numbers stand as the closed day counts them (what was not eaten is saved).
+  const offsetDate = appState?.weeklyBalance?.todayOffset?.date;
+  useEffect(() => {
+    if (offsetDate && offsetDate < today) handleSetTodayOffset(offsetDate, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the handler only reads state through setAppState.
+  }, [offsetDate, today]);
+
   /** Marks a day as done eating (its unspent target then counts as saved) or opens it again. Only the latest month is kept. */
   function handleSetFoodDayClosed(date: string, closed: boolean) {
     setAppState((prev) => {
@@ -817,6 +834,7 @@ export default function App() {
         onUpdateProfileFull={handleUpdateProfileFull}
         onSavePhases={handleSavePhases}
         onSetFoodDayClosed={handleSetFoodDayClosed}
+        onSetTodayOffset={handleSetTodayOffset}
         onImportAppState={handleImportAppState}
         onSaveStepMode={handleSaveStepMode}
         onClearStepRebalance={handleClearStepRebalance}

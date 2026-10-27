@@ -41,6 +41,12 @@ export function getStepAllowanceKcal(adjustment: WeeklyBalanceAdjustment | undef
   return kcal && kcal > 0 ? Math.round(kcal) : 0;
 }
 
+/** The calories of `date`'s target the person chose to use against the week's overshoot (0 when none). */
+export function getTodayOffsetKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
+  const offset = getActiveAdjustment(adjustment, date)?.todayOffset;
+  return offset && offset.date === date && Number.isFinite(offset.kcal) && offset.kcal > 0 ? Math.round(offset.kcal) : 0;
+}
+
 /** What the earlier weeks left on the balance for the week of `date` (positive = calories not eaten, negative = eaten over); 0 when none. */
 export function getCarryInKcal(adjustment: WeeklyBalanceAdjustment | undefined, date: string): number {
   const kcal = getActiveAdjustment(adjustment, date)?.carryInKcal;
@@ -60,7 +66,7 @@ export function getStepAppliedKcal(adjustment: WeeklyBalanceAdjustment | undefin
  */
 export function getDailyTargets(plan: NutritionPlan, adjustment: WeeklyBalanceAdjustment | undefined, date: string): DailyTargets {
   const active = getActiveAdjustment(adjustment, date);
-  const reduction = active?.calorie && date >= active.calorie.fromDate ? active.calorie.reductionKcal : 0;
+  const reduction = (active?.calorie && date >= active.calorie.fromDate ? active.calorie.reductionKcal : 0) + getTodayOffsetKcal(adjustment, date);
   const allowance = getStepAllowanceKcal(adjustment, date);
 
   // The target the day had: an earlier day keeps the target from before the plan changed (the difference is in carbs, like an allowance).
@@ -197,7 +203,8 @@ export function getWeeklyEnergyBalance(
   }
 
   // Spare step calories that cancelled the overshoot count as part of the week's budget, and so does what the earlier weeks left over (or owe).
-  targetKcal += getStepAppliedKcal(adjustment, today) + getCarryInKcal(adjustment, today);
+  // The calories of today's target set aside against the overshoot stay part of the week's budget: lowering today's target moves them, it does not remove them.
+  targetKcal += getStepAppliedKcal(adjustment, today) + getCarryInKcal(adjustment, today) + getTodayOffsetKcal(adjustment, today);
   return { daysCounted, eatenKcal: Math.round(eatenKcal), targetKcal: Math.round(targetKcal), balanceKcal: Math.round(eatenKcal - targetKcal) };
 }
 

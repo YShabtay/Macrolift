@@ -1,7 +1,7 @@
 import type { FoodEntry, NutritionPlan, WeeklyBalanceAdjustment } from '../types/fitness';
 import { addDaysIso } from './dateMath';
 import { sumTotals } from './nutritionLog';
-import { getCarryInKcal, getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal } from './weeklyBalance';
+import { getCarryInKcal, getDailyTargets, getStepAllowanceKcal, getStepAppliedKcal, getTodayOffsetKcal } from './weeklyBalance';
 import { daysBetween, getWeekEnd, getWeekStart } from './weightCalculations';
 
 /** The suggested pace for a day may move this far from that day's own target - a gentle flex, not a free-for-all. */
@@ -90,7 +90,7 @@ export function getWeeklyCalorieBudget(
   weeklyTarget += getStepAppliedKcal(adjustment, lastDay);
   // What the earlier weeks left over (or owe) moves the week's budget too: calories not eaten last week are room, calories eaten over are owed.
   const carryInKcal = getCarryInKcal(adjustment, lastDay);
-  weeklyTarget += carryInKcal;
+  weeklyTarget += carryInKcal + getTodayOffsetKcal(adjustment, lastDay);
 
   let pace: WeeklyCalorieBudget['pace'] = null;
   if (isCurrentWeek) {
@@ -103,7 +103,8 @@ export function getWeeklyCalorieBudget(
     const shared = (weeklyTarget - allocated - assumedBeforeToday + allowanceBefore) / daysLeft;
     const low = Math.max(baseTarget * (1 - PACE_FLEX), plan.bmr);
     const high = baseTarget * (1 + PACE_FLEX);
-    const kcal = Math.round(Math.min(Math.max(shared, low), Math.max(high, low)) + todayAllowance);
+    // Calories of today's target the person set aside against the overshoot are not for eating today either.
+    const kcal = Math.round(Math.min(Math.max(shared, low), Math.max(high, low)) + todayAllowance - getTodayOffsetKcal(adjustment, today));
     pace = { kcal, target, stepBonusKcal: todayAllowance, daysLeft, clamped: shared < low ? 'down' : shared > high ? 'up' : null };
   }
 

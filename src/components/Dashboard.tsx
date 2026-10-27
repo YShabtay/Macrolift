@@ -203,6 +203,7 @@ interface DashboardProps {
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onSavePhases: (phases: GoalPhase[]) => void;
   onSetFoodDayClosed: (date: string, closed: boolean) => void;
+  onSetTodayOffset: (date: string, kcal: number) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onSaveStepMode: (mode: StepMode) => void;
   onClearStepRebalance: () => void;
@@ -324,6 +325,7 @@ export default function Dashboard({
   onUpdateProfileFull,
   onSavePhases,
   onSetFoodDayClosed,
+  onSetTodayOffset,
   onImportAppState,
   onSaveStepMode,
   onClearStepRebalance,
@@ -416,6 +418,7 @@ export default function Dashboard({
               onApplyTargetAdjustment={onApplyTargetAdjustment}
               onUpdateProfileFull={onUpdateProfileFull}
               onSetFoodDayClosed={onSetFoodDayClosed}
+              onSetTodayOffset={onSetTodayOffset}
               onApplyProgram={onApplyProgram}
               onApplyRebalance={onApplyRebalance}
               onQuickCompleteDay={onQuickCompleteDay}
@@ -458,6 +461,7 @@ export default function Dashboard({
             <FoodTracker
               closedFoodDays={appState.closedFoodDays}
               onSetDayClosed={onSetFoodDayClosed}
+              onSetTodayOffset={onSetTodayOffset}
               foodLog={appState.foodLog}
               nutritionPlan={appState.nutritionPlan}
               adjustmentFor={adjustmentForDate}
@@ -476,7 +480,7 @@ export default function Dashboard({
             />
           )}
           {tab === 'nutrition' && (
-            <RebalanceHost isOpen={isFoodRebalanceOpen} appState={appState} weeklyBalance={effectiveWeeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onClose={() => setIsFoodRebalanceOpen(false)} />
+            <RebalanceHost isOpen={isFoodRebalanceOpen} appState={appState} weeklyBalance={effectiveWeeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onSetTodayOffset={onSetTodayOffset} onClose={() => setIsFoodRebalanceOpen(false)} />
           )}
           {tab === 'progress' && (
             <ProgressTab
@@ -548,6 +552,7 @@ function DashboardTab({
   onUpdateProfileFull,
   onApplyProgram,
   onSetFoodDayClosed,
+  onSetTodayOffset,
   onApplyRebalance,
   onQuickCompleteDay,
   onUndoCompleteDay,
@@ -566,6 +571,7 @@ function DashboardTab({
   onApplyTargetAdjustment: (deltaKcal: number) => void;
   onUpdateProfileFull: (updates: Partial<UserMetrics>) => void;
   onSetFoodDayClosed: (date: string, closed: boolean) => void;
+  onSetTodayOffset: (date: string, kcal: number) => void;
   onApplyProgram: (split: WorkoutSplitType, days: TrainingDaysPerWeek) => void;
   appState: AppState;
   onApplyRebalance: (choice: RebalanceChoice) => void;
@@ -867,7 +873,7 @@ function DashboardTab({
         />
       )}
 
-      <RebalanceHost isOpen={isRebalanceOpen} appState={appState} weeklyBalance={weeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onClose={() => setIsRebalanceOpen(false)} />
+      <RebalanceHost isOpen={isRebalanceOpen} appState={appState} weeklyBalance={weeklyBalance} onApply={onApplyRebalance} onSetDayClosed={onSetFoodDayClosed} onSetTodayOffset={onSetTodayOffset} onClose={() => setIsRebalanceOpen(false)} />
 
       {isProgramModalOpen && (
         <ProgramSwitcherModal
@@ -893,12 +899,14 @@ function RebalanceHost({
   weeklyBalance,
   onApply,
   onSetDayClosed,
+  onSetTodayOffset,
   onClose,
 }: {
   isOpen: boolean;
   appState: AppState;
   /** Marks today as done eating (its unspent target then counts as saved), or opens it again. */
   onSetDayClosed: (date: string, closed: boolean) => void;
+  onSetTodayOffset: (date: string, kcal: number) => void;
   /** The adjustment with the step mode applied (what every calorie screen reads). */
   weeklyBalance: WeeklyBalanceAdjustment | undefined;
   onApply: (choice: RebalanceChoice) => void;
@@ -921,6 +929,7 @@ function RebalanceHost({
           canWalkMore={getStepMode(appState) === 'balance_steps'}
           baseStepGoal={getBaseStepGoal(appState)}
           onToggleDayClosed={() => onSetDayClosed(today, !todayClosed)}
+          onSetTodayOffset={(kcal) => onSetTodayOffset(today, kcal)}
           onChoose={(choice) => {
             onApply(choice);
             if (choice.kind !== 'keep') setToast('היעדים עודכנו וסונכרנו בהצלחה!');

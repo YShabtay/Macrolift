@@ -454,6 +454,11 @@ export interface WeeklyBalanceAdjustment {
    * calories eaten over that count against this week. Limited in size and only from the last few weeks (see weekCarry).
    */
   carryInKcal?: number;
+  /**
+   * Calories of one day's target the person chose to use against the week's overshoot, before the day is over: that day's target is lowered by `kcal`, and the
+   * week's overshoot is lowered by the same amount. Eating more than the lowered target adds the difference back to the overshoot.
+   */
+  todayOffset?: { date: string; kcal: number };
   /** Daily calorie target reduction for the rest of the week, starting at `fromDate`. */
   calorie?: { reductionKcal: number; fromDate: string };
   /** Extra daily steps on top of the step goal for the rest of the week, starting at `fromDate`. */

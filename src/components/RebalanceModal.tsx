@@ -21,6 +21,8 @@ interface RebalanceModalProps {
   canWalkMore: boolean;
   /** Marks today as done eating (what was not eaten of its target then counts as saved) or opens it again. */
   onToggleDayClosed: () => void;
+  /** Uses part of today's remaining target against the overshoot (the day's target is lowered by it), or takes it back with 0. */
+  onSetTodayOffset: (kcal: number) => void;
   onChoose: (choice: RebalanceChoice) => void;
   onClose: () => void;
 }
@@ -28,7 +30,7 @@ interface RebalanceModalProps {
 const WEEKDAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
 /** Calm, evidence-framed ways to deal with a day over target, based on the weekly average rather than the single day. */
-export default function RebalanceModal({ options, coverage, weekDays, baseStepGoal, canWalkMore, onToggleDayClosed, onChoose, onClose }: RebalanceModalProps) {
+export default function RebalanceModal({ options, coverage, weekDays, baseStepGoal, canWalkMore, onToggleDayClosed, onSetTodayOffset, onChoose, onClose }: RebalanceModalProps) {
   const { taper, stepsOneDay, stepsSpread, daysRemaining, excessKcal, fatEquivalentG } = options;
 
   function choose(choice: RebalanceChoice) {
@@ -119,6 +121,27 @@ export default function RebalanceModal({ options, coverage, weekDays, baseStepGo
             סך הכול: {coverage.weekOverSoFarKcal > 0 ? '+' : ''}
             {coverage.weekOverSoFarKcal.toLocaleString()} קק״ל. ימים מתחת ליעד מקזזים ימים מעליו. היום עצמו נספר כשהוא נגמר (בחצות), או כשאתה מסמן שסיימת לאכול, כי כל עוד אפשר לאכול עוד, מה שנשאר מהיעד עדיין לא "חיסכון".
           </p>
+          {coverage.todayOffsetKcal > 0 ? (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-lime-400/10 px-3 py-2">
+              <p className="text-[11px] font-semibold text-lime-800 dark:text-lime-300">קוזזו {coverage.todayOffsetKcal.toLocaleString()} קק״ל מהיעד של היום מול העודף.</p>
+              <button type="button" onClick={() => onSetTodayOffset(0)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
+                בטל קיזוז
+              </button>
+            </div>
+          ) : (
+            !coverage.isDayClosed &&
+            coverage.weekOverSoFarKcal > 0 &&
+            coverage.closableKcal > 0 && (
+              <div className="mt-2 flex flex-col gap-2 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-800/60">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-300">
+                  נשארו לך {coverage.closableKcal.toLocaleString()} קק״ל מהיעד של היום. אפשר לקזז מהם את העודף כבר עכשיו: היעד של היום יירד, והעודף השבועי יירד ל-{Math.max(coverage.weekOverSoFarKcal - coverage.closableKcal, 0).toLocaleString()} קק״ל.
+                </p>
+                <button type="button" onClick={() => onSetTodayOffset(Math.min(coverage.weekOverSoFarKcal, coverage.closableKcal))} className="btn-secondary self-start px-3 py-1.5 text-xs">
+                  קזז {Math.min(coverage.weekOverSoFarKcal, coverage.closableKcal).toLocaleString()} קק״ל מהיום
+                </button>
+              </div>
+            )
+          )}
           {coverage.isDayClosed ? (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-lime-400/10 px-3 py-2">
               <p className="text-[11px] font-semibold text-lime-800 dark:text-lime-300">היום סגור: מה שלא אכלת מהיעד נספר כחיסכון.</p>
