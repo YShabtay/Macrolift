@@ -26,6 +26,8 @@ interface StepsTrackerProps {
   onSaveStepMode: (mode: StepMode) => void;
   /** In the "add calories" mode: the calories in the week's bank that today's target includes (carried from earlier days plus today's steps); 0 otherwise. */
   bankKcal?: number;
+  /** What the days before today owe the bank (a day below the step goal takes calories off it); the next days' steps pay it first. */
+  bankDebtKcal?: number;
   /** Step calories this week that already cancelled the calorie overshoot (so they are not part of `bankKcal`). */
   appliedKcal?: number;
   /** Removes the extra steps a calorie rebalance added to the week (the choice "make up the overshoot by walking"). */
@@ -51,7 +53,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, bankKcal = 0, appliedKcal = 0, onClearRebalanceSteps }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, bankKcal = 0, bankDebtKcal = 0, appliedKcal = 0, onClearRebalanceSteps }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -237,7 +239,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
 
-          <StepsSummary weekly={isWeekly ? weekly : null} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} bankKcal={bankKcal} appliedKcal={appliedKcal} onClearRebalanceSteps={onClearRebalanceSteps} />
+          <StepsSummary weekly={isWeekly ? weekly : null} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} bankKcal={bankKcal} bankDebtKcal={bankDebtKcal} appliedKcal={appliedKcal} onClearRebalanceSteps={onClearRebalanceSteps} />
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -333,6 +335,7 @@ function StepsSummary({
   stepsOnDay,
   isToday,
   bankKcal,
+  bankDebtKcal,
   appliedKcal = 0,
   onClearRebalanceSteps,
 }: {
@@ -343,6 +346,7 @@ function StepsSummary({
   stepsOnDay: number;
   isToday: boolean;
   bankKcal: number;
+  bankDebtKcal: number;
   appliedKcal?: number;
   onClearRebalanceSteps?: () => void;
 }) {
@@ -390,7 +394,16 @@ function StepsSummary({
       )}
       {mode === 'add_calories' && (
         <>
-          <p className="mt-1 text-sm font-extrabold text-lime-700 dark:text-lime-400">יתרת בנק קלוריות: +{fmt(bankKcal)} קק״ל</p>
+          {bankDebtKcal > 0 && bankKcal === 0 ? (
+            <>
+              <p className="mt-1 text-sm font-extrabold text-orange-700 dark:text-orange-400">יתרת בנק קלוריות: −{fmt(bankDebtKcal)} קק״ל</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-orange-700 dark:text-orange-400">
+                בימים הקודמים השבוע הלכת פחות מהיעד, ולכן הבנק בחוסר. צעדים מעל היעד יכסו אותו קודם, ורק מה שנשאר יצטבר.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm font-extrabold text-lime-700 dark:text-lime-400">יתרת בנק קלוריות: +{fmt(bankKcal)} קק״ל</p>
+          )}
           <p className="mt-0.5 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
             {bonus > 0 ? `${dayWord}: ${fmt(stepsOnDay - baseGoal)} צעדים מעל היעד = +${fmt(bonus)} קק״ל` : `צעדים מעל ${fmt(baseGoal)} ${dayWord} יצטרפו לבנק`}
           </p>

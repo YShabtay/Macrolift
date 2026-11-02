@@ -171,6 +171,15 @@ export function getStepCalorieBank(params: {
 }
 
 /**
+ * What the days of this week before today owe the step bank: a day that ended below the step goal took calories off it, and while the bank is below zero the
+ * steps of the coming days pay that off first. Shown as a debt; the bank itself is never shown below 0.
+ */
+export function getStepBankDebtKcal(params: Parameters<typeof getStepCalorieBank>[0]): number {
+  const bank = getStepCalorieBank(params);
+  return Math.max(0, Math.round(-(bank.carriedIntoToday + bank.bonusToday)));
+}
+
+/**
  * The adjustment every calorie screen should read for the current week, with the step mode applied.
  * - 'add_calories': the calorie bank above (each day's steps above the goal become calories on the target, unspent calories carrying to the next days of
  *   the week), and a "walk more" rebalance is dropped: the goal for the coming days does not change in this mode.

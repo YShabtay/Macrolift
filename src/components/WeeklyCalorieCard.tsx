@@ -4,7 +4,7 @@ import { formatDateDisplay } from '../utils/weightCalculations';
 import { MAX_CARRY_KCAL } from '../utils/weekCarry';
 
 /** The week's calorie budget at a glance, and (for the current week) a gentle pace for today. Information only: the daily target is unchanged. */
-export default function WeeklyCalorieCard({ budget, isToday = true, carriedOutKcal = null }: { budget: WeeklyCalorieBudget; /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */ isToday?: boolean; /** For a week that is over: what it left on the balance of the week after it (positive = not eaten, negative = owed). */ carriedOutKcal?: number | null }) {
+export default function WeeklyCalorieCard({ budget, isToday = true, carriedOutKcal = null, balanceKcal = null }: { budget: WeeklyCalorieBudget; /** False while looking at yesterday (still being filled in): the wording says "this day" instead of "today". */ isToday?: boolean; /** For a week that is over: what it left on the balance of the week after it (positive = not eaten, negative = owed). */ carriedOutKcal?: number | null; /** Eaten minus target for the week up to the day, with what the earlier weeks left taken into account (negative = under). */ balanceKcal?: number | null }) {
   const percent = budget.weeklyTarget > 0 ? Math.min(Math.round((budget.eaten / budget.weeklyTarget) * 100), 100) : 0;
   const isOver = budget.remaining < 0;
 
@@ -38,6 +38,12 @@ export default function WeeklyCalorieCard({ budget, isToday = true, carriedOutKc
           {budget.carryInKcal > 0
             ? `כולל ${budget.carryInKcal.toLocaleString()} קק״ל שלא אכלת בשבועות הקודמים (נוספו לתקציב השבוע).`
             : `כולל ${Math.abs(budget.carryInKcal).toLocaleString()} קק״ל שאכלת מעל היעד בשבועות הקודמים (הורדו מתקציב השבוע).`}
+          {balanceKcal !== null &&
+            (balanceKcal > 0
+              ? ` מאזן השבוע עד כה, אחרי זה: ${balanceKcal.toLocaleString()} קק״ל מעל היעד.`
+              : balanceKcal < 0
+                ? ` מאזן השבוע עד כה, אחרי זה: ${Math.abs(balanceKcal).toLocaleString()} קק״ל מתחת ליעד${budget.carryInKcal < 0 ? ', כלומר החוב כבר קוזז' : ''}.`
+                : ' מאזן השבוע עד כה, אחרי זה: מאוזן.')}
         </p>
       )}
       {!budget.isCurrentWeek && carriedOutKcal !== null && (

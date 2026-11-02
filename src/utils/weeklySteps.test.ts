@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { getStepCalorieBank, getStepMode, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, withStepMode } from './weeklySteps';
+import { getStepBankDebtKcal, getStepCalorieBank, getStepMode, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, withStepMode } from './weeklySteps';
 
 const GOAL = 4500;
 const steps = (date: string, n: number): StepLog => ({ date, steps: n });
@@ -199,6 +199,20 @@ describe('getStepCalorieBank: a day below the goal is netted against the days ab
     expect(stepNetKcal(3000, true, GOAL, 70)).toBe(-60);
     expect(stepNetKcal(0, false, GOAL, 70)).toBe(0);
     expect(stepNetKcal(8500, true, GOAL, 70)).toBe(160);
+  });
+});
+
+describe('getStepBankDebtKcal', () => {
+  const params = (stepLogs: StepLog[], today: string) => ({ baseAdjustment: undefined, plan: PLAN, stepLogs, foodLog: [], targetDailySteps: GOAL, weightKg: 70, today });
+  it('is what the days before today owe: a day below the goal takes calories off the bank, which is shown as a debt', () => {
+    expect(getStepBankDebtKcal(params([steps('2026-10-04', 2800)], '2026-10-05'))).toBe(68); // 1,700 steps short, 0.04 kcal each
+  });
+  it('is 0 when the days before were above the goal, or when there is nothing to owe', () => {
+    expect(getStepBankDebtKcal(params([steps('2026-10-04', 6500)], '2026-10-05'))).toBe(0);
+    expect(getStepBankDebtKcal(params([], '2026-10-04'))).toBe(0);
+  });
+  it('shrinks as today\'s steps pay it off', () => {
+    expect(getStepBankDebtKcal(params([steps('2026-10-04', 2800), steps('2026-10-05', 5500)], '2026-10-05'))).toBe(28); // +40 today against 68
   });
 });
 

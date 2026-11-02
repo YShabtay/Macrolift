@@ -52,7 +52,7 @@ import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { useAdjustmentForDate, useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
-import { getStepMode, type StepMode } from '../utils/weeklySteps';
+import { getStepBankDebtKcal, getStepMode, type StepMode } from '../utils/weeklySteps';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
@@ -843,6 +843,20 @@ function DashboardTab({
         stepMode={stepMode}
         onSaveStepMode={onSaveStepMode}
         bankKcal={stepMode === 'add_calories' ? getStepAllowanceKcal(weeklyBalance, today) : 0}
+        bankDebtKcal={
+          stepMode === 'add_calories'
+            ? getStepBankDebtKcal({
+                baseAdjustment: appState.weeklyBalance ? (({ stepAllowance: _a, stepAppliedToOvershoot: _b, carryInKcal: _c, ...rest }) => rest)(appState.weeklyBalance) : undefined,
+                plan: nutritionPlan,
+                stepLogs,
+                foodLog,
+                targetDailySteps: baseStepGoal,
+                weightKg: profile.metrics.weightKg,
+                today,
+                carryInKcal: weeklyBalance?.carryInKcal ?? 0,
+              })
+            : 0
+        }
         appliedKcal={stepMode === 'add_calories' ? getStepAppliedKcal(weeklyBalance, today) : 0}
         onClearRebalanceSteps={onClearStepRebalance}
       />
