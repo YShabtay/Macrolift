@@ -27,7 +27,7 @@ export interface WeeklySummary {
 
 type SummaryState = Pick<
   AppState,
-  'foodLog' | 'progress' | 'workoutPlan' | 'completedWorkoutDates' | 'stepLogs' | 'weightLogs' | 'schedule' | 'nutritionPlan' | 'profile' | 'stepGoal' | 'weeklyBalance' | 'stepMode'
+  'foodLog' | 'progress' | 'workoutPlan' | 'completedWorkoutDates' | 'stepLogs' | 'weightLogs' | 'schedule' | 'nutritionPlan' | 'profile' | 'stepGoal' | 'weeklyBalance' | 'stepMode' | 'stepSurplus'
 >;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -52,6 +52,7 @@ export function buildWeeklySummary(state: SummaryState, weekDate: string, today:
     targetDailySteps: defaultStepGoal,
     weightKg: state.profile.metrics.weightKg,
     today: lastDay,
+    stepSurplus: state.stepSurplus,
   });
 
   // Workouts

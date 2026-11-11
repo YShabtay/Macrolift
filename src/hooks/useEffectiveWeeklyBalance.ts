@@ -12,11 +12,11 @@ import { useToday } from './useToday';
  */
 export function useEffectiveWeeklyBalance(appState: AppState): WeeklyBalanceAdjustment | undefined {
   const today = useToday();
-  const { weeklyBalance, stepLogs, foodLog, nutritionPlan, profile } = appState;
+  const { weeklyBalance, stepLogs, foodLog, nutritionPlan, profile, stepSurplus } = appState;
   const mode = getStepMode(appState);
   const goal = getBaseStepGoal(appState);
   const weightKg = profile.metrics.weightKg;
-  return useMemo(() => deriveWeeklyAdjustment(weeklyBalance, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today }), [weeklyBalance, stepLogs, foodLog, nutritionPlan, mode, goal, weightKg, today]);
+  return useMemo(() => deriveWeeklyAdjustment(weeklyBalance, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today, stepSurplus }), [weeklyBalance, stepLogs, foodLog, nutritionPlan, mode, goal, weightKg, today, stepSurplus]);
 }
 
 /**
@@ -28,7 +28,7 @@ export function useEffectiveWeeklyBalance(appState: AppState): WeeklyBalanceAdju
 export function useAdjustmentForDate(appState: AppState): (date: string, scope: 'day' | 'week') => WeeklyBalanceAdjustment | undefined {
   const today = useToday();
   const current = useEffectiveWeeklyBalance(appState);
-  const { stepLogs, foodLog, nutritionPlan, profile } = appState;
+  const { stepLogs, foodLog, nutritionPlan, profile, stepSurplus } = appState;
   const mode = getStepMode(appState);
   const goal = getBaseStepGoal(appState);
   const weightKg = profile.metrics.weightKg;
@@ -39,9 +39,9 @@ export function useAdjustmentForDate(appState: AppState): (date: string, scope: 
       if (getWeekStart(date) >= getWeekStart(today)) return current;
       const key = `${scope === 'week' ? getWeekEnd(date) : date}`;
       if (!cache.has(key)) {
-        cache.set(key, deriveWeeklyAdjustment(undefined, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today: key }));
+        cache.set(key, deriveWeeklyAdjustment(undefined, { mode, stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: goal, weightKg, today: key, stepSurplus }));
       }
       return cache.get(key);
     };
-  }, [current, today, mode, stepLogs, foodLog, nutritionPlan, goal, weightKg]);
+  }, [current, today, mode, stepLogs, foodLog, nutritionPlan, goal, weightKg, stepSurplus]);
 }

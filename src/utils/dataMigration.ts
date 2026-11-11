@@ -19,6 +19,7 @@ import { hasValidNutritionPlan, mergeProfile } from './backupValidation';
 import { safeGetJSON } from './safeStorage';
 import { sanitizePhases } from './phases';
 import { sanitizeTargetHistory } from './targetHistory';
+import { sanitizeStepSurplus } from './weeklySteps';
 import { withSessionMinutes } from './sessionDuration';
 
 /** Bumped whenever the stored shape changes in a way old data needs repairing for. */
@@ -230,6 +231,9 @@ export function sanitizeAppState(raw: unknown): AppState | null {
   else delete state.stepGoalMode;
   if (raw.stepMode === 'balance_steps' || raw.stepMode === 'add_calories') state.stepMode = raw.stepMode;
   else delete state.stepMode;
+  const stepSurplus = sanitizeStepSurplus(raw.stepSurplus);
+  if (stepSurplus) state.stepSurplus = stepSurplus;
+  else delete state.stepSurplus;
   const closedDays = Array.isArray(raw.closedFoodDays) ? raw.closedFoodDays.filter(isIsoDate).slice(-31) : [];
   if (closedDays.length > 0) state.closedFoodDays = closedDays;
   else delete state.closedFoodDays;

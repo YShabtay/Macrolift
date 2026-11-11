@@ -17,7 +17,7 @@ import { GUEST_USER_ID, isGuestFlagSet } from './utils/guestSession';
 import { getWeekStart, todayIso } from './utils/weightCalculations';
 import { withTargetWeightBookkeeping } from './utils/weightTarget';
 import { useToday } from './hooks/useToday';
-import type { StepMode } from './utils/weeklySteps';
+import { sanitizeStepSurplus, type StepMode, type StepSurplusChoice } from './utils/weeklySteps';
 import { storageService } from './services/storageService';
 import type {
   AppState,
@@ -726,6 +726,17 @@ export default function App() {
     setAppState((prev) => (prev ? { ...prev, stepMode: mode } : prev));
   }
 
+  /** The user's answer for the week of `weekStart` about steps beyond the week's total: turn them into calories, keep them as steps, or take the answer back (null). */
+  function handleSetStepSurplus(weekStart: string, choice: StepSurplusChoice | null) {
+    setAppState((prev) => {
+      if (!prev) return prev;
+      const { [weekStart]: _old, ...rest } = prev.stepSurplus ?? {};
+      const next = sanitizeStepSurplus(choice ? { ...rest, [weekStart]: choice } : rest);
+      const { stepSurplus: _prev, ...without } = prev;
+      return next ? { ...without, stepSurplus: next } : without;
+    });
+  }
+
   function handleSaveCustomPlan(plan: WorkoutPlan) {
     setAppState((prev) => (prev ? applyCustomPlanToState(prev, plan) : prev));
   }
@@ -837,6 +848,7 @@ export default function App() {
         onSetTodayOffset={handleSetTodayOffset}
         onImportAppState={handleImportAppState}
         onSaveStepMode={handleSaveStepMode}
+        onSetStepSurplus={handleSetStepSurplus}
         onClearStepRebalance={handleClearStepRebalance}
         userId={userId}
         onRestoreSnapshot={handleRestoreSnapshot}

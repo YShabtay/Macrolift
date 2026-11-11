@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoodEntry, NutritionPlan, StepLog } from '../types/fitness';
-import { getStepBankDebtKcal, getStepCalorieBank, getStepMode, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, withStepMode } from './weeklySteps';
+import { getStepBankDebtKcal, getStepCalorieBank, getStepMode, getWeeklyStepsPlan, getWeekStepSurplus, sanitizeStepSurplus, stepBonusKcal, stepNetKcal, withStepMode } from './weeklySteps';
 
 const GOAL = 4500;
 const steps = (date: string, n: number): StepLog => ({ date, steps: n });
@@ -255,5 +255,58 @@ describe('getStepMode', () => {
   it('defaults to balancing the steps', () => {
     expect(getStepMode({})).toBe('balance_steps');
     expect(getStepMode({ stepMode: 'add_calories' })).toBe('add_calories');
+  });
+});
+
+describe('steps beyond the week\'s total, turned into calories by the user', () => {
+  // The week of Sunday 2026-10-04 has a total of 7 x 4,500 = 31,500 steps.
+  const WEEK = '2026-10-04';
+  const params = (stepLogs: StepLog[], today: string, stepSurplus?: Record<string, 'kcal' | 'keep'>, saved?: Parameters<typeof withStepMode>[0]) =>
+    withStepMode(saved, { mode: 'balance_steps', stepLogs, foodLog: [], plan: PLAN, targetDailySteps: GOAL, weightKg: 70, today, stepSurplus });
+
+  it('measures the surplus against the whole week, counting Sunday through the day', () => {
+    const logs = [steps('2026-10-04', 10000), steps('2026-10-05', 10000), steps('2026-10-06', 10000), steps('2026-10-07', 5000), steps('2026-10-03', 9999)];
+    expect(getWeekStepSurplus({ stepLogs: logs, targetDailySteps: GOAL, weightKg: 70, date: '2026-10-07' })).toEqual({ weeklyTarget: 31500, walked: 35000, surplusSteps: 3500, surplusKcal: 140 });
+    expect(getWeekStepSurplus({ stepLogs: logs, targetDailySteps: GOAL, weightKg: 70, date: '2026-10-06' }).surplusSteps).toBe(0); // 30,000: the total is not reached yet
+  });
+
+  it('adds nothing to the calories until the user says yes, or when they say to keep the steps', () => {
+    const logs = [steps('2026-10-04', 10000), steps('2026-10-05', 10000), steps('2026-10-06', 10000), steps('2026-10-07', 5000)];
+    expect(params(logs, '2026-10-07')).toBeUndefined();
+    expect(params(logs, '2026-10-07', { [WEEK]: 'keep' })).toBeUndefined();
+    expect(params(logs, '2026-10-07', { '2026-09-27': 'kcal' })).toBeUndefined(); // another week's answer
+  });
+
+  it('after a yes, the steps beyond the total become the day\'s calories', () => {
+    const logs = [steps('2026-10-04', 10000), steps('2026-10-05', 10000), steps('2026-10-06', 10000), steps('2026-10-07', 5000)];
+    expect(params(logs, '2026-10-07', { [WEEK]: 'kcal' })?.stepAllowance).toEqual({ '2026-10-07': 140 });
+  });
+
+  it('a short day never takes calories off, and the surplus a day earns waits for the next days of the week', () => {
+    const logs = [steps('2026-10-04', 2000), steps('2026-10-05', 2000), steps('2026-10-06', 30000)];
+    // 34,000 by Tuesday: 2,500 over = 100 kcal, carried to Wednesday (nothing eaten above the base meanwhile).
+    expect(params(logs, '2026-10-07', { [WEEK]: 'kcal' })?.stepAllowance).toEqual({ '2026-10-07': 100 });
+  });
+
+  it('counts the extra walking a rebalance asked for as part of the total', () => {
+    const logs = [steps('2026-10-04', 10000), steps('2026-10-05', 10000), steps('2026-10-06', 10000), steps('2026-10-07', 5000)];
+    const saved = { weekStart: WEEK, steps: { boost: 1000, days: 2, fromDate: '2026-10-08' } };
+    const out = params(logs, '2026-10-07', { [WEEK]: 'kcal' }, saved);
+    expect(out?.stepAllowance).toEqual({ '2026-10-07': 60 }); // total 33,500: 1,500 over
+    expect(out?.steps).toEqual(saved.steps);
+  });
+
+  it('is ignored in the calorie mode, where every day is measured against the goal', () => {
+    const logs = [steps('2026-10-04', 10000)];
+    const out = withStepMode(undefined, { mode: 'add_calories', stepLogs: logs, foodLog: [], plan: PLAN, targetDailySteps: GOAL, weightKg: 70, today: '2026-10-04', stepSurplus: { [WEEK]: 'keep' } });
+    expect(out?.stepAllowance).toEqual({ '2026-10-04': 220 });
+  });
+
+  it('sanitizeStepSurplus keeps only valid weeks and choices, the latest eight', () => {
+    expect(sanitizeStepSurplus({ '2026-10-04': 'kcal', nope: 'kcal', '2026-10-11': 'maybe' })).toEqual({ '2026-10-04': 'kcal' });
+    expect(sanitizeStepSurplus([])).toBeNull();
+    expect(sanitizeStepSurplus({})).toBeNull();
+    const many = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`2026-0${1 + (i % 9)}-${10 + i}`, 'keep']));
+    expect(Object.keys(sanitizeStepSurplus(many) ?? {}).length).toBe(8);
   });
 });

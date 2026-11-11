@@ -43,7 +43,7 @@ export function buildCoachSystemPrompt(appState: AppState, isFirstReply: boolean
 
   const todaysEntries = getEntriesForDate(foodLog, today);
   const eatenToday = sumTotals(todaysEntries);
-  const stepAdjustment = deriveWeeklyAdjustment(appState.weeklyBalance, { mode: getStepMode(appState), stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: getBaseStepGoal(appState), weightKg: metrics.weightKg, today });
+  const stepAdjustment = deriveWeeklyAdjustment(appState.weeklyBalance, { mode: getStepMode(appState), stepLogs, foodLog, plan: nutritionPlan, targetDailySteps: getBaseStepGoal(appState), weightKg: metrics.weightKg, today, stepSurplus: appState.stepSurplus });
   const todayTargets = getDailyTargets(nutritionPlan, stepAdjustment, today);
   const remainingToday = calculateRemaining(todayTargets.calories, todayTargets.macros, eatenToday);
   const stepsToday = getStepsForDate(stepLogs, today);

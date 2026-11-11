@@ -1,7 +1,7 @@
 import type { FoodEntry, NutritionPlan, StepLog, WeeklyBalanceAdjustment } from '../types/fitness';
 import { addDaysIso } from './dateMath';
 import { getOvershootCoverage } from './overshoot';
-import { withStepMode, type StepMode } from './weeklySteps';
+import { withStepMode, type StepMode, type StepSurplusChoices } from './weeklySteps';
 import { getWeekStart } from './weightCalculations';
 
 /**
@@ -23,6 +23,8 @@ export interface CarryParams {
   plan: NutritionPlan;
   targetDailySteps: number;
   weightKg: number;
+  /** The weeks in which the user turned the steps beyond the week's total into calories. */
+  stepSurplus?: StepSurplusChoices;
 }
 
 /** The balance the week starting `weekStart` begins with: positive = calories not eaten before it, negative = calories eaten over. */

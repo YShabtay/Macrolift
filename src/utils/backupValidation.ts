@@ -8,6 +8,7 @@ import type { BulkWeightEntry } from './bulkWeightParser';
 import { formatIsoDate } from './weightCalculations';
 import { sanitizePhases } from './phases';
 import { sanitizeTargetHistory } from './targetHistory';
+import { sanitizeStepSurplus } from './weeklySteps';
 import { withSessionMinutes } from './sessionDuration';
 
 /** What a restore actually loaded - only pieces that were present in the file are counted. */
@@ -321,6 +322,8 @@ export function parseBackupFile(text: string, current?: AppState): BackupParseRe
   if (isFiniteNumber(candidate.stepGoal) && candidate.stepGoal > 0) state.stepGoal = Math.round(candidate.stepGoal);
   if (candidate.stepGoalMode === 'weekly' || candidate.stepGoalMode === 'daily') state.stepGoalMode = candidate.stepGoalMode;
   if (candidate.stepMode === 'balance_steps' || candidate.stepMode === 'add_calories') state.stepMode = candidate.stepMode;
+  const stepSurplus = sanitizeStepSurplus(candidate.stepSurplus);
+  if (stepSurplus) state.stepSurplus = stepSurplus;
   if (Array.isArray(candidate.closedFoodDays)) {
     const closedDays = candidate.closedFoodDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-31);
     if (closedDays.length > 0) state.closedFoodDays = closedDays;

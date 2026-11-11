@@ -5,7 +5,7 @@ import { useToday } from '../hooks/useToday';
 import { parseIsoDate, formatIsoDate, formatDateDisplay } from '../utils/weightCalculations';
 import { estimateStepCalories, getStepsForDate } from '../utils/stepsCalculations';
 import { getCarriedBonus, getStepBoostBreakdown, type StepBoostBreakdown } from '../utils/weeklyBalance';
-import { getStepBoostExtraSteps, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, type StepGoalMode, type StepMode } from '../utils/weeklySteps';
+import { getStepBoostExtraSteps, getWeekStepSurplus, getWeeklyStepsPlan, stepBonusKcal, stepNetKcal, type StepGoalMode, type StepMode, type StepSurplusChoice, type WeekStepSurplus } from '../utils/weeklySteps';
 import { QuickStepsModal, StepGoalModal } from './StepsModals';
 import Toast from './Toast';
 
@@ -24,6 +24,10 @@ interface StepsTrackerProps {
   /** What walking above the goal does: lowers what the coming days need (calories untouched), or is added to that day's calories (the goal stays). */
   stepMode: StepMode;
   onSaveStepMode: (mode: StepMode) => void;
+  /** In the "balance steps" mode: what the user chose for this week's steps beyond the week's total (not asked yet when undefined). */
+  surplusChoice?: StepSurplusChoice;
+  /** Saves that choice for this week; null takes it back so the question is asked again. */
+  onSetSurplusChoice?: (choice: StepSurplusChoice | null) => void;
   /** In the "add calories" mode: the calories in the week's bank that today's target includes (carried from earlier days plus today's steps); 0 otherwise. */
   bankKcal?: number;
   /** What the days before today owe the bank (a day below the step goal takes calories off it); the next days' steps pay it first. */
@@ -53,7 +57,7 @@ function describeDate(date: string, today: string): string {
   return `${WEEKDAY_NAMES[parseIsoDate(date).getDay()]} ${formatDateDisplay(date)}`;
 }
 
-export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, bankKcal = 0, bankDebtKcal = 0, appliedKcal = 0, onClearRebalanceSteps }: StepsTrackerProps) {
+export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weeklyBalance, weightKg, onSaveSteps, onSaveGoal, stepMode, onSaveStepMode, surplusChoice, onSetSurplusChoice, bankKcal = 0, bankDebtKcal = 0, appliedKcal = 0, onClearRebalanceSteps }: StepsTrackerProps) {
   const today = useToday();
   const [selectedDate, setSelectedDate] = useState(today);
   const [isLogging, setIsLogging] = useState(false);
@@ -70,6 +74,11 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
   const walksMore = stepMode === 'balance_steps';
   const extraSteps = walksMore ? getStepBoostExtraSteps(weeklyBalance, selectedDate) : 0;
   const weekly = useMemo(() => getWeeklyStepsPlan(baseGoalSteps, stepLogs, selectedDate, extraSteps), [baseGoalSteps, stepLogs, selectedDate, extraSteps]);
+  // Steps past the week's total, as of today (only the current week can still use them, so only today's view shows the question).
+  const surplus = useMemo(
+    () => getWeekStepSurplus({ stepLogs, targetDailySteps: baseGoalSteps, weightKg, date: today, extraSteps: getStepBoostExtraSteps(weeklyBalance, today) }),
+    [stepLogs, baseGoalSteps, weightKg, today, weeklyBalance],
+  );
   const boost = isWeekly || !walksMore ? NO_BOOST : getStepBoostBreakdown(baseGoalSteps, weeklyBalance, selectedDate, stepLogs);
   // Weekly goal with the "balance steps" mode: today's goal is what the week still needs shared over today and the days after it. Otherwise the goal as set.
   const goalSteps = isWeekly && walksMore ? weekly.targetForTodayAndRemaining : baseGoalSteps + boost.net;
@@ -239,7 +248,7 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
             <div className="h-full rounded-full bg-lime-400 transition-all duration-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
 
-          <StepsSummary weekly={isWeekly ? weekly : null} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} bankKcal={bankKcal} bankDebtKcal={bankDebtKcal} appliedKcal={appliedKcal} onClearRebalanceSteps={onClearRebalanceSteps} />
+          <StepsSummary weekly={isWeekly ? weekly : null} surplus={isWeekly && walksMore && isToday ? surplus : null} surplusChoice={surplusChoice} onSetSurplusChoice={onSetSurplusChoice} mode={stepMode} weightKg={weightKg} baseGoal={baseGoalSteps} stepsOnDay={selectedSteps} isToday={isToday} bankKcal={bankKcal} bankDebtKcal={bankDebtKcal} appliedKcal={appliedKcal} onClearRebalanceSteps={onClearRebalanceSteps} />
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-500">
             <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
@@ -329,6 +338,9 @@ export default function StepsTracker({ stepLogs, baseGoalSteps, goalMode, weekly
 /** What the steps mean, in two short lines: the average since Sunday and what each remaining day needs, or, in the calorie mode, what today's steps added. */
 function StepsSummary({
   weekly,
+  surplus,
+  surplusChoice,
+  onSetSurplusChoice,
   mode,
   weightKg,
   baseGoal,
@@ -340,6 +352,10 @@ function StepsSummary({
   onClearRebalanceSteps,
 }: {
   weekly: ReturnType<typeof getWeeklyStepsPlan> | null;
+  /** Steps past the week's total so far; null when it should not be asked about (another day, or not the weekly "balance steps" view). */
+  surplus: WeekStepSurplus | null;
+  surplusChoice?: StepSurplusChoice;
+  onSetSurplusChoice?: (choice: StepSurplusChoice | null) => void;
   mode: StepMode;
   weightKg: number;
   baseGoal: number;
@@ -353,6 +369,8 @@ function StepsSummary({
   const fmt = (n: number) => n.toLocaleString('he-IL');
   const bonus = stepBonusKcal(stepsOnDay, baseGoal, weightKg);
   const dayWord = isToday ? 'היום' : 'ביום הזה';
+  // The week's total is covered once the viewed day's own steps are counted too (the day's share only says what is needed before they are entered).
+  const weekCovered = weekly !== null && weekly.walkedBeforeToday + weekly.stepsOnDay >= weekly.weeklyTarget;
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-3">
@@ -365,13 +383,13 @@ function StepsSummary({
       {mode === 'balance_steps' && weekly && (
         <>
           <p className="mt-1 text-xs font-bold text-lime-700 dark:text-lime-400">
-            {weekly.stepsNeeded === 0
+            {weekly.stepsNeeded === 0 || weekCovered
               ? 'יעד השבוע הושג 🎉 כל צעד נוסף הוא בונוס'
               : weekly.daysRemaining === 1
                 ? `${isToday ? 'היום האחרון בשבוע' : 'היום האחרון'}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים כדי לעמוד בממוצע השבועי`
                 : `נשארו ${weekly.daysRemaining} ימים${isToday ? ' (כולל היום)' : ''}: ${fmt(weekly.targetForTodayAndRemaining)} צעדים ביום כדי לעמוד בממוצע השבועי`}
           </p>
-          {weekly.stepsNeeded > 0 && stepsOnDay > 0 && (
+          {weekly.stepsNeeded > 0 && !weekCovered && stepsOnDay > 0 && (
             <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
               {weekly.leftToday === 0 ? `${isToday ? 'להיום' : 'ליום הזה'} הושלם היעד` : `נשארו ${isToday ? 'להיום' : 'ליום הזה'}: ${fmt(weekly.leftToday)} צעדים`}
             </p>
@@ -389,7 +407,10 @@ function StepsSummary({
               )}
             </p>
           )}
-          <p className="mt-0.5 text-[11px] text-zinc-500">תקציב הקלוריות להיום רגיל: יעד הבסיס, בלי תוספת מצעדים.</p>
+          {surplus && onSetSurplusChoice && <StepSurplusPrompt surplus={surplus} choice={surplusChoice} onChoose={onSetSurplusChoice} />}
+          <p className="mt-0.5 text-[11px] text-zinc-500">
+            {surplusChoice === 'kcal' ? 'תקציב הקלוריות להיום: יעד הבסיס, ועוד הקלוריות מהעודף שהועבר.' : 'תקציב הקלוריות להיום רגיל: יעד הבסיס, בלי תוספת מצעדים.'}
+          </p>
         </>
       )}
       {mode === 'add_calories' && (
@@ -417,6 +438,51 @@ function StepsSummary({
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+/** Past the week's step total before the week is over: asks whether the extra steps should become calories (a choice for this week only), and shows what was chosen. */
+function StepSurplusPrompt({ surplus, choice, onChoose }: { surplus: WeekStepSurplus; choice?: StepSurplusChoice; onChoose: (choice: StepSurplusChoice | null) => void }) {
+  const fmt = (n: number) => n.toLocaleString('he-IL');
+  if (choice === 'kcal') {
+    return (
+      <p className="mt-1.5 text-[11px] leading-relaxed text-lime-700 dark:text-lime-400">
+        <span className="font-bold">
+          {surplus.surplusSteps > 0 ? `${fmt(surplus.surplusSteps)} צעדים מעל המכסה השבועית = ${fmt(surplus.surplusKcal)} קק״ל. הם מקזזים קודם חריגה שבועית, והשאר נוסף לתקציב.` : 'צעדים מעל המכסה השבועית יתווספו לקלוריות.'}
+        </span>{' '}
+        קלוריות שלא ינוצלו יפקעו ביום ראשון.{' '}
+        <button type="button" onClick={() => onChoose(null)} className="font-semibold underline">
+          ביטול
+        </button>
+      </p>
+    );
+  }
+  if (surplus.surplusKcal <= 0) return null;
+  if (choice === 'keep') {
+    return (
+      <p className="mt-1.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+        העודף ({fmt(surplus.surplusSteps)} צעדים) נשאר בצעדים.{' '}
+        <button type="button" onClick={() => onChoose('kcal')} className="font-semibold underline">
+          העבר לקלוריות
+        </button>
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2 rounded-lg border border-lime-400/40 bg-lime-400/10 p-2.5">
+      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">עברת את מכסת הצעדים השבועית 🎉</p>
+      <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-700 dark:text-zinc-300">
+        הלכת {fmt(surplus.walked)} מתוך {fmt(surplus.weeklyTarget)}. העודף, {fmt(surplus.surplusSteps)} צעדים, שווה בערך {fmt(surplus.surplusKcal)} קק״ל. להעביר אותו לקלוריות? הוא יקזז קודם חריגה שבועית, והשאר יתווסף לתקציב. קלוריות שלא ינוצלו יפקעו ביום ראשון.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={() => onChoose('kcal')} className="rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-extrabold text-zinc-950">
+          כן, העבר לקלוריות
+        </button>
+        <button type="button" onClick={() => onChoose('keep')} className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-300">
+          השאר בצעדים
+        </button>
+      </div>
     </div>
   );
 }

@@ -414,6 +414,11 @@ export interface AppState {
    */
   stepMode?: 'balance_steps' | 'add_calories';
   /**
+   * In the 'balance_steps' mode, what the user chose for the steps walked beyond the week's total, by the week's first day (Sunday): 'kcal' = they became
+   * calories for that week, 'keep' = they stayed as steps. A week with no entry has not been asked yet. Only the last few weeks are kept.
+   */
+  stepSurplus?: Record<string, 'kcal' | 'keep'>;
+  /**
    * The periods the user went through (a cut from March to September, then a bulk from October...), so the progress screen can show one period at a time.
    * Optional: without it a single period is derived from the profile's goal. A change of goal in the profile closes the open period and starts a new one.
    */

@@ -87,6 +87,48 @@ export function stepBonusKcal(steps: number, targetDailySteps: number, weightKg:
   return surplus > 0 ? Math.round(surplus * (weightKg / 70) * KCAL_PER_STEP_AT_70KG) : 0;
 }
 
+/** Calories for a number of steps, scaled to body weight. */
+export function stepsToKcal(steps: number, weightKg: number): number {
+  return steps > 0 ? Math.round(steps * (weightKg / 70) * KCAL_PER_STEP_AT_70KG) : 0;
+}
+
+/** The choice a user made, for one week, about steps walked beyond the week's total: 'kcal' = they become calories, 'keep' = they stay as steps only. */
+export type StepSurplusChoice = 'kcal' | 'keep';
+export type StepSurplusChoices = Record<string, StepSurplusChoice>;
+
+/** How many weeks of surplus choices are kept. */
+const SURPLUS_CHOICE_WEEKS = 8;
+
+/** Keeps only valid week -> choice pairs (the most recent weeks); null when nothing usable is left. */
+export function sanitizeStepSurplus(raw: unknown): StepSurplusChoices | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const entries = Object.entries(raw as Record<string, unknown>)
+    .filter((e): e is [string, StepSurplusChoice] => /^\d{4}-\d{2}-\d{2}$/.test(e[0]) && (e[1] === 'kcal' || e[1] === 'keep'))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-SURPLUS_CHOICE_WEEKS);
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+export interface WeekStepSurplus {
+  /** The week's step total: 7 x the daily goal, plus any extra walking a calorie rebalance asked for. */
+  weeklyTarget: number;
+  /** Steps walked from Sunday through the viewed day. */
+  walked: number;
+  /** Steps beyond the week's total (0 while the total is not reached). */
+  surplusSteps: number;
+  surplusKcal: number;
+}
+
+/** How far past the week's step total the user is, counting Sunday through `date`. Meaningful only in the 'balance_steps' mode, where the total is the goal. */
+export function getWeekStepSurplus(params: { stepLogs: StepLog[]; targetDailySteps: number; weightKg: number; date: string; extraSteps?: number }): WeekStepSurplus {
+  const { stepLogs, targetDailySteps, weightKg, date, extraSteps = 0 } = params;
+  const weekStart = getWeekStart(date);
+  const weeklyTarget = targetDailySteps * 7 + extraSteps;
+  const walked = stepLogs.filter((s) => s.date >= weekStart && s.date <= date).reduce((sum, s) => sum + s.steps, 0);
+  const surplusSteps = Math.max(0, walked - weeklyTarget);
+  return { weeklyTarget, walked, surplusSteps, surplusKcal: stepsToKcal(surplusSteps, weightKg) };
+}
+
 /**
  * Calories a finished day's steps add (above the goal) or take away (below it), for a day that has a step entry. The calorie target assumes the goal is
  * walked every day, so a short day really burned less and is netted against the days that went over before anything becomes food. Days with no entry
@@ -136,20 +178,33 @@ export function getStepCalorieBank(params: {
   today: string;
   /** What the earlier weeks left on the balance (positive = not eaten): it is part of what the week is over or under by, so steps only cancel what is left over it. */
   carryInKcal?: number;
+  /**
+   * Set when only the steps beyond the week's total become calories (the 'balance_steps' mode, after the user chose to turn the surplus into calories):
+   * a day earns the part of its steps that went past this total, and a short day takes nothing off the bank. Without it, the goal is measured per day.
+   */
+  weeklyTargetSteps?: number;
 }): StepCalorieBank {
-  const { baseAdjustment, plan, stepLogs, foodLog, targetDailySteps, weightKg, today, carryInKcal = 0 } = params;
+  const { baseAdjustment, plan, stepLogs, foodLog, targetDailySteps, weightKg, today, carryInKcal = 0, weeklyTargetSteps } = params;
   const weekStart = getWeekStart(today);
   const allowance: Record<string, number> = {};
   let bank = 0;
   let appliedWeek = 0;
   // What the week is over by after the days so far: each logged day's eaten minus its base target and the step calories it used, less what was cancelled.
   let weekOver = -carryInKcal;
+  let walkedSoFar = 0;
 
   for (let i = 0; i <= daysBetween(weekStart, today); i++) {
     const day = addDaysIso(weekStart, i);
     const daySteps = getStepsForDate(stepLogs, day);
     const isToday = day === today;
-    const bonus = isToday ? stepBonusKcal(daySteps, targetDailySteps, weightKg) : stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
+    let bonus: number;
+    if (weeklyTargetSteps !== undefined) {
+      const surplusBefore = Math.max(0, walkedSoFar - weeklyTargetSteps);
+      walkedSoFar += daySteps;
+      bonus = stepsToKcal(Math.max(0, walkedSoFar - weeklyTargetSteps) - surplusBefore, weightKg);
+    } else {
+      bonus = isToday ? stepBonusKcal(daySteps, targetDailySteps, weightKg) : stepNetKcal(daySteps, stepLogs.some((l) => l.date === day), targetDailySteps, weightKg);
+    }
     const available = Math.max(bank + bonus, 0);
     const applied = Math.min(available, Math.max(0, Math.round(weekOver)));
     const pool = available - applied;
@@ -188,7 +243,7 @@ export function getStepBankDebtKcal(params: Parameters<typeof getStepCalorieBank
  */
 export function withStepMode(
   adjustment: WeeklyBalanceAdjustment | undefined,
-  params: { mode: StepMode; stepLogs: StepLog[]; foodLog: FoodEntry[]; plan: NutritionPlan; targetDailySteps: number; weightKg: number; today: string; carryInKcal?: number },
+  params: { mode: StepMode; stepLogs: StepLog[]; foodLog: FoodEntry[]; plan: NutritionPlan; targetDailySteps: number; weightKg: number; today: string; carryInKcal?: number; stepSurplus?: StepSurplusChoices },
 ): WeeklyBalanceAdjustment | undefined {
   const { mode, today } = params;
   const carryInKcal = Math.round(params.carryInKcal ?? 0);
@@ -197,12 +252,17 @@ export function withStepMode(
   // Whatever step allowance (or carry-over) was saved by an older version is never trusted: the only ones are those derived below.
   const { stepAllowance: _saved, stepAppliedToOvershoot: _savedApplied, carryInKcal: _savedCarry, ...kept } = current ?? { weekStart };
   const withCarry = <T extends object>(a: T): T & { carryInKcal?: number } => (carryInKcal !== 0 ? { ...a, carryInKcal } : a);
-  if (mode === 'balance_steps') return current || carryInKcal !== 0 ? withCarry(kept) : undefined;
+  // In the 'balance_steps' mode the user can turn the steps beyond the week's total into calories, for that week only.
+  const surplusToKcal = mode === 'balance_steps' && params.stepSurplus?.[weekStart] === 'kcal';
+  if (mode === 'balance_steps' && !surplusToKcal) return current || carryInKcal !== 0 ? withCarry(kept) : undefined;
 
   const { steps: _walkMore, ...withoutWalkMore } = kept;
-  const { allowance, appliedWeek } = getStepCalorieBank({ baseAdjustment: withoutWalkMore, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today, carryInKcal });
+  // The surplus is counted past the week's total, which includes the extra walking a rebalance asked for, so that walking is kept in this case.
+  const baseAdjustment = surplusToKcal ? kept : withoutWalkMore;
+  const weeklyTargetSteps = surplusToKcal ? params.targetDailySteps * 7 + getStepBoostExtraSteps(current, today) : undefined;
+  const { allowance, appliedWeek } = getStepCalorieBank({ baseAdjustment, plan: params.plan, stepLogs: params.stepLogs, foodLog: params.foodLog, targetDailySteps: params.targetDailySteps, weightKg: params.weightKg, today, carryInKcal, weeklyTargetSteps });
   const hasBonus = Object.keys(allowance).length > 0;
   return hasBonus || appliedWeek > 0 || current || carryInKcal !== 0
-    ? withCarry({ ...withoutWalkMore, ...(hasBonus ? { stepAllowance: allowance } : {}), ...(appliedWeek > 0 ? { stepAppliedToOvershoot: appliedWeek } : {}) })
+    ? withCarry({ ...baseAdjustment, ...(hasBonus ? { stepAllowance: allowance } : {}), ...(appliedWeek > 0 ? { stepAppliedToOvershoot: appliedWeek } : {}) })
     : undefined;
 }

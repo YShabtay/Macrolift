@@ -52,7 +52,7 @@ import WeeklyTrendNoteCard from './WeeklyTrendNoteCard';
 import { getCurrentWeight, getWeightTargetProgress } from '../utils/weightTarget';
 import { COVERAGE_TOLERANCE_KCAL, describeCoverage, describeRoom, getOpenRebalanceDebtKcal, getOvershootCoverage, getRebalanceDebtKcal, getWeekBreakdown, shouldOfferRebalance, type OvershootCoverage } from '../utils/overshoot';
 import { useAdjustmentForDate, useEffectiveWeeklyBalance } from '../hooks/useEffectiveWeeklyBalance';
-import { getStepBankDebtKcal, getStepMode, type StepMode } from '../utils/weeklySteps';
+import { getStepBankDebtKcal, getStepMode, type StepMode, type StepSurplusChoice } from '../utils/weeklySteps';
 import { describeRangeShort, getCalorieRange } from '../utils/calorieRange';
 import DesktopSidebar from './DesktopSidebar';
 import VideoModal from './VideoModal';
@@ -206,6 +206,7 @@ interface DashboardProps {
   onSetTodayOffset: (date: string, kcal: number) => void;
   onImportAppState: (data: AppState) => Promise<void>;
   onSaveStepMode: (mode: StepMode) => void;
+  onSetStepSurplus: (weekStart: string, choice: StepSurplusChoice | null) => void;
   onClearStepRebalance: () => void;
   userId: string;
   onRestoreSnapshot: (snapshot: Snapshot) => Promise<boolean>;
@@ -328,6 +329,7 @@ export default function Dashboard({
   onSetTodayOffset,
   onImportAppState,
   onSaveStepMode,
+  onSetStepSurplus,
   onClearStepRebalance,
   userId,
   onRestoreSnapshot,
@@ -428,6 +430,7 @@ export default function Dashboard({
               onSaveSteps={onSaveSteps}
               onSaveStepGoal={onSaveStepGoal}
               onSaveStepMode={onSaveStepMode}
+              onSetStepSurplus={onSetStepSurplus}
               onClearStepRebalance={onClearStepRebalance}
               onDeleteFood={onDeleteFood}
               onUpdateFood={onUpdateFood}
@@ -561,6 +564,7 @@ function DashboardTab({
   onSaveSteps,
   onSaveStepGoal,
   onSaveStepMode,
+  onSetStepSurplus,
   onClearStepRebalance,
   onDeleteFood,
   onUpdateFood,
@@ -583,6 +587,7 @@ function DashboardTab({
   onSaveStepGoal: (goal: number, mode: 'weekly' | 'daily') => void;
   /** Removes the extra steps a calorie rebalance added to the week. */
   onSaveStepMode: (mode: StepMode) => void;
+  onSetStepSurplus: (weekStart: string, choice: StepSurplusChoice | null) => void;
   onClearStepRebalance: () => void;
   onDeleteFood: (id: string) => void;
   onUpdateFood: (id: string, updates: Partial<Omit<FoodEntry, 'id' | 'date' | 'meal'>>) => void;
@@ -842,6 +847,8 @@ function DashboardTab({
         onSaveGoal={onSaveStepGoal}
         stepMode={stepMode}
         onSaveStepMode={onSaveStepMode}
+        surplusChoice={appState.stepSurplus?.[getWeekStart(today)]}
+        onSetSurplusChoice={(choice) => onSetStepSurplus(getWeekStart(today), choice)}
         bankKcal={stepMode === 'add_calories' ? getStepAllowanceKcal(weeklyBalance, today) : 0}
         bankDebtKcal={
           stepMode === 'add_calories'
