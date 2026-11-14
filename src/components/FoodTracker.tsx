@@ -241,7 +241,7 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetToday
         eaten={eaten}
         remaining={remaining}
         covered={isCovered}
-        dayClosed={isToday && coverage.isDayClosed && remaining.calories > 0}
+        dayClosed={coverage.isDayClosed && remaining.calories > 0 && (isToday || entriesForDate.length > 0)}
         onOpenMeals={() => setIsMealsOpen(true)}
         mealsLabel={isToday ? 'פירוט ארוחות היום 📝' : 'פירוט הארוחות של היום שנבחר 📝'}
       />
@@ -301,7 +301,8 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetToday
           </button>
         </div>
       )}
-      {isToday && coverage.isDayClosed && (
+      {/* A day that is over is closed too: what it did to the week's overshoot (the offset a person made on it included) stays visible when it is opened from the calendar. */}
+      {coverage.isDayClosed && (isToday || (entriesForDate.length > 0 && coverage.closableKcal > 0)) && (
         <div className="flex items-center justify-between gap-3 rounded-xl bg-lime-400/10 px-3 py-2.5">
           <p className="text-[11px] font-semibold leading-snug text-lime-800 dark:text-lime-300">
             {(() => {
@@ -309,15 +310,18 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetToday
               const after = coverage.weekOverSoFarKcal;
               const before = after + coverage.closableKcal;
               const n = (v: number) => Math.abs(v).toLocaleString('he-IL');
-              if (coverage.closableKcal <= 0) return 'היום סגור.';
-              if (before > 0 && after <= 0) return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף (שהיה ${n(before)}), והשבוע ${after === 0 ? 'מאוזן' : `${n(after)} קק״ל מתחת ליעד`}.`;
-              if (before > 0) return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף. העודף השבועי ירד מ-${n(before)} ל-${n(after)} קק״ל.`;
-              return `היום סגור: ${n(coverage.closableKcal)} קק״ל שלא אכלת נספרו כחיסכון בשבוע.`;
+              const dayWord = isToday ? 'היום סגור' : 'היום הזה נסגר';
+              if (coverage.closableKcal <= 0) return `${dayWord}.`;
+              if (before > 0 && after <= 0) return `${dayWord}: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף (שהיה ${n(before)}), והשבוע ${after === 0 ? 'מאוזן' : `${n(after)} קק״ל מתחת ליעד`}.`;
+              if (before > 0) return `${dayWord}: ${n(coverage.closableKcal)} קק״ל שלא אכלת קוזזו מהעודף. העודף השבועי ירד מ-${n(before)} ל-${n(after)} קק״ל.`;
+              return `${dayWord}: ${n(coverage.closableKcal)} קק״ל שלא אכלת נספרו כחיסכון בשבוע.`;
             })()}
           </p>
-          <button type="button" onClick={() => onSetDayClosed(selectedDate, false)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
-            פתח מחדש
-          </button>
+          {isToday && (
+            <button type="button" onClick={() => onSetDayClosed(selectedDate, false)} className="shrink-0 text-[11px] font-bold underline underline-offset-2">
+              פתח מחדש
+            </button>
+          )}
         </div>
       )}
 
