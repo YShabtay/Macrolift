@@ -157,6 +157,20 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetToday
     [selectedDate, foodLog, nutritionPlan, dayAdjustment, isDayClosed],
   );
   const isCovered = remaining.calories < 0 && !!coverage?.isCovered;
+  // A debt carried in from earlier weeks is explained on the days it is being paid and no further: once an earlier day of the week ended with the week at or under
+  // its target, the debt is settled, and repeating it on the days after (when the week may be over for other reasons) only confuses.
+  const carryDebtSettled = useMemo(() => {
+    if (calorieBudget.carryInKcal >= 0) return false;
+    const weekStart = calorieBudget.weekStart;
+    for (let i = 0; i < 7; i++) {
+      const day = shiftDate(weekStart, i);
+      if (day >= selectedDate) return false;
+      if (getEntriesForDate(foodLog, day).length === 0) continue;
+      const settled = getOvershootCoverage({ foodLog, plan: nutritionPlan, adjustment: adjustmentFor(day, 'day'), today: day, todayClosed: true });
+      if (settled.weekOverSoFarKcal <= 0) return true;
+    }
+    return false;
+  }, [calorieBudget, selectedDate, foodLog, nutritionPlan, adjustmentFor]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -325,7 +339,7 @@ export default function FoodTracker({ closedFoodDays, onSetDayClosed, onSetToday
         </div>
       )}
 
-      <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} balanceKcal={coverage.carryInKcal !== 0 ? coverage.weekOverSoFarKcal : null} carriedOutKcal={calorieBudget.isCurrentWeek ? null : (adjustmentFor(shiftDate(calorieBudget.weekEnd, 1), 'day')?.carryInKcal ?? 0)} />
+      <WeeklyCalorieCard budget={calorieBudget} isToday={isToday} hideCarryNote={carryDebtSettled} balanceKcal={coverage.carryInKcal !== 0 ? coverage.weekOverSoFarKcal : null} carriedOutKcal={calorieBudget.isCurrentWeek ? null : (adjustmentFor(shiftDate(calorieBudget.weekEnd, 1), 'day')?.carryInKcal ?? 0)} />
 
 
       <button
